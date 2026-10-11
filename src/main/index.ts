@@ -1,13 +1,34 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, type MenuItemConstructorOptions } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { IpcChannels, type FileFilter, type MenuItemSpec } from '../shared/ipc'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, extname, join, resolve } from 'node:path'
+import { IpcChannels, type FileFilter, type MenuItemSpec, type NativeEditAction } from '../shared/ipc'
 
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
 let closeConfirmed = false
+/** File to open at launch (command line or macOS open-file before the renderer asked). */
+let startupFile: string | null = findFileArgument(process.argv)
+/** Set once the renderer has asked for the startup file; later open-file events are forwarded. */
+let rendererReady = false
+
+function findFileArgument(argv: readonly string[]): string | null {
+  // Skip the executable (and, in development, the app path).
+  for (const arg of argv.slice(1)) {
+    if (!arg.startsWith('-') && extname(arg).toLowerCase() === '.mdj') return resolve(arg)
+  }
+  return null
+}
+
+// macOS delivers files opened from Finder/Dock through this event, possibly before `ready`.
+app.on('open-file', (event, path) => {
+  event.preventDefault()
+  if (rendererReady && mainWindow) mainWindow.webContents.send(IpcChannels.openFile, path)
+  else startupFile = path
+})
 
 function createWindow(): void {
+  closeConfirmed = false
+  isDirty = false
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -33,6 +54,7 @@ function createWindow(): void {
   })
   mainWindow.on('closed', () => {
     mainWindow = null
+    rendererReady = false
   })
 
   // Never navigate away from the app or open arbitrary windows.
@@ -65,9 +87,27 @@ function toMenuTemplate(items: MenuItemSpec[]): MenuItemConstructorOptions[] {
   })
 }
 
+/** Development-only menu (never shown in packaged builds). */
+function debugMenu(): MenuItemConstructorOptions {
+  return {
+    label: 'Debug',
+    submenu: [
+      { label: 'Show DevTools', role: 'toggleDevTools', accelerator: 'Shift+Alt+T' },
+      { label: 'Reload', role: 'reload' }
+    ]
+  }
+}
+
+async function writeWithFolders(path: string, data: string | Buffer): Promise<void> {
+  await mkdir(dirname(path), { recursive: true })
+  await writeFile(path, data)
+}
+
 function registerIpc(): void {
   ipcMain.on(IpcChannels.setMenu, (_event, menu: MenuItemSpec[]) => {
-    Menu.setApplicationMenu(Menu.buildFromTemplate(toMenuTemplate(menu)))
+    const template = toMenuTemplate(menu)
+    if (!app.isPackaged) template.push(debugMenu())
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template))
   })
 
   ipcMain.handle(IpcChannels.openTextFile, async (_event, filters: FileFilter[]) => {
@@ -86,10 +126,20 @@ function registerIpc(): void {
     return result.canceled || !result.filePath ? null : result.filePath
   })
 
-  ipcMain.handle(IpcChannels.writeTextFile, (_event, path: string, content: string) => writeFile(path, content, 'utf8'))
+  ipcMain.handle(IpcChannels.chooseFolder, async (_event, title: string) => {
+    if (!mainWindow) return null
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title,
+      properties: ['openDirectory', 'createDirectory']
+    })
+    const path = result.filePaths[0]
+    return result.canceled || !path ? null : path
+  })
+
+  ipcMain.handle(IpcChannels.writeTextFile, (_event, path: string, content: string) => writeWithFolders(path, content))
 
   ipcMain.handle(IpcChannels.writeBinaryFile, (_event, path: string, base64: string) =>
-    writeFile(path, Buffer.from(base64, 'base64'))
+    writeWithFolders(path, Buffer.from(base64, 'base64'))
   )
 
   ipcMain.handle(IpcChannels.showMessageBox, async (_event, options: Electron.MessageBoxOptions) => {
@@ -107,6 +157,41 @@ function registerIpc(): void {
   ipcMain.on(IpcChannels.confirmClose, () => {
     closeConfirmed = true
     mainWindow?.close()
+  })
+
+  ipcMain.on(IpcChannels.nativeEdit, (event, action: NativeEditAction) => {
+    const contents = event.sender
+    switch (action) {
+      case 'undo':
+        return contents.undo()
+      case 'redo':
+        return contents.redo()
+      case 'cut':
+        return contents.cut()
+      case 'copy':
+        return contents.copy()
+      case 'paste':
+        return contents.paste()
+      case 'selectAll':
+        return contents.selectAll()
+      case 'delete':
+        return contents.delete()
+    }
+  })
+
+  ipcMain.on(IpcChannels.openExternal, (_event, url: string) => {
+    if (typeof url === 'string' && url.startsWith('https://')) void shell.openExternal(url)
+  })
+
+  ipcMain.on(IpcChannels.addRecentDocument, (_event, path: string) => {
+    if (typeof path === 'string' && path.length > 0) app.addRecentDocument(path)
+  })
+
+  ipcMain.handle(IpcChannels.takeStartupFile, () => {
+    rendererReady = true
+    const path = startupFile
+    startupFile = null
+    return path
   })
 }
 

@@ -19,7 +19,13 @@ const bridge: OpenUmlBridge = {
   showMessageBox: (options) => ipcRenderer.invoke(IpcChannels.showMessageBox, options),
   setDirty: (dirty, title) => ipcRenderer.send(IpcChannels.setDirty, dirty, title),
   onCloseRequested: (listener) => subscribe<[]>(IpcChannels.closeRequested, listener),
-  confirmClose: () => ipcRenderer.send(IpcChannels.confirmClose)
+  confirmClose: () => ipcRenderer.send(IpcChannels.confirmClose),
+  nativeEdit: (action) => ipcRenderer.send(IpcChannels.nativeEdit, action),
+  chooseFolder: (title) => ipcRenderer.invoke(IpcChannels.chooseFolder, title),
+  openExternal: (url) => ipcRenderer.send(IpcChannels.openExternal, url),
+  addRecentDocument: (path) => ipcRenderer.send(IpcChannels.addRecentDocument, path),
+  takeStartupFile: () => ipcRenderer.invoke(IpcChannels.takeStartupFile),
+  onOpenFile: (listener) => subscribe<[string]>(IpcChannels.openFile, listener)
 }
 
 contextBridge.exposeInMainWorld('openuml', bridge)
