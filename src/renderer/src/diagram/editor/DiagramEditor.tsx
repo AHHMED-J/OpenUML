@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import { addAttribute, addEnumerationLiteral, addOperation } from '../../commands'
+import { addAttribute, addEnumerationLiteral, addExtensionPoint, addOperation } from '../../commands'
 import { isKindOf, type Diagram, type Elem, type Point, type View } from '../../model'
 import { useProjectStore } from '../../store'
 import {
@@ -277,6 +277,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           } else if (target.kind === 'literal' || (isKindOf(classifier, 'UMLEnumeration') && target.kind === 'name')) {
             added.el = addEnumerationLiteral(engine, classifier)
             if (view['suppressLiterals'] === true) b.set(view, 'suppressLiterals', false)
+          } else if (isKindOf(classifier, 'UMLUseCase') && target.kind === 'name') {
+            // Use case name or extension point row: add an extension point.
+            added.el = addExtensionPoint(engine, classifier)
           } else {
             added.el = addAttribute(engine, classifier)
             if (view['suppressAttributes'] === true) b.set(view, 'suppressAttributes', false)
