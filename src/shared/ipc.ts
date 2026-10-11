@@ -23,6 +23,9 @@ export interface OpenFileResult {
   content: string
 }
 
+/** Native editing actions forwarded to the focused text field (see `nativeEdit`). */
+export type NativeEditAction = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'selectAll' | 'delete'
+
 export interface OpenUmlBridge {
   platform: NodeJS.Platform
   /** Replace the native application menu. */
@@ -45,6 +48,18 @@ export interface OpenUmlBridge {
   /** Subscribe to the window close request; the renderer must call confirmClose when ready. */
   onCloseRequested(listener: () => void): () => void
   confirmClose(): void
+  /** Runs a native editing action on the focused web contents (text fields). */
+  nativeEdit(action: NativeEditAction): void
+  /** Show a folder picker. Resolves the chosen folder or null if cancelled. */
+  chooseFolder(title: string): Promise<string | null>
+  /** Opens an https URL in the OS browser. Other schemes are ignored. */
+  openExternal(url: string): void
+  /** Adds a path to the OS recent-documents list. */
+  addRecentDocument(path: string): void
+  /** The `.mdj` file passed on the command line or by the OS at launch (once), else null. */
+  takeStartupFile(): Promise<string | null>
+  /** Subscribe to files the OS asks to open while running (macOS open-file). */
+  onOpenFile(listener: (path: string) => void): () => void
 }
 
 export const IpcChannels = {
@@ -58,5 +73,11 @@ export const IpcChannels = {
   showMessageBox: 'openuml:show-message-box',
   setDirty: 'openuml:set-dirty',
   closeRequested: 'openuml:close-requested',
-  confirmClose: 'openuml:confirm-close'
+  confirmClose: 'openuml:confirm-close',
+  nativeEdit: 'openuml:native-edit',
+  chooseFolder: 'openuml:choose-folder',
+  openExternal: 'openuml:open-external',
+  addRecentDocument: 'openuml:add-recent-document',
+  takeStartupFile: 'openuml:take-startup-file',
+  openFile: 'openuml:open-file'
 } as const
