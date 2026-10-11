@@ -4,6 +4,7 @@
  * Everything here is a plain constant; nothing is read from preferences. A future style resolver
  * layers per-element and global preferences on top of these built-in defaults.
  */
+import type { Font as ModelFont } from '../../model'
 
 // ---------------------------------------------------------------------------
 // Numeric codes persisted in .mdj files
@@ -45,12 +46,11 @@ export type VerticalAlignment = (typeof VerticalAlignment)[keyof typeof Vertical
 export const FontStyle = { Normal: 0, Bold: 1, Italic: 2, BoldItalic: 3 } as const
 export type FontStyle = (typeof FontStyle)[keyof typeof FontStyle]
 
-/** A parsed font (see `parseFont` / `serializeFont`). */
-export interface Font {
-  face: string
-  size: number
-  style: FontStyle
-}
+/**
+ * A parsed font (see `parseFont` / `serializeFont`). Same type as the model's `View.font` value;
+ * `style` holds a `FontStyle` code.
+ */
+export type Font = ModelFont
 
 // ---------------------------------------------------------------------------
 // Colors
