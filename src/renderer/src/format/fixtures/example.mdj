@@ -1,0 +1,242 @@
+{
+	"_type": "Project",
+	"_id": "ex-project",
+	"name": "Example",
+	"ownedElements": [
+		{
+			"_type": "UMLModel",
+			"_id": "ex-model",
+			"_parent": {"$ref": "ex-project"},
+			"name": "Model",
+			"ownedElements": [
+				{
+					"_type": "UMLClassDiagram",
+					"_id": "ex-diagram",
+					"_parent": {"$ref": "ex-model"},
+					"name": "Main",
+					"defaultDiagram": true,
+					"ownedViews": [
+						{
+							"_type": "UMLClassView",
+							"_id": "ex-v-customer",
+							"_parent": {"$ref": "ex-diagram"},
+							"model": {"$ref": "ex-customer"},
+							"subViews": [
+								{
+									"_type": "UMLNameCompartmentView",
+									"_id": "ex-v-customer-nc",
+									"_parent": {"$ref": "ex-v-customer"},
+									"model": {"$ref": "ex-customer"},
+									"subViews": [
+										{"_type": "LabelView", "_id": "ex-v-customer-st", "_parent": {"$ref": "ex-v-customer-nc"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 40, "top": 40, "height": 13},
+										{"_type": "LabelView", "_id": "ex-v-customer-nm", "_parent": {"$ref": "ex-v-customer-nc"}, "font": "Arial;13;1", "parentStyle": true, "left": 45, "top": 47, "width": 150, "height": 13, "text": "Customer"},
+										{"_type": "LabelView", "_id": "ex-v-customer-ns", "_parent": {"$ref": "ex-v-customer-nc"}, "visible": false, "font": "Arial;11.7;0", "parentStyle": true, "left": 40, "top": 40, "height": 13, "text": "(from Model)"},
+										{"_type": "LabelView", "_id": "ex-v-customer-pr", "_parent": {"$ref": "ex-v-customer-nc"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 40, "top": 40, "height": 13, "horizontalAlignment": 1}
+									],
+									"font": "Arial;13;0",
+									"parentStyle": false,
+									"left": 40,
+									"top": 40,
+									"width": 160,
+									"height": 25,
+									"stereotypeLabel": {"$ref": "ex-v-customer-st"},
+									"nameLabel": {"$ref": "ex-v-customer-nm"},
+									"namespaceLabel": {"$ref": "ex-v-customer-ns"},
+									"propertyLabel": {"$ref": "ex-v-customer-pr"}
+								},
+								{
+									"_type": "UMLAttributeCompartmentView",
+									"_id": "ex-v-customer-ac",
+									"_parent": {"$ref": "ex-v-customer"},
+									"model": {"$ref": "ex-customer"},
+									"subViews": [
+										{"_type": "UMLAttributeView", "_id": "ex-v-attr-name", "_parent": {"$ref": "ex-v-customer-ac"}, "model": {"$ref": "ex-attr-name"}, "font": "Arial;13;0", "parentStyle": true, "left": 45, "top": 70, "width": 150, "height": 13, "text": "+name: String", "horizontalAlignment": 0}
+									],
+									"font": "Arial;13;0",
+									"parentStyle": false,
+									"left": 40,
+									"top": 65,
+									"width": 160,
+									"height": 23
+								},
+								{
+									"_type": "UMLOperationCompartmentView",
+									"_id": "ex-v-customer-oc",
+									"_parent": {"$ref": "ex-v-customer"},
+									"model": {"$ref": "ex-customer"},
+									"subViews": [
+										{"_type": "UMLOperationView", "_id": "ex-v-op-getname", "_parent": {"$ref": "ex-v-customer-oc"}, "model": {"$ref": "ex-op-getname"}, "font": "Arial;13;0", "parentStyle": true, "left": 45, "top": 93, "width": 150, "height": 13, "text": "+getName(): String", "horizontalAlignment": 0}
+									],
+									"font": "Arial;13;0",
+									"parentStyle": false,
+									"left": 40,
+									"top": 88,
+									"width": 160,
+									"height": 23
+								},
+								{"_type": "UMLReceptionCompartmentView", "_id": "ex-v-customer-rc", "_parent": {"$ref": "ex-v-customer"}, "model": {"$ref": "ex-customer"}, "visible": false, "font": "Arial;13;0", "parentStyle": false, "left": 40, "top": 40, "width": 10, "height": 10},
+								{"_type": "UMLTemplateParameterCompartmentView", "_id": "ex-v-customer-tc", "_parent": {"$ref": "ex-v-customer"}, "model": {"$ref": "ex-customer"}, "visible": false, "font": "Arial;13;0", "parentStyle": false, "left": 40, "top": 40, "width": 10, "height": 10}
+							],
+							"font": "Arial;13;0",
+							"parentStyle": false,
+							"containerChangeable": true,
+							"left": 40,
+							"top": 40,
+							"width": 160,
+							"height": 71,
+							"nameCompartment": {"$ref": "ex-v-customer-nc"},
+							"attributeCompartment": {"$ref": "ex-v-customer-ac"},
+							"operationCompartment": {"$ref": "ex-v-customer-oc"},
+							"receptionCompartment": {"$ref": "ex-v-customer-rc"},
+							"templateParameterCompartment": {"$ref": "ex-v-customer-tc"}
+						},
+						{
+							"_type": "UMLClassView",
+							"_id": "ex-v-order",
+							"_parent": {"$ref": "ex-diagram"},
+							"model": {"$ref": "ex-order"},
+							"subViews": [
+								{
+									"_type": "UMLNameCompartmentView",
+									"_id": "ex-v-order-nc",
+									"_parent": {"$ref": "ex-v-order"},
+									"model": {"$ref": "ex-order"},
+									"subViews": [
+										{"_type": "LabelView", "_id": "ex-v-order-st", "_parent": {"$ref": "ex-v-order-nc"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 360, "top": 40, "height": 13},
+										{"_type": "LabelView", "_id": "ex-v-order-nm", "_parent": {"$ref": "ex-v-order-nc"}, "font": "Arial;13;1", "parentStyle": true, "left": 365, "top": 47, "width": 110, "height": 13, "text": "Order"},
+										{"_type": "LabelView", "_id": "ex-v-order-ns", "_parent": {"$ref": "ex-v-order-nc"}, "visible": false, "font": "Arial;11.7;0", "parentStyle": true, "left": 360, "top": 40, "height": 13, "text": "(from Model)"},
+										{"_type": "LabelView", "_id": "ex-v-order-pr", "_parent": {"$ref": "ex-v-order-nc"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 360, "top": 40, "height": 13, "horizontalAlignment": 1}
+									],
+									"font": "Arial;13;0",
+									"parentStyle": false,
+									"left": 360,
+									"top": 40,
+									"width": 120,
+									"height": 25,
+									"stereotypeLabel": {"$ref": "ex-v-order-st"},
+									"nameLabel": {"$ref": "ex-v-order-nm"},
+									"namespaceLabel": {"$ref": "ex-v-order-ns"},
+									"propertyLabel": {"$ref": "ex-v-order-pr"}
+								},
+								{"_type": "UMLAttributeCompartmentView", "_id": "ex-v-order-ac", "_parent": {"$ref": "ex-v-order"}, "model": {"$ref": "ex-order"}, "font": "Arial;13;0", "parentStyle": false, "left": 360, "top": 65, "width": 120, "height": 10},
+								{"_type": "UMLOperationCompartmentView", "_id": "ex-v-order-oc", "_parent": {"$ref": "ex-v-order"}, "model": {"$ref": "ex-order"}, "font": "Arial;13;0", "parentStyle": false, "left": 360, "top": 75, "width": 120, "height": 10},
+								{"_type": "UMLReceptionCompartmentView", "_id": "ex-v-order-rc", "_parent": {"$ref": "ex-v-order"}, "model": {"$ref": "ex-order"}, "visible": false, "font": "Arial;13;0", "parentStyle": false, "left": 360, "top": 40, "width": 10, "height": 10},
+								{"_type": "UMLTemplateParameterCompartmentView", "_id": "ex-v-order-tc", "_parent": {"$ref": "ex-v-order"}, "model": {"$ref": "ex-order"}, "visible": false, "font": "Arial;13;0", "parentStyle": false, "left": 360, "top": 40, "width": 10, "height": 10}
+							],
+							"font": "Arial;13;0",
+							"parentStyle": false,
+							"containerChangeable": true,
+							"left": 360,
+							"top": 40,
+							"width": 120,
+							"height": 45,
+							"nameCompartment": {"$ref": "ex-v-order-nc"},
+							"attributeCompartment": {"$ref": "ex-v-order-ac"},
+							"operationCompartment": {"$ref": "ex-v-order-oc"},
+							"receptionCompartment": {"$ref": "ex-v-order-rc"},
+							"templateParameterCompartment": {"$ref": "ex-v-order-tc"}
+						},
+						{
+							"_type": "UMLAssociationView",
+							"_id": "ex-v-assoc",
+							"_parent": {"$ref": "ex-diagram"},
+							"model": {"$ref": "ex-assoc"},
+							"subViews": [
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-name", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 280, "top": 40, "height": 13, "alpha": 1.5707963267948966, "distance": 15, "hostEdge": {"$ref": "ex-v-assoc"}, "edgePosition": 1},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-stereo", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 280, "top": 25, "height": 13, "alpha": 1.5707963267948966, "distance": 30, "hostEdge": {"$ref": "ex-v-assoc"}, "edgePosition": 1},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-prop", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 280, "top": 70, "height": 13, "alpha": -1.5707963267948966, "distance": 15, "hostEdge": {"$ref": "ex-v-assoc"}, "edgePosition": 1},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-trole", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end1"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 215, "top": 45, "height": 13, "alpha": 0.5235987755982988, "distance": 30, "hostEdge": {"$ref": "ex-v-assoc"}, "edgePosition": 2},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-tprop", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end1"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 215, "top": 35, "height": 13, "alpha": 0.7853981633974483, "distance": 40, "hostEdge": {"$ref": "ex-v-assoc"}, "edgePosition": 2},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-tmult", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end1"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 215, "top": 70, "height": 13, "alpha": -0.5235987755982988, "distance": 25, "hostEdge": {"$ref": "ex-v-assoc"}, "edgePosition": 2},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-hrole", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end2"}, "font": "Arial;13;0", "parentStyle": true, "left": 310, "top": 40, "width": 40, "height": 13, "alpha": -0.5235987755982988, "distance": 30, "hostEdge": {"$ref": "ex-v-assoc"}, "text": "+orders"},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-hprop", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end2"}, "visible": false, "font": "Arial;13;0", "parentStyle": true, "left": 320, "top": 30, "height": 13, "alpha": -0.7853981633974483, "distance": 40, "hostEdge": {"$ref": "ex-v-assoc"}},
+								{"_type": "EdgeLabelView", "_id": "ex-v-assoc-hmult", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end2"}, "font": "Arial;13;0", "parentStyle": true, "left": 325, "top": 66, "width": 25, "height": 13, "alpha": 0.5235987755982988, "distance": 25, "hostEdge": {"$ref": "ex-v-assoc"}, "text": "0..*"},
+								{"_type": "UMLQualifierCompartmentView", "_id": "ex-v-assoc-tq", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end1"}, "visible": false, "font": "Arial;13;0", "parentStyle": false, "width": 10, "height": 10},
+								{"_type": "UMLQualifierCompartmentView", "_id": "ex-v-assoc-hq", "_parent": {"$ref": "ex-v-assoc"}, "model": {"$ref": "ex-assoc-end2"}, "visible": false, "font": "Arial;13;0", "parentStyle": false, "width": 10, "height": 10}
+							],
+							"font": "Arial;13;0",
+							"parentStyle": false,
+							"head": {"$ref": "ex-v-order"},
+							"tail": {"$ref": "ex-v-customer"},
+							"lineStyle": 1,
+							"points": "200:62;360:62",
+							"showVisibility": true,
+							"nameLabel": {"$ref": "ex-v-assoc-name"},
+							"stereotypeLabel": {"$ref": "ex-v-assoc-stereo"},
+							"propertyLabel": {"$ref": "ex-v-assoc-prop"},
+							"tailRoleNameLabel": {"$ref": "ex-v-assoc-trole"},
+							"tailPropertyLabel": {"$ref": "ex-v-assoc-tprop"},
+							"tailMultiplicityLabel": {"$ref": "ex-v-assoc-tmult"},
+							"headRoleNameLabel": {"$ref": "ex-v-assoc-hrole"},
+							"headPropertyLabel": {"$ref": "ex-v-assoc-hprop"},
+							"headMultiplicityLabel": {"$ref": "ex-v-assoc-hmult"},
+							"tailQualifiersCompartment": {"$ref": "ex-v-assoc-tq"},
+							"headQualifiersCompartment": {"$ref": "ex-v-assoc-hq"}
+						}
+					]
+				},
+				{
+					"_type": "UMLClass",
+					"_id": "ex-customer",
+					"_parent": {"$ref": "ex-model"},
+					"name": "Customer",
+					"ownedElements": [
+						{
+							"_type": "UMLAssociation",
+							"_id": "ex-assoc",
+							"_parent": {"$ref": "ex-customer"},
+							"end1": {
+								"_type": "UMLAssociationEnd",
+								"_id": "ex-assoc-end1",
+								"_parent": {"$ref": "ex-assoc"},
+								"reference": {"$ref": "ex-customer"}
+							},
+							"end2": {
+								"_type": "UMLAssociationEnd",
+								"_id": "ex-assoc-end2",
+								"_parent": {"$ref": "ex-assoc"},
+								"name": "orders",
+								"reference": {"$ref": "ex-order"},
+								"navigable": "navigable",
+								"multiplicity": "0..*"
+							}
+						}
+					],
+					"attributes": [
+						{
+							"_type": "UMLAttribute",
+							"_id": "ex-attr-name",
+							"_parent": {"$ref": "ex-customer"},
+							"name": "name",
+							"type": "String"
+						}
+					],
+					"operations": [
+						{
+							"_type": "UMLOperation",
+							"_id": "ex-op-getname",
+							"_parent": {"$ref": "ex-customer"},
+							"name": "getName",
+							"parameters": [
+								{
+									"_type": "UMLParameter",
+									"_id": "ex-op-getname-ret",
+									"_parent": {"$ref": "ex-op-getname"},
+									"type": "String",
+									"direction": "return"
+								}
+							]
+						}
+					]
+				},
+				{
+					"_type": "UMLClass",
+					"_id": "ex-order",
+					"_parent": {"$ref": "ex-model"},
+					"name": "Order"
+				}
+			]
+		}
+	],
+	"documentVersion": 1
+}
