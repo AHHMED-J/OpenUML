@@ -393,6 +393,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
             if (id) {
               setSelection([id])
               onToolUsed()
+              if ((repository.get(id) as View | undefined)?.model) requestEdit(id)
             }
             return
           }

@@ -339,6 +339,11 @@ describe('combined fragment', () => {
     resizeSubView(t, o1?.viewId as string, 80)
     const l2 = t.layout().nodes.get(f._id) as NodeLayout<FragmentData>
     expect(l2.data.operands.map((o) => o.rect.height)).toEqual([80, 300 - 123 - 80])
+    // Regression: an empty guard (second operand) is still a hit area at its edit region, so it
+    // can be double-clicked to add a guard.
+    const emptyGuard = l2.regions.find((r) => r.target.kind === 'custom' && r.target.elementId === operands[1]?._id)
+    expect(emptyGuard?.box).toMatchObject({ left: 50 })
+    expect(l2.hitAreas).toContainEqual(emptyGuard?.box)
   })
 
   it('hits on its border and label but not inside, so messages under it stay selectable', () => {
