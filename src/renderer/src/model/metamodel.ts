@@ -6,6 +6,8 @@
 import { CORE_ENUMS, CORE_TYPES } from './metamodel-core'
 import { hasDefault, type FieldDef, type TypeDef } from './metamodel-dsl'
 import { UML_ENUMS, UML_TYPES } from './metamodel-uml'
+import { STRUCTURE_ENUMS, STRUCTURE_MODEL_TYPES, STRUCTURE_VIEW_TYPES } from './metamodel-structure'
+import { STATEMACHINE_ENUMS, STATEMACHINE_TYPES } from './metamodel-statemachine'
 import type { Elem, TypeMap } from './types'
 import { DEFAULT_FONT } from './values'
 
@@ -41,8 +43,13 @@ export function registerEnums(defs: Record<string, readonly string[]>): void {
 
 registerTypes(CORE_TYPES)
 registerTypes(UML_TYPES)
+registerTypes(STRUCTURE_MODEL_TYPES)
+registerTypes(STRUCTURE_VIEW_TYPES)
+registerTypes(STATEMACHINE_TYPES)
 registerEnums(CORE_ENUMS)
 registerEnums(UML_ENUMS)
+registerEnums(STRUCTURE_ENUMS)
+registerEnums(STATEMACHINE_ENUMS)
 
 function resolve(name: string, seen: Set<string> = new Set()): TypeInfo | undefined {
   const cached = typeInfos.get(name)

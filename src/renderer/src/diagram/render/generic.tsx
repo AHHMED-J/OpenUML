@@ -273,8 +273,13 @@ const FRAME_KEYWORDS: Record<string, string> = {
   UMLSequenceDiagram: 'sd',
   UMLClassDiagram: 'class',
   UMLUseCaseDiagram: 'uc',
-  UMLActivityDiagram: 'act'
+  UMLActivityDiagram: 'act',
+  UMLCommunicationDiagram: 'sd',
+  UMLInteractionOverviewDiagram: 'sd'
 }
+
+/** Diagrams whose frame shows the name of their owning interaction / activity rather than their own. */
+const OWNER_NAMED_FRAMES = new Set(['UMLSequenceDiagram', 'UMLCommunicationDiagram', 'UMLInteractionOverviewDiagram'])
 
 interface FrameData {
   readonly label: FrameLabelLayout
@@ -284,7 +289,7 @@ function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<FrameData> 
   const style = styleOf(view)
   const diagram = isKindOf(view.model, 'Diagram') ? (view.model as Diagram) : ctx.diagram
   const keyword = FRAME_KEYWORDS[diagram._type] ?? 'pkg'
-  const owner = diagram._type === 'UMLSequenceDiagram' ? diagram._parent : diagram
+  const owner = OWNER_NAMED_FRAMES.has(diagram._type) ? diagram._parent : diagram
   const name = nameOf(owner)
   const probe = layoutFrameLabel({ left: 0, top: 0, width: 0, height: 0 }, keyword, name, style.font, ctx.measurer)
   const layout = nodeLayout(view, {

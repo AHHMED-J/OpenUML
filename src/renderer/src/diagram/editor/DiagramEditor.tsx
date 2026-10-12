@@ -35,6 +35,7 @@ import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { getTextMeasurer } from '../layout/measurer'
 import type { DiagramLayout, EditRegion, EditTarget, NodeDivider } from '../layout/types'
 import { DiagramContent } from '../render/DiagramContent'
+import { nodeNotationFor } from '../render/registry'
 import { copySelection, pasteClipboard } from '../commands'
 import {
   createEdgeBetween,
@@ -109,6 +110,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const version = useProjectStore((s) => s.version)
   const selectedViewIds = useProjectStore((s) => s.selectedViewIds)
   const select = useProjectStore((s) => s.select)
+  const openDiagram = useProjectStore((s) => s.openDiagram)
   const measurer = getTextMeasurer()
   const gridId = useId().replace(/:/g, '')
 
@@ -242,6 +244,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       const label = edge.labels.find((lb) => lb.edit && (!elementId || ('elementId' in lb.edit && lb.edit.elementId === elementId)))
       if (label?.edit) {
         openRegion(viewId, { box: label.box, target: label.edit, text: label.editText ?? label.text, font: label.font })
+        return true
+      }
+      if (edge.fallbackEdit) {
+        openRegion(viewId, { box: edgeMidBox(edge.points), target: edge.fallbackEdit.target, text: edge.fallbackEdit.text, font: edge.style.font })
         return true
       }
       if (view.model && edge.points.length > 0) {
@@ -766,6 +772,14 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       return
     }
     if (hit.kind === 'node') {
+      // Nodes that refer to something (interaction overview nodes) open their target instead.
+      const nodeView = repository.get(hit.viewId) as View | undefined
+      const target = nodeView ? nodeNotationFor(nodeView).openTarget?.(nodeView) : null
+      if (target && !hit.region) {
+        if (isKindOf(target, 'Diagram')) openDiagram(target._id)
+        else select({ elements: [target._id] })
+        return
+      }
       if (hit.region) openRegion(hit.viewId, hit.region)
       else openQuickEdit(hit.viewId)
     } else if (hit.kind === 'edge-label') {
