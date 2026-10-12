@@ -131,7 +131,9 @@ describe('object node layout', () => {
     expect(l.minHeight).toBe(40)
     expect(l.data.lines[1]?.box.top).toBe(5 + 13 + 2 + 2)
     expect(l.data.lines[1]?.font.style).toBe(0)
-    expect(l.regions[0]?.text).toBe('order')
+    // Edits the whole `name: Type` notation, not just the name.
+    expect(l.regions[0]?.target).toEqual({ kind: 'typedName', elementId: model._id })
+    expect(l.regions[0]?.text).toBe('order: Order')
   })
 })
 
@@ -236,7 +238,9 @@ describe('pin layout', () => {
     expect(label?.box).toEqual(placeNodeLabel(l.box, NODE_LABEL_DEFAULTS.name, size))
     expect(label?.box.top).toBeLessThan(l.box.top)
     expect(l.extraBounds).toEqual([label?.box])
-    expect(l.regions[0]?.target).toEqual({ kind: 'name', elementId: pin.model?._id })
+    // Regression: the label shows `name: Type[mult]`, so that is what the quick edit accepts.
+    expect(l.regions[0]?.target).toEqual({ kind: 'typedName', elementId: pin.model?._id })
+    expect(l.regions[0]?.text).toBe('qty: Integer[1]')
   })
 
   it('follows its action when the action moves and stays contained when dropped on it', () => {

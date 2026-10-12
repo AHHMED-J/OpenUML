@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { addOperation, addParameter } from '../../commands'
-import type { EdgeView, Elem, NodeView, UMLOperation, UMLParameter, View } from '../../model'
+import { addOperation, addParameter, setFields } from '../../commands'
+import { createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
 import { testDiagram } from '../testUtils'
 import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
 import { alignBoxes } from './alignment'
@@ -161,5 +161,21 @@ describe('quick edit', () => {
     expect(note['text']).toBe('line 1\nline 2')
     const layout = t.layout().nodes.get(note._id)
     expect((layout?.data as { lines: unknown[] }).lines).toHaveLength(2)
+  })
+
+  it('applies typed names (name: Type[mult]) to pins and object nodes', () => {
+    const t = testDiagram()
+    const cls = t.node('Class', 0, 0).model as Elem
+    setFields(t.engine, cls, { name: 'Money' })
+    const pin = createElement('UMLInputPin', { name: 'InputPin1' })
+    t.engine.transact('Add', (b) => b.insert(cls._parent as Elem, 'ownedElements', pin))
+    expect(applyQuickEdit(t.engine, { kind: 'typedName', elementId: pin._id }, 'amount: Money[0..1]')).toBe(true)
+    expect(pin['name']).toBe('amount')
+    expect(pin['type']).toBe(cls)
+    expect(pin['multiplicity']).toBe('0..1')
+    expect(applyQuickEdit(t.engine, { kind: 'typedName', elementId: pin._id }, 'qty: Integer')).toBe(true)
+    expect(pin['type']).toBe('Integer')
+    expect(pin['multiplicity']).toBe('')
+    expect(applyQuickEdit(t.engine, { kind: 'typedName', elementId: pin._id }, 'a(b')).toBe(false)
   })
 })

@@ -32,6 +32,7 @@ export interface QuickEditorProps {
 function hintFor(target: EditTarget): string {
   switch (target.kind) {
     case 'attribute':
+    case 'typedName':
       return QUICK_EDIT_HINTS.attribute
     case 'operation':
       return QUICK_EDIT_HINTS.operation
