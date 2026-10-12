@@ -1,8 +1,12 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { deleteFromModel, deleteFromView } from '../../commands'
 import { isKindOf, setRadAutoThread, type Elem, type NodeView, type View } from '../../model'
 import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, reconnectEnd, type DiagramEnv } from '../editor/actions'
+import { SelectionOverlay } from '../editor/Overlays'
 import { applyQuickEdit } from '../editor/quickEditApply'
+import { hitTestDiagram } from '../editor/hitTest'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { RadBuilder, insuranceFixture, letterFixture } from './fixtures'
 
@@ -227,5 +231,37 @@ describe('quick edit', () => {
     expect(applyQuickEdit(b.engine, { kind: 'field', elementId: c._id, field: 'externalParty' }, ' Broker ')).toBe(true)
     expect(c['externalParty']).toBe('Broker')
     expect(isKindOf(c, 'RADInteraction')).toBe(true)
+  })
+})
+
+describe('editor surfaces', () => {
+  it('hits an element by its label and opens the label for editing', () => {
+    const b = insuranceFixture()
+    const l = layout(b)
+    const n = l.nodes.get(b.v('a2')._id)
+    const label = n && (n.data as { lines: Array<{ box: { left: number; top: number; width: number; height: number } }> }).lines[0]
+    expect(label).toBeTruthy()
+    const p = { x: (label?.box.left ?? 0) + 5, y: (label?.box.top ?? 0) + 5 }
+    const hit = hitTestDiagram(l, p, { selected: new Set(), zoom: 1 })
+    expect(hit).toMatchObject({ kind: 'node', viewId: b.v('a2')._id })
+    expect(hit?.kind === 'node' ? hit.region?.target : null).toEqual({ kind: 'custom', elementId: b.v('a2').model?._id, syntax: 'radName' })
+    // Inside the role but off every label and thread, the role itself is hit; its title is a region of it.
+    const role = b.roles.get('agent')?.view as NodeView
+    expect(hitTestDiagram(l, { x: (role.left ?? 0) + 15, y: (role.top ?? 0) + 300 }, { selected: new Set(), zoom: 1 })).toMatchObject({ kind: 'node', viewId: role._id })
+    const title = l.nodes.get(role._id)?.regions[0]
+    expect(title && hitTestDiagram(l, { x: title.box.left + 2, y: title.box.top + 2 }, { selected: new Set(), zoom: 1 })).toMatchObject({ kind: 'node', viewId: role._id, region: { target: { syntax: 'radRoleTitle' } } })
+    // A thread is hit on its line, above the role it crosses.
+    const line = l.edges.get(b.e('a1', 'a2')._id)
+    const mid = line && { x: line.points[0]?.x ?? 0, y: ((line.points[0]?.y ?? 0) + (line.points[1]?.y ?? 0)) / 2 }
+    expect(mid && hitTestDiagram(l, mid, { selected: new Set(), zoom: 1 })).toMatchObject({ kind: 'edge', viewId: b.e('a1', 'a2')._id })
+  })
+
+  it('draws the selection overlay for every view of the examples', () => {
+    for (const make of [insuranceFixture, letterFixture]) {
+      const b = make()
+      const l = layout(b)
+      const html = renderToStaticMarkup(createElement('svg', null, createElement(SelectionOverlay, { layout: l, selected: [...l.nodes.keys(), ...l.edges.keys()], zoom: 1 })))
+      expect(html.length).toBeGreaterThan(100)
+    }
   })
 })
