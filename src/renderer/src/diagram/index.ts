@@ -87,6 +87,10 @@
  *    `connectKind` (an `EDGE_KINDS` key) enables reconnecting ends, validated with `canConnect`.
  *    Optional edge layout fields: `labelPoints` (polyline labels are placed and dragged on) and
  *    `dragAxis: 'vert'` (dragging shifts the edge vertically, as for sequence messages).
+ *
+ * Families outside `diagram/uml/` (IDEF0 in `diagram/idef0/`) register from `ensureNotations()` in
+ * `notations.ts` and may add per-diagram-type editor hooks with `registerDiagramHooks(diagramType,
+ * { normalize, createEdge, reconnect, deleteViews, pickEnd, freeEnds })` (see `editor/actions.ts`).
  * Notations registered for a supertype (e.g. `UMLClassifierView`) apply to its subtypes that
  * have no notation of their own; unknown types get a generic box / line.
  */
@@ -107,7 +111,10 @@ export {
   setEdgeVertices,
   syncGeometry,
   withGeometry,
+  hooksFor,
+  registerDiagramHooks,
   type DiagramEnv,
+  type DiagramHooks,
   type ToolSpec
 } from './editor/actions'
 export { alignBoxes, alignViews, reorderViews, ALIGN_OPS, type AlignOp } from './editor/alignment'

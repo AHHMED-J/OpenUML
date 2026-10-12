@@ -55,6 +55,37 @@ export interface ToolSpec {
   readonly freeEnd?: 'tail' | 'head'
 }
 
+/**
+ * Per-diagram-type extension points of the editor. A notation family registers them for its
+ * diagram type with `registerDiagramHooks`; every hook is optional and the default behavior applies
+ * where a hook is missing (or, for `createEdge`/`reconnect`, returns `undefined`).
+ */
+export interface DiagramHooks {
+  /** Runs inside every geometry operation of the diagram before the geometry write-back (e.g. auto-numbering). */
+  normalize?(b: OperationBuilder, diagram: Diagram): void
+  /** Handles the delete gesture; returns the views it left to the default deletion. */
+  deleteViews?(env: DiagramEnv, views: readonly View[]): View[]
+  /** Reconnects an edge end (`at`: where it was released); `undefined` = use the default. */
+  reconnect?(env: DiagramEnv, edge: EdgeView, end: 'tail' | 'head', view: View, at: Point | undefined): boolean | undefined
+  /** Creates an edge from a line gesture whose ends may be null (empty canvas); `undefined` = use the default. */
+  createEdge?(env: DiagramEnv, layout: DiagramLayout, tool: ToolSpec, tailId: string | null, headId: string | null, press: Point, release: Point): string | null | undefined
+  /** The view a line gesture picks at `p` as an end (nodes by default); null = none. */
+  pickEnd?(layout: DiagramLayout, p: Point, tool: ToolSpec): string | null
+  /** Whether the line tool may start on empty canvas. */
+  freeEnds?(tool: ToolSpec): boolean
+}
+
+const diagramHooks = new Map<string, DiagramHooks>()
+
+/** Registers the editor hooks of a diagram type (e.g. `'IDEF0Diagram'`). */
+export function registerDiagramHooks(diagramType: string, hooks: DiagramHooks): void {
+  diagramHooks.set(diagramType, hooks)
+}
+
+export function hooksFor(diagram: Diagram): DiagramHooks | undefined {
+  return diagramHooks.get(diagram._type)
+}
+
 export function isNodeKind(kind: string): kind is NodeKind {
   return Object.prototype.hasOwnProperty.call(NODE_KINDS, kind)
 }
@@ -94,6 +125,7 @@ export function syncGeometry(env: DiagramEnv, b: OperationBuilder): void {
 export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: OperationBuilder) => T): T {
   return env.engine.transact(name, (b) => {
     const result = change(b)
+    hooksFor(env.diagram)?.normalize?.(b, env.diagram)
     syncGeometry(env, b)
     return result
   })
@@ -270,7 +302,7 @@ export function setEdgeVertices(env: DiagramEnv, id: string, points: readonly Po
  * Reconnects one end of an edge to another view; the relationship's source/target (or
  * association end) is updated too. Returns false when the connection is not allowed.
  */
-export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'head', viewId: string): boolean {
+export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'head', viewId: string, at?: Point): boolean {
   const repo = env.engine.repository
   const edge = repo.get(edgeId)
   const view = repo.get(viewId)
@@ -280,6 +312,8 @@ export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'hea
   const tail = end === 'tail' ? view : edge.tail
   const head = end === 'head' ? view : edge.head
   if (!tail || !head || !canConnect(kind, tail, head)) return false
+  const hooked = hooksFor(env.diagram)?.reconnect?.(env, edge, end, view, at)
+  if (hooked !== undefined) return hooked
   if ((end === 'tail' ? edge.tail : edge.head) === view) return false
   withGeometry(env, 'Reconnect', (b) => {
     b.set(edge, end, view)
@@ -312,7 +346,9 @@ export function moveEdgeLabel(env: DiagramEnv, layout: DiagramLayout, edgeId: st
 
 /** Delete (views only). */
 export function deleteViews(env: DiagramEnv, ids: readonly string[]): void {
-  const views = viewsById(env, ids)
+  let views = viewsById(env, ids)
+  const hook = hooksFor(env.diagram)?.deleteViews
+  if (hook) views = hook(env, views)
   if (views.length > 0) deleteFromView(env.engine, views)
 }
 

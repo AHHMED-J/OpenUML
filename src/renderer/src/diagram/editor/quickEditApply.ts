@@ -34,8 +34,17 @@ function typeValue(repo: Repository, el: Elem, name: string | null): unknown {
   return resolveByName(repo, el, name, 'UMLClassifier') ?? name
 }
 
+type RenameHook = (b: OperationBuilder, repo: Repository, el: Elem) => void
+const renameHooks: RenameHook[] = []
+
+/** Registers a callback run inside every inline rename, after the name was set (e.g. to keep titles in sync). */
+export function registerRenameHook(hook: RenameHook): void {
+  renameHooks.push(hook)
+}
+
 function applyName(b: OperationBuilder, repo: Repository, el: Elem, parsed: ParsedName): void {
   setIfField(b, el, 'name', parsed.name)
+  for (const hook of renameHooks) hook(b, repo, el)
   setIfField(b, el, 'visibility', parsed.visibility ?? 'public')
   if (fieldOf(el, 'stereotype')) b.set(el, 'stereotype', stereotypeValue(repo, el, parsed.stereotype))
 }
