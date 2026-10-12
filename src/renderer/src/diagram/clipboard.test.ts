@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { addAttribute } from '../commands'
 import { isKindOf, type EdgeView, type Elem, type NodeView, type UMLClassifierView, type View } from '../model'
 import { copyViews, duplicateViews, parseClipboard, pasteViews, serializeClipboard } from './clipboard'
-import { moveSelection } from './editor/actions'
+import { createNodeAt, moveSelection } from './editor/actions'
 import { testDiagram } from './testUtils'
 
 describe('view clipboard', () => {
@@ -100,5 +100,19 @@ describe('view clipboard', () => {
     expect(da.left).toBe((a as NodeView).left + 20)
     t.engine.undo()
     expect((owner['ownedElements'] as Elem[]).length).toBe(ownedBefore)
+  })
+
+  it('duplicates a model nested in another duplicated model only once, inside the copy of its owner', () => {
+    const t = testDiagram()
+    const pkg = t.node('Package', 0, 0, 400, 300)
+    const cls = t.repository.get(createNodeAt(t, t.layout(), 'Class', { left: 40, top: 60, width: 120, height: 80 }) as string) as View
+    expect(cls.model?._parent).toBe(pkg.model)
+    const ids = duplicateViews(t.engine, t.diagram, [pkg._id, cls._id])
+    const classes = t.repository.findByType('UMLClass')
+    expect(classes).toHaveLength(2)
+    const pkgCopy = ids.map((id) => t.repository.get(id) as View).find((v) => isKindOf(v.model, 'UMLPackage'))
+    const clsCopy = ids.map((id) => t.repository.get(id) as View).find((v) => isKindOf(v.model, 'UMLClass'))
+    expect(clsCopy?.model?._parent).toBe(pkgCopy?.model)
+    for (const c of classes) expect(t.repository.viewsOf(c)).toHaveLength(1)
   })
 })

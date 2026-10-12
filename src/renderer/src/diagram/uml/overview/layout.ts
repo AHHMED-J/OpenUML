@@ -6,7 +6,7 @@
  */
 import { isKindOf, type Diagram, type NodeView } from '../../../model'
 import { MIN_SIZES, Z_INDEX, type Point, type Rect } from '../../core'
-import { nameOf, nodeLayout, styleOf } from '../../layout/helpers'
+import { nameEditText, nameOf, nodeLayout, styleOf } from '../../layout/helpers'
 import { computeDiagramLayout } from '../../layout/layoutDiagram'
 import type { EdgeLayout, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
 import { layoutFrameLabel, type FrameLabelLayout } from '../../render/generic'
@@ -49,7 +49,7 @@ export function layoutOverviewUse(view: NodeView, ctx: LayoutContext): NodeLayou
     data: arrange,
     regions: (box) => {
       const line = arrange(box).nameLine
-      return target ? [{ box: { ...line.box, width: Math.max(line.box.width, 20) }, target: { kind: 'name', elementId: target._id }, text: nameOf(target), font: style.font }] : []
+      return target ? [{ box: { ...line.box, width: Math.max(line.box.width, 20) }, target: { kind: 'name', elementId: target._id }, text: nameEditText(target), font: style.font }] : []
     }
   })
 }
@@ -140,7 +140,7 @@ export function layoutOverviewInline(view: NodeView, ctx: LayoutContext): NodeLa
     data: arrange,
     regions: (box) => {
       if (!interaction || !arrange(box).label.name) return []
-      return [{ box: arrange(box).label.name?.box ?? box, target: { kind: 'name', elementId: interaction._id }, text: nameOf(interaction), font: style.font }]
+      return [{ box: arrange(box).label.name?.box ?? box, target: { kind: 'name', elementId: interaction._id }, text: nameEditText(interaction), font: style.font }]
     }
   })
 }

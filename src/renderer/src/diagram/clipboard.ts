@@ -258,6 +258,11 @@ function stripOwned(json: JsonObject): void {
   })
 }
 
+function hasAncestorIn(el: Elem, set: ReadonlySet<Elem>): boolean {
+  for (let p = el._parent; p; p = p._parent) if (set.has(p)) return true
+  return false
+}
+
 /**
  * Duplicates the selected node views' model elements (deep copy with fresh IDs) and relationships
  * drawn between them, plus views of the copies offset by `offset`. One operation; returns the new
@@ -271,6 +276,8 @@ export function duplicateViews(engine: ModelEngine, diagram: Diagram, ids: reado
   const edges = views.filter((v) => isKindOf(v, 'EdgeView') && v.model && isRelationshipType(v.model._type))
   const models: Array<{ json: JsonObject; owner: Elem; field: string }> = []
   for (const m of nodeModels) {
+    // A model nested in another duplicated model is copied with its owner's subtree.
+    if (hasAncestorIn(m, nodeModels)) continue
     const c = findContainment(m)
     if (!c || c.index < 0) continue
     const json = serializeElement(m)

@@ -43,6 +43,8 @@ function rememberWorkingDiagrams(): void {
   const s = ps()
   if (!s.filePath) return
   const all = loadJson<Record<string, WorkingDiagrams>>('workingDiagrams', {})
+  // Re-insert so the entry moves to the end (most recent) of the key order.
+  delete all[s.filePath]
   all[s.filePath] = { open: s.openDiagramIds, active: s.activeDiagramId }
   // Keep the map small: most recent 30 files.
   const entries = Object.entries(all).slice(-30)
