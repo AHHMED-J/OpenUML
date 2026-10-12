@@ -148,5 +148,17 @@ export {
 } from './render/generic'
 export { ensureNotations } from './notations'
 
+// IDEF0: commands, validation and model edits for the shell
+export {
+  Idef0CommandIds,
+  decomposeFunction,
+  issueItems,
+  registerIdef0Commands,
+  validateIdef0,
+  type Idef0CommandContext,
+  type Idef0ListItem,
+  type IdefIssue
+} from './idef0'
+
 // Class diagram notation (strings, layouts) for reuse
 export * as classNotation from './uml/class'
