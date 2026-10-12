@@ -1,0 +1,63 @@
+/** Status bar: breadcrumb of the selected element, selection info, zoom (click for presets). */
+import type React from 'react'
+import { typeDisplayName, type Elem } from '../model'
+import { useProjectStore } from '../store'
+import { selectInExplorer } from './app/appCommands'
+import { explorerLabel, pathTo } from './explorer/tree'
+import { TypeIcon } from './icons'
+import { useSelectedModels } from './properties/useSelection'
+import { uiStore, useUiStore } from './uiStore'
+
+export function StatusBar(): React.JSX.Element {
+  const { models } = useSelectedModels()
+  const viewCount = useProjectStore((s) => s.selectedViewIds.length)
+  const activeId = useProjectStore((s) => s.activeDiagramId)
+  const dirty = useProjectStore((s) => s.dirty)
+  const zoom = useUiStore((s) => (activeId ? (s.zoomByDiagram[activeId] ?? 1) : null))
+  const tool = useUiStore((s) => s.tool)
+  const locked = useUiStore((s) => s.toolLocked)
+  const single = models.length === 1 ? (models[0] as Elem) : null
+
+  return (
+    <footer className="statusbar" aria-label="Status bar">
+      <nav className="breadcrumb" aria-label="Selected element">
+        {single
+          ? pathTo(single).map((el, i, all) => (
+              <span key={el._id} className="crumb">
+                {i > 0 ? <span className="crumb-sep">›</span> : null}
+                <button className="crumb-button" onClick={() => selectInExplorer(el)} title={typeDisplayName(el._type)}>
+                  <TypeIcon type={el._type} size={13} />
+                  <span className={i === all.length - 1 ? 'crumb-current' : undefined}>{explorerLabel(el, false)}</span>
+                </button>
+                {i === all.length - 1 ? <span className="muted"> [{typeDisplayName(el._type)}]</span> : null}
+              </span>
+            ))
+          : models.length > 1
+            ? <span className="muted">{models.length} elements selected</span>
+            : null}
+      </nav>
+      <span className="spacer" />
+      {tool ? (
+        <span className="status-item">
+          Tool: {tool.kind}
+          {locked ? ' (locked)' : ''}
+        </span>
+      ) : null}
+      {viewCount > 0 ? <span className="status-item">{viewCount} view{viewCount === 1 ? '' : 's'}</span> : null}
+      <span className="status-item">{dirty ? 'Modified' : 'Saved'}</span>
+      {zoom !== null ? (
+        <button
+          className="status-item status-button"
+          title="Zoom presets"
+          aria-label={`Zoom ${Math.round(zoom * 100)}%`}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            uiStore.getState().openContextMenu({ x: r.left, y: r.top - 8 - 6 * 26, menu: 'zoom' })
+          }}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+      ) : null}
+    </footer>
+  )
+}

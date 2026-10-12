@@ -1,0 +1,489 @@
+/**
+ * OpenUML's own icon set: small inline SVGs (16×16 grid) for element types, toolbox tools and
+ * toolbar buttons. Strokes use `currentColor`; a few accent fills come from CSS variables so
+ * they adapt to the theme.
+ */
+import type React from 'react'
+
+const A = {
+  classifier: 'var(--icon-classifier)',
+  pkg: 'var(--icon-package)',
+  diagram: 'var(--icon-diagram)',
+  feature: 'var(--icon-feature)',
+  behavior: 'var(--icon-behavior)',
+  usecase: 'var(--icon-usecase)'
+}
+
+interface SvgProps {
+  readonly size?: number
+  readonly title?: string
+  readonly className?: string
+  readonly children?: React.ReactNode
+}
+
+function Svg({ size = 16, title, className, children }: SvgProps): React.JSX.Element {
+  return (
+    <svg
+      className={className ?? 'icon'}
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden={title ? undefined : true}
+      role={title ? 'img' : undefined}
+    >
+      {title ? <title>{title}</title> : null}
+      {children}
+    </svg>
+  )
+}
+
+/** Class-like box with name bar and compartments. */
+const box = (fill: string, compartments = 2, label?: string): React.ReactNode => (
+  <>
+    <rect x={2} y={2.5} width={12} height={11} rx={1} fill={fill} fillOpacity={0.35} />
+    <line x1={2} y1={6} x2={14} y2={6} />
+    {compartments > 1 ? <line x1={2} y1={9.5} x2={14} y2={9.5} /> : null}
+    {label ? (
+      <text x={8} y={5.3} fontSize={3.4} textAnchor="middle" stroke="none" fill="currentColor">
+        {label}
+      </text>
+    ) : null}
+  </>
+)
+
+const folder = (fill: string, mark?: React.ReactNode): React.ReactNode => (
+  <>
+    <path d="M2 4.5h4.5l1-1.5H2z" fill={fill} fillOpacity={0.5} />
+    <rect x={2} y={4.5} width={12} height={9} rx={0.8} fill={fill} fillOpacity={0.35} />
+    {mark}
+  </>
+)
+
+const diagramIcon = (inner: React.ReactNode): React.ReactNode => (
+  <>
+    <rect x={1.5} y={2} width={13} height={12} rx={1.5} fill={A.diagram} fillOpacity={0.25} />
+    {inner}
+  </>
+)
+
+const featureRow = (mark: React.ReactNode): React.ReactNode => (
+  <>
+    {mark}
+    <line x1={7} y1={8} x2={14} y2={8} />
+  </>
+)
+
+const controlCircle = (fill: boolean, ring = false, cross = false): React.ReactNode => (
+  <>
+    <circle cx={8} cy={8} r={ring ? 5.5 : 4.5} fill={fill && !ring ? 'currentColor' : 'none'} />
+    {ring ? <circle cx={8} cy={8} r={3} fill="currentColor" /> : null}
+    {cross ? <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" /> : null}
+  </>
+)
+
+const diamond = <path d="M8 2.5l5 5.5-5 5.5-5-5.5z" />
+
+function relationshipGlyph(kind: string): React.ReactNode {
+  switch (kind) {
+    case 'Generalization':
+      return (
+        <>
+          <line x1={2} y1={14} x2={9.5} y2={6.5} />
+          <path d="M8 4l4-0.5L11.5 8z" fill="var(--surface)" />
+        </>
+      )
+    case 'InterfaceRealization':
+    case 'Realization':
+      return (
+        <>
+          <line x1={2} y1={14} x2={9.5} y2={6.5} strokeDasharray="1.6 1.4" />
+          <path d="M8 4l4-0.5L11.5 8z" fill="var(--surface)" />
+        </>
+      )
+    case 'Dependency':
+    case 'Include':
+    case 'Extend':
+    case 'NoteLink':
+      return (
+        <>
+          <line x1={2} y1={14} x2={12.5} y2={3.5} strokeDasharray="1.6 1.4" />
+          {kind === 'NoteLink' ? null : <path d="M8.5 3.5h4v4" />}
+        </>
+      )
+    case 'DirectedAssociation':
+      return (
+        <>
+          <line x1={2} y1={14} x2={12.5} y2={3.5} />
+          <path d="M8.5 3.5h4v4" />
+        </>
+      )
+    case 'Aggregation':
+    case 'Composition':
+      return (
+        <>
+          <line x1={2} y1={14} x2={9} y2={7} />
+          <path d="M9 7l0.3-3.7L13 3l-0.3 3.7z" fill={kind === 'Composition' ? 'currentColor' : 'var(--surface)'} />
+        </>
+      )
+    case 'ControlFlow':
+    case 'ObjectFlow':
+    case 'Message':
+      return (
+        <>
+          <line x1={2} y1={8} x2={13.5} y2={8} />
+          <path d="M10.5 5.5L13.5 8l-3 2.5" fill={kind === 'Message' ? 'currentColor' : 'none'} />
+        </>
+      )
+    default:
+      return <line x1={2} y1={14} x2={14} y2={2} />
+  }
+}
+
+function typeGlyph(type: string): React.ReactNode {
+  switch (type) {
+    case 'Project':
+      return (
+        <>
+          <path d="M3 2.5h7l3 3v8H3z" fill={A.pkg} fillOpacity={0.3} />
+          <path d="M10 2.5v3h3" />
+        </>
+      )
+    case 'UMLModel':
+      return folder(A.pkg, <path d="M8 7l2.5 1.5v3L8 13l-2.5-1.5v-3z" />)
+    case 'UMLPackage':
+    case 'UMLSubsystem':
+      return folder(A.pkg)
+    case 'UMLUseCaseSubject':
+      return <rect x={2} y={2.5} width={12} height={11} rx={0.5} fill={A.usecase} fillOpacity={0.15} />
+    case 'UMLClass':
+      return box(A.classifier)
+    case 'UMLInterface':
+      return (
+        <>
+          <circle cx={8} cy={6} r={3.5} fill={A.classifier} fillOpacity={0.35} />
+          <line x1={8} y1={9.5} x2={8} y2={14} />
+        </>
+      )
+    case 'UMLDataType':
+    case 'UMLPrimitiveType':
+      return box(A.classifier, 1, type === 'UMLDataType' ? 'DT' : 'PT')
+    case 'UMLEnumeration':
+      return box(A.classifier, 1, 'E')
+    case 'UMLSignal':
+      return <path d="M2 3h9l3 5-3 5H2z" fill={A.classifier} fillOpacity={0.35} />
+    case 'UMLEnumerationLiteral':
+      return featureRow(<rect x={2.5} y={6} width={3} height={4} fill={A.feature} />)
+    case 'UMLAttribute':
+      return featureRow(<rect x={2.5} y={6.5} width={3} height={3} fill={A.feature} />)
+    case 'UMLOperation':
+    case 'UMLReception':
+      return featureRow(<circle cx={4} cy={8} r={1.8} fill={A.feature} />)
+    case 'UMLParameter':
+      return featureRow(<path d="M2.5 6l3 2-3 2z" fill={A.feature} />)
+    case 'UMLExtensionPoint':
+      return featureRow(<path d="M4 6l2 2-2 2-2-2z" fill={A.feature} />)
+    case 'UMLActor':
+      return (
+        <>
+          <circle cx={8} cy={3.8} r={1.8} />
+          <path d="M8 5.6v4.4M4.5 7.5h7M8 10l-3 4M8 10l3 4" />
+        </>
+      )
+    case 'UMLUseCase':
+      return <ellipse cx={8} cy={8} rx={6} ry={4} fill={A.usecase} fillOpacity={0.35} />
+    case 'UMLCollaboration':
+      return <ellipse cx={8} cy={8} rx={6} ry={4} strokeDasharray="1.6 1.2" />
+    case 'UMLInteraction':
+      return (
+        <>
+          <rect x={2} y={2.5} width={12} height={11} rx={1} fill={A.behavior} fillOpacity={0.2} />
+          <path d="M2 5.5h4l1-1v-2" />
+        </>
+      )
+    case 'UMLLifeline':
+      return (
+        <>
+          <rect x={4} y={2} width={8} height={4} fill={A.behavior} fillOpacity={0.35} />
+          <line x1={8} y1={6} x2={8} y2={14} strokeDasharray="1.5 1.2" />
+        </>
+      )
+    case 'UMLMessage':
+      return relationshipGlyph('Message')
+    case 'UMLCombinedFragment':
+    case 'UMLInteractionOperand':
+      return (
+        <>
+          <rect x={2} y={2.5} width={12} height={11} />
+          <path d="M2 5.5h4l1-1v-2" />
+          {type === 'UMLInteractionOperand' ? null : <line x1={2} y1={9} x2={14} y2={9} strokeDasharray="1.5 1.2" />}
+        </>
+      )
+    case 'UMLActivity':
+      return <rect x={2} y={3} width={12} height={10} rx={3} fill={A.behavior} fillOpacity={0.2} />
+    case 'UMLAction':
+      return <rect x={2} y={4} width={12} height={8} rx={3} fill={A.behavior} fillOpacity={0.35} />
+    case 'UMLObjectNode':
+      return <rect x={2} y={4} width={12} height={8} fill={A.behavior} fillOpacity={0.2} />
+    case 'UMLInitialNode':
+      return controlCircle(true)
+    case 'UMLActivityFinalNode':
+      return controlCircle(false, true)
+    case 'UMLFlowFinalNode':
+      return controlCircle(false, false, true)
+    case 'UMLForkNode':
+    case 'UMLJoinNode':
+      return <rect x={2} y={6.8} width={12} height={2.4} fill="currentColor" />
+    case 'UMLDecisionNode':
+    case 'UMLMergeNode':
+      return diamond
+    case 'UMLActivityPartition':
+      return (
+        <>
+          <rect x={2} y={2} width={12} height={12} />
+          <line x1={2} y1={5} x2={14} y2={5} />
+          <line x1={8} y1={2} x2={8} y2={14} />
+        </>
+      )
+    case 'UMLInputPin':
+    case 'UMLOutputPin':
+      return (
+        <>
+          <rect x={5} y={5} width={6} height={6} />
+          <path d={type === 'UMLInputPin' ? 'M1.5 8h3' : 'M11 8h3.5'} />
+        </>
+      )
+    case 'UMLControlFlow':
+    case 'UMLObjectFlow':
+      return relationshipGlyph('ControlFlow')
+    case 'UMLAssociation':
+      return relationshipGlyph('Association')
+    case 'UMLGeneralization':
+      return relationshipGlyph('Generalization')
+    case 'UMLDependency':
+    case 'UMLInclude':
+    case 'UMLExtend':
+      return relationshipGlyph('Dependency')
+    case 'UMLRealization':
+    case 'UMLInterfaceRealization':
+      return relationshipGlyph('Realization')
+    case 'UMLConstraint':
+      return (
+        <text x={8} y={11.5} fontSize={9} textAnchor="middle" stroke="none" fill="currentColor">
+          {'{ }'}
+        </text>
+      )
+    case 'UMLClassDiagram':
+      return diagramIcon(
+        <>
+          <rect x={4} y={4.5} width={4} height={3.5} />
+          <rect x={8.5} y={9} width={4} height={3.5} />
+          <path d="M8 6.2h2.5V9" />
+        </>
+      )
+    case 'UMLUseCaseDiagram':
+      return diagramIcon(<ellipse cx={8} cy={8} rx={4} ry={2.6} />)
+    case 'UMLSequenceDiagram':
+      return diagramIcon(
+        <>
+          <path d="M5 4v8M11 4v8" strokeDasharray="1.2 1" />
+          <path d="M5 7h6M9.5 5.8L11 7 9.5 8.2" />
+        </>
+      )
+    case 'UMLActivityDiagram':
+      return diagramIcon(
+        <>
+          <circle cx={8} cy={4.6} r={1.2} fill="currentColor" />
+          <rect x={5} y={7} width={6} height={3} rx={1.3} />
+          <path d="M8 5.8V7M8 10v1.6" />
+        </>
+      )
+    case 'UMLNoteView':
+    case 'Note':
+      return <path d="M3 2.5h7l3 3v8H3zM10 2.5v3h3" fill="var(--icon-note)" fillOpacity={0.5} />
+    case 'UMLTextView':
+    case 'Text':
+      return (
+        <text x={8} y={12} fontSize={11} textAnchor="middle" stroke="none" fill="currentColor" fontWeight={600}>
+          T
+        </text>
+      )
+    default:
+      if (type.endsWith('Diagram')) return diagramIcon(null)
+      return <rect x={3} y={3} width={10} height={10} rx={2} fill="var(--text-muted)" fillOpacity={0.25} />
+  }
+}
+
+/** Icon for an element type (`_type`). */
+export function TypeIcon({ type, size, title }: { type: string; size?: number; title?: string }): React.JSX.Element {
+  return (
+    <Svg size={size} title={title}>
+      {typeGlyph(type)}
+    </Svg>
+  )
+}
+
+/** Toolbox icon for a NODE_KINDS / EDGE_KINDS key. */
+const NODE_KIND_TYPES: Record<string, string> = {
+  Class: 'UMLClass',
+  Interface: 'UMLInterface',
+  Enumeration: 'UMLEnumeration',
+  DataType: 'UMLDataType',
+  PrimitiveType: 'UMLPrimitiveType',
+  Signal: 'UMLSignal',
+  Package: 'UMLPackage',
+  Model: 'UMLModel',
+  Actor: 'UMLActor',
+  UseCase: 'UMLUseCase',
+  Subject: 'UMLUseCaseSubject',
+  Lifeline: 'UMLLifeline',
+  CombinedFragment: 'UMLCombinedFragment',
+  Action: 'UMLAction',
+  SendSignal: 'UMLSignal',
+  AcceptSignal: 'UMLAction',
+  AcceptTimeEvent: 'UMLAction',
+  ObjectNode: 'UMLObjectNode',
+  InitialNode: 'UMLInitialNode',
+  ActivityFinalNode: 'UMLActivityFinalNode',
+  FlowFinalNode: 'UMLFlowFinalNode',
+  ForkNode: 'UMLForkNode',
+  JoinNode: 'UMLJoinNode',
+  DecisionNode: 'UMLDecisionNode',
+  MergeNode: 'UMLMergeNode',
+  Partition: 'UMLActivityPartition',
+  HorizontalPartition: 'UMLActivityPartition',
+  InputPin: 'UMLInputPin',
+  OutputPin: 'UMLOutputPin',
+  Note: 'Note',
+  Text: 'Text'
+}
+
+export function ToolIcon({ kind, messageSort }: { kind: string; messageSort?: string }): React.JSX.Element {
+  const type = NODE_KIND_TYPES[kind]
+  if (type) return <TypeIcon type={type} />
+  if (kind === 'Message' && messageSort && messageSort !== 'synchCall') {
+    const dashed = messageSort === 'reply'
+    const open = messageSort !== 'createMessage' && messageSort !== 'deleteMessage'
+    return (
+      <Svg>
+        <line x1={2} y1={8} x2={13.5} y2={8} strokeDasharray={dashed || messageSort === 'createMessage' ? '1.6 1.3' : undefined} />
+        <path d="M10.5 5.5L13.5 8l-3 2.5" fill={open ? 'none' : 'currentColor'} />
+        {messageSort === 'deleteMessage' ? <path d="M12 3l3 3M15 3l-3 3" /> : null}
+      </Svg>
+    )
+  }
+  return <Svg>{relationshipGlyph(kind)}</Svg>
+}
+
+export type UiIconName =
+  | 'new'
+  | 'open'
+  | 'save'
+  | 'undo'
+  | 'redo'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'fit'
+  | 'grid'
+  | 'snap'
+  | 'palette'
+  | 'sidebar'
+  | 'navigator'
+  | 'close'
+  | 'chevron-right'
+  | 'chevron-down'
+  | 'lock'
+  | 'gear'
+  | 'plus'
+  | 'minus'
+  | 'up'
+  | 'down'
+  | 'pointer'
+  | 'ellipsis'
+  | 'search'
+  | 'export'
+
+function uiGlyph(name: UiIconName): React.ReactNode {
+  switch (name) {
+    case 'new':
+      return <path d="M4 2h5.5L12 4.5V14H4zM9.5 2v2.5H12M8 7v4M6 9h4" />
+    case 'open':
+      return <path d="M2 4h4l1.2 1.5H14v7.5H2zM2 7h12" />
+    case 'save':
+      return <path d="M3 2.5h8.5L13.5 4.5v9H3zM5 2.5v3.5h5V2.5M5 13.5V9.5h6v4" />
+    case 'undo':
+      return <path d="M5.5 4L2.5 7l3 3M2.5 7h7a3.5 3.5 0 010 7H7" />
+    case 'redo':
+      return <path d="M10.5 4l3 3-3 3M13.5 7h-7a3.5 3.5 0 000 7H9" />
+    case 'zoom-in':
+      return <path d="M7 2.5a4.5 4.5 0 110 9 4.5 4.5 0 010-9zM10.3 10.3L14 14M5 7h4M7 5v4" />
+    case 'zoom-out':
+      return <path d="M7 2.5a4.5 4.5 0 110 9 4.5 4.5 0 010-9zM10.3 10.3L14 14M5 7h4" />
+    case 'fit':
+      return <path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10M5.5 5.5h5v5h-5z" />
+    case 'grid':
+      return <path d="M2.5 2.5h11v11h-11zM6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11" strokeWidth={1} />
+    case 'snap':
+      return (
+        <>
+          <path d="M2.5 2.5h11v11h-11z" strokeWidth={1} strokeDasharray="1.2 1.6" />
+          <path d="M5 11V7a3 3 0 016 0v4M5 9h2M9 9h2" />
+        </>
+      )
+    case 'palette':
+      return <path d="M2 3.5h12v9H2zM4.5 7l2 1.5-2 1.5M8 10h3.5" />
+    case 'sidebar':
+      return <path d="M2 3h12v10H2zM6 3v10" />
+    case 'navigator':
+      return <path d="M2 3h12v10H2zM10 3v10" />
+    case 'close':
+      return <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
+    case 'chevron-right':
+      return <path d="M6 4l4 4-4 4" />
+    case 'chevron-down':
+      return <path d="M4 6l4 4 4-4" />
+    case 'lock':
+      return <path d="M4 7.5h8V14H4zM5.8 7.5V5.5a2.2 2.2 0 014.4 0v2" />
+    case 'gear':
+      return (
+        <>
+          <circle cx={8} cy={8} r={2.2} />
+          <path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6L5 5M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4" />
+        </>
+      )
+    case 'plus':
+      return <path d="M8 3v10M3 8h10" />
+    case 'minus':
+      return <path d="M3 8h10" />
+    case 'up':
+      return <path d="M4 9.5L8 5.5l4 4" />
+    case 'down':
+      return <path d="M4 6.5l4 4 4-4" />
+    case 'pointer':
+      return <path d="M4 2.5l8 6.2-3.6.6 2.1 4.2-1.5.7-2.1-4.2L4 12.5z" fill="currentColor" fillOpacity={0.15} />
+    case 'ellipsis':
+      return (
+        <>
+          <circle cx={3.5} cy={8} r={0.9} fill="currentColor" />
+          <circle cx={8} cy={8} r={0.9} fill="currentColor" />
+          <circle cx={12.5} cy={8} r={0.9} fill="currentColor" />
+        </>
+      )
+    case 'search':
+      return <path d="M7 2.5a4.5 4.5 0 110 9 4.5 4.5 0 010-9zM10.3 10.3L14 14" />
+    case 'export':
+      return <path d="M8 10V2.5M5 5.5l3-3 3 3M3 9v4.5h10V9" />
+  }
+}
+
+export function UiIcon({ name, size, title }: { name: UiIconName; size?: number; title?: string }): React.JSX.Element {
+  return (
+    <Svg size={size} title={title}>
+      {uiGlyph(name)}
+    </Svg>
+  )
+}

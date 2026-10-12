@@ -1,0 +1,25 @@
+# Dependencies & builds
+node_modules/
+dist/
+out/
+release/
+*.log
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local analysis output (never publish)
+rea-out/
+*.evidence.json
+analysis/
+*.asar
+extracted/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
