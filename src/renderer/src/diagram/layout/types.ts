@@ -23,6 +23,8 @@ export type EditTarget =
   | { readonly kind: 'name'; readonly elementId: string }
   /** Attribute notation `[«st»] [vis] name [: type] [[mult]] [= default]`. */
   | { readonly kind: 'attribute'; readonly elementId: string; readonly classifierId: string }
+  /** `[«st»] [vis] name [: type] [[mult]]` of a typed element outside a classifier (pins, object nodes). */
+  | { readonly kind: 'typedName'; readonly elementId: string }
   /** Operation notation `[«st»] [vis] name(params) [: type] [[mult]]`. */
   | { readonly kind: 'operation'; readonly elementId: string; readonly classifierId: string }
   /** Enumeration literal (name notation; Mod+Enter adds another literal). */

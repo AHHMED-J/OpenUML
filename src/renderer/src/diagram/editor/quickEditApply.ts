@@ -106,6 +106,16 @@ export function applyQuickEdit(engine: ModelEngine, target: EditTarget, text: st
       })
       return true
     }
+    case 'typedName': {
+      const parsed = parseAttribute(text)
+      if (!parsed) return false
+      engine.transact('Rename', (b) => {
+        applyName(b, repo, el, parsed)
+        setIfField(b, el, 'type', typeValue(repo, el, parsed.type))
+        setIfField(b, el, 'multiplicity', parsed.multiplicity)
+      })
+      return true
+    }
     case 'operation': {
       const parsed = parseOperation(text)
       if (!parsed) return false

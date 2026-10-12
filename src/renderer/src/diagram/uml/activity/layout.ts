@@ -53,6 +53,13 @@ function nameRegion(model: Elem | null, box: Rect, font: Font): EditRegion[] {
   return model ? [{ box, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font }] : []
 }
 
+/** Edit region of `name: Type[mult]` (pins, object nodes); the text always carries the multiplicity so it is kept. */
+function typedNameRegion(model: Elem | null, box: Rect, font: Font): EditRegion[] {
+  if (!model) return []
+  const text = nameEditText(model) + typedNameText(model, true).slice(nameOf(model).length)
+  return [{ box, target: { kind: 'typedName', elementId: model._id }, text, font }]
+}
+
 /** Rect of height `h` vertically centered in `box`. */
 function centeredBand(box: Rect, h: number): Rect {
   return { left: box.left, top: box.top + (box.height - h) / 2, width: box.width, height: h }
@@ -257,7 +264,7 @@ export function layoutObjectNode(view: NodeView, ctx: LayoutContext): NodeLayout
     minHeight: Math.max(height, 30),
     style,
     data: (box) => ({ lines: arrange(box).lines }),
-    regions: (box) => nameRegion(model ?? null, arrange(box).nameRect, nameFontOf(style))
+    regions: (box) => typedNameRegion(model ?? null, arrange(box).nameRect, nameFontOf(style))
   })
 }
 
@@ -443,7 +450,7 @@ export function layoutPin(view: NodeView, ctx: LayoutContext): NodeLayout<PinDat
     const s = ctx.measurer.measure(nameText, style.font)
     const lb = placeNodeLabel(box, labelParams(view['nameLabel'], NODE_LABEL_DEFAULTS.name), { width: Math.ceil(s.width), height: s.height })
     labels.push({ text: nameText, font: style.font, align: 'center', box: lb })
-    if (model) regions.push({ box: lb, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font })
+    regions.push(...typedNameRegion(model ?? null, lb, style.font))
   }
   const st = stereotypeName(model)
   if (st && labelVisible(view['stereotypeLabel'], false)) {
@@ -452,7 +459,7 @@ export function layoutPin(view: NodeView, ctx: LayoutContext): NodeLayout<PinDat
     labels.push({ text, font: style.font, align: 'center', box: placeNodeLabel(box, labelParams(view['stereotypeLabel'], NODE_LABEL_DEFAULTS.stereotype), { width: Math.ceil(s.width), height: s.height }) })
   }
   // The box itself is also a name target (double-click on the pin).
-  if (model) regions.push({ box, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font })
+  regions.push(...typedNameRegion(model ?? null, box, style.font))
 
   const positioned = { ...view, left: box.left, top: box.top, width: box.width, height: box.height, autoResize: false } as NodeView
   return nodeLayout(positioned, {
