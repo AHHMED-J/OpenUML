@@ -6,6 +6,7 @@
   "license": "MIT",
   "private": true,
   "main": "./out/main/index.js",
+  "desktopName": "openuml.desktop",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -87,7 +88,8 @@
       "category": "Development",
       "target": [
         "AppImage"
-      ]
+      ],
+      "syncDesktopName": true
     }
   }
 }
