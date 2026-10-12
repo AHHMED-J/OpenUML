@@ -1,6 +1,6 @@
 import { generateId, type Repository } from '../model'
 import { OperationBuilder } from './builder'
-import { applyOperation, revertOperation, runSteps, type Operation } from './operation'
+import { applyOperation, OperationError, revertOperation, runSteps, type Operation } from './operation'
 
 export const DEFAULT_HISTORY_LIMIT = 100
 
@@ -82,6 +82,23 @@ export class ModelEngine {
     this.record(op)
     this.emit({ type: 'execute', operation: op })
     return result
+  }
+
+  /**
+   * Dry run: runs `build` (and every transaction it starts) with its changes applied, so it can
+   * look at the result (e.g. lay out a diagram), then reverts them. Nothing is recorded, the dirty
+   * state does not change and listeners are not notified. Used for live previews while dragging.
+   */
+  simulate<T>(build: (b: OperationBuilder) => T): T {
+    if (this.active) throw new OperationError('Cannot simulate inside a transaction')
+    const builder = new OperationBuilder(this.repository)
+    this.active = builder
+    try {
+      return build(builder)
+    } finally {
+      this.active = null
+      runSteps(this.repository, builder.steps, false)
+    }
   }
 
   /** Applies a pre-built operation (e.g. recorded elsewhere) and records it unless bypass. */

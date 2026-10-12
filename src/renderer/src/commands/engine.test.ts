@@ -298,6 +298,38 @@ describe('delete', () => {
   })
 })
 
+describe('simulate', () => {
+  it('shows the changes while running, then reverts them without history, dirty state or events', () => {
+    const { engine, model, diagram, project } = setup()
+    const before = writeMdj(project)
+    const listener = vi.fn()
+    engine.subscribe(listener)
+    const seen = engine.simulate(() => {
+      setFields(engine, model, { name: 'Draft' })
+      createNode(engine, { kind: 'Class', diagram, left: 0, top: 0 })
+      return [model['name'], diagram.ownedViews.length]
+    })
+    expect(seen).toEqual(['Draft', 1])
+    expect(writeMdj(project)).toBe(before)
+    expect(engine.undoDepth).toBe(0)
+    expect(engine.isDirty).toBe(false)
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('reverts when the dry run throws, and cannot run inside a transaction', () => {
+    const { engine, model, project } = setup()
+    const before = writeMdj(project)
+    expect(() =>
+      engine.simulate(() => {
+        setFields(engine, model, { name: 'Draft' })
+        throw new Error('boom')
+      })
+    ).toThrow('boom')
+    expect(writeMdj(project)).toBe(before)
+    expect(() => engine.transact('Outer', () => engine.simulate(() => undefined))).toThrow()
+  })
+})
+
 describe('dirty flag', () => {
   it('tracks the saved point through execute, undo and redo', () => {
     const { engine, model } = setup()
