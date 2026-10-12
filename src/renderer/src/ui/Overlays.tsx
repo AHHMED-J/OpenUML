@@ -1,6 +1,7 @@
 /** Modal dialog host and toast notifications. */
 import type React from 'react'
 import { CommandPalette } from './dialogs/CommandPalette'
+import { ListDialog } from './dialogs/ListDialog'
 import { ElementPickerDialog, PromptDialog, ReferenceListDialog } from './dialogs/PickerDialogs'
 import { PreferencesDialog } from './dialogs/PreferencesDialog'
 import { UiIcon } from './icons'
@@ -28,6 +29,8 @@ export function ModalHost(): React.JSX.Element | null {
       return <CommandPalette key={modalKey} />
     case 'preferences':
       return <PreferencesDialog key={modalKey} />
+    case 'list':
+      return <ListDialog key={modalKey} title={modal.title} items={modal.items} />
     case 'prompt':
       return <PromptDialog key={modalKey} title={modal.title} initial={modal.initial} resolve={modal.resolve} />
     case 'picker':
