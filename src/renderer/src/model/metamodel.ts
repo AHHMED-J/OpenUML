@@ -8,6 +8,7 @@ import { hasDefault, type FieldDef, type TypeDef } from './metamodel-dsl'
 import { UML_ENUMS, UML_TYPES } from './metamodel-uml'
 import { STRUCTURE_ENUMS, STRUCTURE_MODEL_TYPES, STRUCTURE_VIEW_TYPES } from './metamodel-structure'
 import { STATEMACHINE_ENUMS, STATEMACHINE_TYPES } from './metamodel-statemachine'
+import { IDEF0_ENUMS, IDEF0_TYPES } from './metamodel-idef0'
 import type { Elem, TypeMap } from './types'
 import { DEFAULT_FONT } from './values'
 
@@ -46,10 +47,12 @@ registerTypes(UML_TYPES)
 registerTypes(STRUCTURE_MODEL_TYPES)
 registerTypes(STRUCTURE_VIEW_TYPES)
 registerTypes(STATEMACHINE_TYPES)
+registerTypes(IDEF0_TYPES)
 registerEnums(CORE_ENUMS)
 registerEnums(UML_ENUMS)
 registerEnums(STRUCTURE_ENUMS)
 registerEnums(STATEMACHINE_ENUMS)
+registerEnums(IDEF0_ENUMS)
 
 function resolve(name: string, seen: Set<string> = new Set()): TypeInfo | undefined {
   const cached = typeInfos.get(name)
@@ -203,8 +206,9 @@ export function referenceFields(el: Elem): FieldDef[] {
   )
 }
 
-/** Human display name of a type: the type name without the `UML` prefix. */
+/** Human display name of a type: the type name without the `UML` or `IDEF0` prefix. */
 export function typeDisplayName(type: string): string {
+  if (type.startsWith('IDEF0')) return type.slice(5)
   return type.startsWith('UML') ? type.slice(3) : type
 }
 
