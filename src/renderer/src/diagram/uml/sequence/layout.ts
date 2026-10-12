@@ -228,6 +228,10 @@ export function layoutCombinedFragment(view: NodeView, ctx: LayoutContext): Node
     return { label: layoutFrameLabel(box, operator, name, style.font, ctx.measurer), operands: laid }
   }
 
+  /** The operand's guard text box, or the placeholder where an empty guard is edited. */
+  const guardBox = (o: OperandLayout): Rect =>
+    o.guard?.box ?? { left: o.rect.left + SPACING.guardOffsetX, top: o.rect.top + SPACING.guardOffsetY - style.font.size / 2, width: 80, height: style.font.size }
+
   const base = nodeLayout<FragmentData>(view, {
     minWidth,
     minHeight,
@@ -244,7 +248,7 @@ export function layoutCombinedFragment(view: NodeView, ctx: LayoutContext): Node
         if (!o.elementId) continue
         const guardModel = operands.find((x) => x.view._id === o.viewId)?.view.model
         regions.push({
-          box: o.guard?.box ?? { left: o.rect.left + SPACING.guardOffsetX, top: o.rect.top + SPACING.guardOffsetY - style.font.size / 2, width: 80, height: style.font.size },
+          box: guardBox(o),
           target: { kind: 'custom', elementId: o.elementId, syntax: 'guard' },
           text: typeof guardModel?.['guard'] === 'string' ? (guardModel['guard'] as string) : '',
           font: style.font
@@ -273,7 +277,8 @@ export function layoutCombinedFragment(view: NodeView, ctx: LayoutContext): Node
   })
   const hitAreas = [
     ...frameHitAreas(box, data.label),
-    ...data.operands.flatMap((o) => (o.guard ? [o.guard.box] : [])),
+    // Guards, or where an empty guard goes, so it can be double-clicked to add one.
+    ...data.operands.filter((o) => o.elementId).map(guardBox),
     ...dividers.map((d) => ({ left: d.left, top: d.y - 4, width: d.width, height: 8 }))
   ]
   return { ...base, hitAreas, dividers }
