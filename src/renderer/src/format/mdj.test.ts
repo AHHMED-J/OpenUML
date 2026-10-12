@@ -89,6 +89,38 @@ describe('readMdj / writeMdj', () => {
     expect(repository.get('c')?.['isAbstract']).toBe(false)
   })
 
+  it('converts scalars stored as text and drops malformed values with a warning', () => {
+    const text = project([
+      {
+        _type: 'UMLModel',
+        _id: 'm',
+        _parent: { $ref: 'p' },
+        name: 5,
+        visibility: { bad: true },
+        // A lone element stored without its list.
+        ownedElements: { _type: 'UMLClass', _id: 'c', _parent: { $ref: 'm' }, name: 'C', isAbstract: 'true', documentation: ['x'] }
+      },
+      { _type: 'UMLClassDiagram', _id: 'd', _parent: { $ref: 'p' }, ownedViews: 'nope' }
+    ])
+    const { repository, warnings } = readMdj(text)
+    const model = repository.get('m') as Elem
+    expect(model['name']).toBe('5')
+    expect(model['visibility']).toBe('public')
+    const cls = repository.get('c') as Elem
+    expect(model['ownedElements']).toEqual([cls])
+    expect(cls['isAbstract']).toBe(true)
+    expect(cls['documentation']).toBe('')
+    expect(repository.get('d')?.['ownedViews']).toEqual([])
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        'Ignored malformed value of m.visibility',
+        'Read m.ownedElements as a one-item list',
+        'Ignored malformed value of c.documentation',
+        'Ignored malformed list d.ownedViews'
+      ])
+    )
+  })
+
   it('resolves references (forward and backward) to element objects', () => {
     const { repository } = readMdj(exampleText)
     const customer = repository.get('ex-customer')

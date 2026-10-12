@@ -9,6 +9,7 @@ import { LIFELINE_MIN_LINE_LENGTH, MIN_SIZES, SPACING, Z_INDEX, type Rect } from
 import {
   arrangeNameCompartment,
   measureNameCompartment,
+  nameEditText,
   nameOf,
   nodeLayout,
   stereotypeName,
@@ -257,7 +258,7 @@ export function layoutCombinedFragment(view: NodeView, ctx: LayoutContext): Node
       const data = arrange(box)
       const labelRight = Math.max(...data.label.polygon.map((p) => p.x))
       const regions: EditRegion[] = model
-        ? [{ box: { left: box.left, top: box.top, width: labelRight - box.left, height: data.label.bandHeight }, target: { kind: 'name', elementId: model._id }, text: name, font: style.font }]
+        ? [{ box: { left: box.left, top: box.top, width: labelRight - box.left, height: data.label.bandHeight }, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font }]
         : []
       for (const o of data.operands) {
         if (!o.elementId) continue
@@ -347,7 +348,7 @@ export function layoutInteractionUse(view: NodeView, ctx: LayoutContext): NodeLa
       const body = { left: box.left, top: box.top + label.bandHeight, width: box.width, height: box.height - label.bandHeight }
       return { label, nameLine: { text, font: style.font, align: 'center', box: { left: body.left, top: body.top + (body.height - size.height) / 2, width: body.width, height: size.height } } }
     },
-    regions: (box) => (model ? [{ box, target: { kind: 'name', elementId: model._id }, text: nameOf(model), font: style.font }] : [])
+    regions: (box) => (model ? [{ box, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font }] : [])
   })
 }
 
@@ -380,7 +381,7 @@ export function layoutRoundedLabelBox(view: NodeView, ctx: LayoutContext): NodeL
         const raw = typeof invariant === 'string' ? invariant : ''
         return [{ box, target: { kind: 'field', elementId: model._id, field: 'invariant' }, text: raw, font: style.font }]
       }
-      return [{ box, target: { kind: 'name', elementId: model._id }, text: nameOf(model), font: style.font }]
+      return [{ box, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font }]
     }
   })
 }

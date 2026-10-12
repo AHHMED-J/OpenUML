@@ -121,6 +121,22 @@ export function syncGeometry(env: DiagramEnv, b: OperationBuilder): void {
   }
 }
 
+/**
+ * The layout the diagram would have after `change` (an editor action such as `moveSelection`),
+ * without changing the model: the change runs as a dry run and is reverted. Null when it fails.
+ * `previous` lets unchanged views keep their layout objects (memoized rendering).
+ */
+export function previewLayout(env: DiagramEnv, change: () => void, previous?: DiagramLayout | null): DiagramLayout | null {
+  try {
+    return env.engine.simulate(() => {
+      change()
+      return computeDiagramLayout(env.diagram, env.engine.repository, env.measurer, { previous: previous ?? null })
+    })
+  } catch {
+    return null
+  }
+}
+
 /** Runs `change` and the geometry write-back as one operation. */
 export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: OperationBuilder) => T): T {
   return env.engine.transact(name, (b) => {
@@ -398,7 +414,7 @@ function timeConstraintHost(env: DiagramEnv, layout: DiagramLayout, p: Point): V
  * Creates a node of `kind` in `rect` (a zero-size rect = click: default size). Returns the new
  * view's ID, or null when the element cannot be placed there.
  */
-export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeKind, rect: Rect): string | null {
+export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeKind, rect: Rect, options: { readonly quiet?: boolean } = {}): string | null {
   const click = rect.width < 4 && rect.height < 4
   const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
   const at = click ? { x: rect.left, y: rect.top } : center
@@ -436,7 +452,7 @@ export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeK
     )
     return plan.view?._id ?? null
   } catch (err) {
-    console.warn(`Cannot create ${kind}`, err)
+    if (!options.quiet) console.warn(`Cannot create ${kind}`, err)
     return null
   }
 }

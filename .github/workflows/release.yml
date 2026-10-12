@@ -1,0 +1,146 @@
+name: Release
+
+# Pushing a tag such as v0.1.1 builds the installers for Windows, macOS and Linux on real runners
+# and publishes them as a GitHub release. Run manually (Actions > Release > Run workflow) to build
+# the installers without publishing: they are attached to the run as downloadable artifacts.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # A tag must name the version in package.json, so the installers are labeled correctly.
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "::error::Tag $TAG does not match the version in package.json ($version). Bump the version, commit, and tag again."
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: check
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            args: --win nsis --x64
+          - name: macOS
+            os: macos-latest
+            args: --mac dmg zip --x64 --arm64
+          - name: Linux
+            os: ubuntu-latest
+            args: --linux AppImage --x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # No signing certificates: the macOS app is signed ad hoc (package.json: mac.identity "-"),
+      # which Apple Silicon needs to run it at all; Windows builds are unsigned.
+      - name: Package
+        run: npx electron-builder ${{ matrix.args }} --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: installers
+
+      - name: Checksums
+        working-directory: installers
+        run: |
+          sha256sum * | tee SHA256SUMS.txt
+          ls -la
+
+      - name: Release notes
+        run: |
+          cat > notes.md <<'EOF'
+          Installers for Windows (64-bit), macOS (Apple Silicon and Intel) and Linux (64-bit AppImage).
+          Check the downloads against `SHA256SUMS.txt`.
+
+          **The builds are not code-signed** (that needs paid Apple and Microsoft certificates), so
+          each system warns on first launch:
+
+          - **Windows:** SmartScreen shows "Windows protected your PC": click *More info*, then *Run anyway*.
+          - **macOS:** open the `.dmg` (or unzip), drag OpenUML to *Applications*, then right-click it and
+            choose *Open* (or *System Settings > Privacy & Security > Open Anyway*).
+          - **Linux:** `chmod +x OpenUML-*.AppImage && ./OpenUML-*.AppImage`. Without FUSE 2, add
+            `--appimage-extract-and-run`.
+
+          ---
+
+          EOF
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          flags=""
+          # Tags like v0.2.0-beta.1 are published as pre-releases.
+          case "$TAG" in *-*) flags="--prerelease" ;; esac
+          gh release create "$TAG" installers/* \
+            --verify-tag \
+            --title "OpenUML ${TAG#v}" \
+            --notes-file notes.md \
+            --generate-notes \
+            $flags

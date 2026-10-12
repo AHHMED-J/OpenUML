@@ -220,14 +220,29 @@ export class ElementReader {
     const info = getTypeInfo(el._type)
     const name = field.name
     switch (field.kind) {
-      case 'prim':
-        el[name] = value === null ? absentValue(info, field) : value
+      case 'prim': {
+        if (value === null) {
+          el[name] = absentValue(info, field)
+          return
+        }
+        const prim = coercePrimitive(field.type, value)
+        if (prim === undefined) {
+          this.warnings.push(`Ignored malformed value of ${el._id}.${name}`)
+          el[name] = absentValue(info, field)
+        } else {
+          el[name] = prim
+        }
         return
+      }
       case 'enum':
         if (value === null) el[name] = absentValue(info, field)
         // Legacy files store navigability as a boolean.
         else if (typeof value === 'boolean' && name === 'navigable') el[name] = value ? 'navigable' : 'unspecified'
-        else el[name] = value
+        else if (typeof value === 'string') el[name] = value
+        else {
+          this.warnings.push(`Ignored malformed value of ${el._id}.${name}`)
+          el[name] = absentValue(info, field)
+        }
         return
       case 'ref':
         el[name] = null
@@ -236,7 +251,8 @@ export class ElementReader {
         return
       case 'refs': {
         el[name] = []
-        const ids = Array.isArray(value) ? value.filter(isRefJson).map((r) => r.$ref) : []
+        const list = this.asList(el, name, value, isRefJson)
+        const ids = list.filter(isRefJson).map((r) => r.$ref)
         if (ids.length > 0) this.pending.push({ el, field: name, ids })
         return
       }
@@ -244,9 +260,9 @@ export class ElementReader {
         el[name] = value === null ? null : this.read(value, el)
         return
       case 'objs':
-        el[name] = Array.isArray(value)
-          ? value.map((v) => this.read(v, el)).filter((c): c is Elem => c !== null)
-          : []
+        el[name] = this.asList(el, name, value, isElementJson)
+          .map((v) => this.read(v, el))
+          .filter((c): c is Elem => c !== null)
         return
       case 'var':
         if (isRefJson(value)) {
@@ -264,6 +280,14 @@ export class ElementReader {
         el[name] = cloneJson(value)
         return
     }
+  }
+
+  /** A list field's items; a lone item stored without its list is accepted, anything else dropped (with a warning). */
+  private asList(el: Elem, name: string, value: Json, isItem: (v: Json) => boolean): Json[] {
+    if (Array.isArray(value)) return value
+    if (value === null) return []
+    this.warnings.push(isItem(value) ? `Read ${el._id}.${name} as a one-item list` : `Ignored malformed list ${el._id}.${name}`)
+    return isItem(value) ? [value] : []
   }
 
   /**
@@ -288,6 +312,29 @@ export class ElementReader {
       }
     }
     this.pending.length = 0
+  }
+}
+
+/**
+ * The value of a primitive field of `type` (String, Integer, Real, Boolean) read from JSON. Values
+ * other tools store as text (`"12"`, `"true"`) or as another scalar are converted; undefined when
+ * the value cannot be one.
+ */
+function coercePrimitive(type: string, value: Json): string | number | boolean | undefined {
+  switch (type) {
+    case 'Boolean':
+      if (typeof value === 'boolean') return value
+      if (value === 'true' || value === 'false') return value === 'true'
+      return undefined
+    case 'Integer':
+    case 'Real': {
+      const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN
+      return Number.isFinite(n) ? n : undefined
+    }
+    default:
+      if (typeof value === 'string') return value
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+      return undefined
   }
 }
 
