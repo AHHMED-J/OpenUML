@@ -8,6 +8,7 @@ import { projectStore, registerCoreCommands } from '../../store'
 import { Keymap } from '../keymap'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
 import { DEFAULT_KEYMAP } from '../menus/keymaps'
+import { diagramCanHostView } from '../toolbox/palettes'
 import { uiStore } from '../uiStore'
 import { registerAppCommands } from './appCommands'
 import { registerIdef0 } from './idef0'
@@ -32,7 +33,9 @@ export function initCommands(): void {
       setZoom: (zoom: number) => {
         const id = projectStore.getState().activeDiagramId
         if (id) uiStore.getState().setZoom(id, zoom)
-      }
+      },
+      canHostView: diagramCanHostView,
+      notify: (message) => uiStore.getState().toast(message, 'error')
     })
   } catch (err) {
     console.error('Failed to register diagram commands', err)

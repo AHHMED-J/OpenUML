@@ -146,7 +146,15 @@ export function serializeClipboard(payload: ViewClipboardPayload): string {
 export function parseClipboard(text: string): ViewClipboardPayload | null {
   try {
     const value = JSON.parse(text) as unknown
-    if (isJsonObject(value) && value['format'] === VIEW_CLIPBOARD_FORMAT && Array.isArray(value['views'])) {
+    if (
+      isJsonObject(value) &&
+      value['format'] === VIEW_CLIPBOARD_FORMAT &&
+      typeof value['diagramType'] === 'string' &&
+      Array.isArray(value['views']) &&
+      value['views'].every(isJsonObject) &&
+      Array.isArray(value['outerRefs']) &&
+      value['outerRefs'].every((id) => typeof id === 'string')
+    ) {
       return value as unknown as ViewClipboardPayload
     }
   } catch {
@@ -217,15 +225,24 @@ function readAll(repo: Repository, roots: readonly JsonObject[]): Elem[] {
 
 export class PasteError extends Error {}
 
+/** Whether a diagram of type `diagramType` may hold a top-level view of type `viewType`. */
+export type ViewHostPredicate = (diagramType: string, viewType: string) => boolean
+
 /**
  * Pastes views into `diagram` as one operation. `center` is where the pasted bounding box is
- * centered (default: 20 units offset from the copied position). Returns the new top-level view IDs.
+ * centered (default: 20 units offset from the copied position). Views copied from another diagram
+ * type are pasted only when `canHost` accepts every one of them (without `canHost`, only into the
+ * same diagram type). Returns the new top-level view IDs.
  */
-export function pasteViews(engine: ModelEngine, diagram: Diagram, payload: ViewClipboardPayload, center?: Point): string[] {
+export function pasteViews(engine: ModelEngine, diagram: Diagram, payload: ViewClipboardPayload, center?: Point, canHost?: ViewHostPredicate): string[] {
   const repo = engine.repository
   const missing = payload.outerRefs.filter((id) => !repo.has(id))
   if (missing.length > 0) throw new PasteError('Some copied elements no longer exist')
   if (NOT_COPYABLE_DIAGRAMS.has(diagram._type)) throw new PasteError('Views cannot be pasted into this diagram')
+  if (payload.diagramType !== diagram._type) {
+    const hostable = (v: JsonObject): boolean => canHost !== undefined && typeof v['_type'] === 'string' && canHost(diagram._type, v['_type'])
+    if (!payload.views.every(hostable)) throw new PasteError('The copied views cannot be pasted into this kind of diagram')
+  }
   const { roots } = remapAll(payload.views, () => repo.generateId())
   const b = payload.bounds
   const dx = center && b ? Math.round(center.x - (b.left + b.width / 2)) : 20

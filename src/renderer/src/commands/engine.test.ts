@@ -322,6 +322,26 @@ describe('dirty flag', () => {
     expect(engine.isDirty).toBe(true)
   })
 
+  it('keeps changes made after the save point was taken unsaved (edits during an async save)', () => {
+    const { engine, model, diagram } = setup()
+    setFields(engine, model, { name: 'A' })
+    const point = engine.savePoint
+    setFields(engine, model, { name: 'B' })
+    engine.markSaved(point)
+    expect(engine.isDirty).toBe(true)
+    engine.undo()
+    expect(engine.isDirty).toBe(false)
+
+    // Bypass (housekeeping/import) changes count the same way.
+    const fragment = writeFragment(createNode(engine, { kind: 'Class', diagram, left: 0, top: 0 }).model as Elem)
+    const before = engine.savePoint
+    importFragment(engine, fragment, model)
+    engine.markSaved(before)
+    expect(engine.isDirty).toBe(true)
+    engine.markSaved()
+    expect(engine.isDirty).toBe(false)
+  })
+
   it('read-only mode makes edits no-ops', () => {
     const { engine, model } = setup()
     engine.readOnly = true

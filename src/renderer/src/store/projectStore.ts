@@ -1,5 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
-import { CommandIds, deleteFromModel, deleteFromView, ModelEngine, type CommandRegistry } from '../commands'
+import { CommandIds, deleteFromModel, deleteFromView, ModelEngine, type CommandRegistry, type SavePoint } from '../commands'
 import { readMdj, writeMdj } from '../format'
 import { createDefaultProject, isKindOf, Repository, type Diagram, type Elem, type Project, type View } from '../model'
 
@@ -36,8 +36,11 @@ export interface ProjectState {
   openProject(text: string, path: string | null): void
   /** Serializes the open project as `.mdj` text. */
   serializeProject(): string
-  /** Marks the current state as saved (optionally under a new path). */
-  markSaved(path?: string | null): void
+  /**
+   * Marks the current state (or `point`, taken from `engine.savePoint` when the saved text was
+   * serialized) as saved, optionally under a new path.
+   */
+  markSaved(path?: string | null, point?: SavePoint): void
   undo(): void
   redo(): void
   /** Opens (or focuses) a diagram tab and makes it active. */
@@ -119,9 +122,9 @@ export function createProjectStore(): ProjectStore {
         return writeMdj(get().project)
       },
 
-      markSaved(path) {
+      markSaved(path, point) {
         const { engine } = get()
-        engine.markSaved()
+        engine.markSaved(point)
         set({ ...derived(engine), ...(path !== undefined ? { filePath: path } : {}) })
       },
 

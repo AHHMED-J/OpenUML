@@ -6,9 +6,9 @@ OpenUML is an Electron desktop application written in TypeScript with a React re
 
 | Process | Location | Responsibility |
 | --- | --- | --- |
-| Main | `src/main/` | Window lifecycle, native application menu, native dialogs, file I/O. No modeling logic. |
+| Main | `src/main/` | Window lifecycle, native application menu, native dialogs, file I/O. The renderer may read `.mdj` files by path and write only files chosen in dialogs or opened in the session, and folders chosen for export (`fileAccess.ts`); writes are atomic (temporary file + rename). No modeling logic. |
 | Preload | `src/preload/` | Exposes the typed `window.openuml` bridge (`src/shared/ipc.ts`) through `contextBridge`. |
-| Renderer | `src/renderer/` | Everything else: model, commands, diagrams, UI. Runs with `contextIsolation: true` and `nodeIntegration: false`. |
+| Renderer | `src/renderer/` | Everything else: model, commands, diagrams, UI. Runs sandboxed with `contextIsolation: true` and `nodeIntegration: false`. |
 
 ## Renderer modules
 

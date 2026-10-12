@@ -18,6 +18,12 @@ export interface TransactOptions {
   readonly bypass?: boolean
 }
 
+/** A model state as `markSaved` understands it (see `ModelEngine.savePoint`). */
+export interface SavePoint {
+  readonly top: string | null
+  readonly bypassCount: number
+}
+
 /** Marker meaning "the saved state can no longer be reached through undo/redo". */
 const UNREACHABLE = '\u0000unreachable'
 
@@ -34,7 +40,9 @@ export class ModelEngine {
   private active: OperationBuilder | null = null
   /** ID of the operation on top of the undo stack when last saved (null = empty stack). */
   private savedTop: string | null = null
-  private bypassModified = false
+  /** Bypass operations recorded so far, and how many of them the saved state includes. */
+  private bypassCount = 0
+  private savedBypassCount = 0
 
   constructor(
     readonly repository: Repository,
@@ -86,7 +94,7 @@ export class ModelEngine {
 
   private record(op: Operation): void {
     if (op.bypass) {
-      this.bypassModified = true
+      this.bypassCount++
       return
     }
     this.undoStack.push(op)
@@ -147,13 +155,18 @@ export class ModelEngine {
 
   /** True when the model differs from the last saved (or loaded/created) state. */
   get isDirty(): boolean {
-    return this.bypassModified || (this.undoStack.at(-1)?.id ?? null) !== this.savedTop
+    return this.bypassCount !== this.savedBypassCount || (this.undoStack.at(-1)?.id ?? null) !== this.savedTop
   }
 
-  /** Records the current state as saved. */
-  markSaved(): void {
-    this.savedTop = this.undoStack.at(-1)?.id ?? null
-    this.bypassModified = false
+  /** The current state, to pass to `markSaved` once it has been written (changes made meanwhile stay unsaved). */
+  get savePoint(): SavePoint {
+    return { top: this.undoStack.at(-1)?.id ?? null, bypassCount: this.bypassCount }
+  }
+
+  /** Records `point` (default: the current state) as saved. */
+  markSaved(point: SavePoint = this.savePoint): void {
+    this.savedTop = point.top
+    this.savedBypassCount = point.bypassCount
   }
 
   /** Drops all history and marks the current state as saved. */
