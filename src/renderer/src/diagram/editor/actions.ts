@@ -134,6 +134,13 @@ export function findDropContainer(env: DiagramEnv, layout: DiagramLayout, p: Poi
   return null
 }
 
+/** How far outside an action's border a click still creates a pin on it. */
+export const PIN_BORDER_TOLERANCE = 12
+
+function inflate(r: Rect, by: number): Rect {
+  return { left: r.left - by, top: r.top - by, width: r.width + 2 * by, height: r.height + 2 * by }
+}
+
 function rectHas(r: Rect, p: Point): boolean {
   return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height
 }
@@ -290,10 +297,12 @@ export function creationContainer(env: DiagramEnv, layout: DiagramLayout, kind: 
   const repo = env.engine.repository
   for (let i = layout.order.length - 1; i >= 0; i--) {
     const node = layout.nodes.get(layout.order[i] as string)
-    if (!node || !rectHas(node.box, p)) continue
+    const pin = kind === 'InputPin' || kind === 'OutputPin'
+    // Pins straddle the action's border, so clicks within a small tolerance outside it count too.
+    if (!node || !rectHas(pin ? inflate(node.box, PIN_BORDER_TOLERANCE) : node.box, p)) continue
     const view = repo.get(node.viewId) as View | undefined
     if (!view) continue
-    if (kind === 'InputPin' || kind === 'OutputPin') {
+    if (pin) {
       if (isKindOf(view.model, 'UMLAction')) return view
       continue
     }
