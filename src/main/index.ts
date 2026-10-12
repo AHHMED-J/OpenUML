@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { extname, join, resolve } from 'node:path'
 import { IpcChannels, type FileFilter, type MenuItemSpec, type NativeEditAction } from '../shared/ipc'
 import { FileAccess, writeFileAtomic } from './fileAccess'
+import appIcon from '../../resources/icon.png?asset'
 
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
@@ -22,11 +23,16 @@ function findFileArgument(argv: readonly string[]): string | null {
   return null
 }
 
+/** Opens `path` in the running window (asking about unsaved changes), or at launch if not ready yet. */
+function openFile(path: string): void {
+  if (rendererReady && mainWindow) mainWindow.webContents.send(IpcChannels.openFile, path)
+  else startupFile = path
+}
+
 // macOS delivers files opened from Finder/Dock through this event, possibly before `ready`.
 app.on('open-file', (event, path) => {
   event.preventDefault()
-  if (rendererReady && mainWindow) mainWindow.webContents.send(IpcChannels.openFile, path)
-  else startupFile = path
+  openFile(path)
 })
 
 function createWindow(): void {
@@ -39,6 +45,8 @@ function createWindow(): void {
     minHeight: 500,
     title: 'OpenUML',
     show: false,
+    // macOS and Windows take the icon from the application bundle; Linux needs it on the window.
+    ...(process.platform === 'linux' ? { icon: appIcon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -214,13 +222,28 @@ function registerIpc(): void {
   })
 }
 
-app.whenReady().then(() => {
-  registerIpc()
-  createWindow()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+// One running application: opening a .mdj file from the OS while it runs (Windows, Linux) starts
+// a second process, which hands the file to this one and quits.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, argv) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+    const file = findFileArgument(argv)
+    if (file) openFile(file)
   })
-})
+
+  app.whenReady().then(() => {
+    registerIpc()
+    createWindow()
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
