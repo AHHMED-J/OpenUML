@@ -4,6 +4,7 @@
  * as one undoable operation.
  */
 import { fieldOf, isKindOf, isSubtype } from './metamodel'
+import { walk } from './repository'
 import {
   STATEMACHINE_EDGE_KINDS,
   STATEMACHINE_NODE_KINDS,
@@ -56,6 +57,7 @@ import {
 import type {
   Bounds,
   Diagram,
+  EdgeView,
   Elem,
   NodeView,
   Point,
@@ -129,6 +131,8 @@ export interface CreationPlan {
   readonly moves?: readonly ModelMove[]
   /** Reference/field assignments on existing elements applied after the insertions (e.g. `childDiagram`). */
   readonly sets?: readonly FieldSet[]
+  /** Existing elements removed by the creation (containment links made stale by a move). */
+  readonly removals?: readonly Elem[]
 }
 
 /** Assigns `value` to the non-containment field `owner[field]` as part of a creation. */
@@ -876,6 +880,13 @@ function isEndpointView(view: View): boolean {
   return isKindOf(view, 'UMLMessageEndpointView')
 }
 
+/** The top of the containment tree holding `el` (the project). */
+function rootOf(el: Elem): Elem {
+  let root = el
+  while (root._parent) root = root._parent
+  return root
+}
+
 /** Containment link: `child` is moved into `container`, which must not lie inside `child`. */
 function canContain(child: Elem | null, container: Elem | null): boolean {
   if (!child || !container || child === container) return false
@@ -962,10 +973,24 @@ export function planEdge(req: EdgeRequest): CreationPlan {
     const view = createElement<View>(spec.viewType, { tail: req.tail, head: req.head, points })
     insertions.push({ owner: req.diagram, field: 'ownedViews', element: view })
     const moves: ModelMove[] = []
+    const removals: Elem[] = []
     if (req.kind === 'Containment' && source && target && source._parent !== target) {
       moves.push({ element: source, owner: target, field: 'ownedElements' })
+      // The element leaves its old owner: containment links drawn to that owner no longer hold.
+      for (const el of walk(rootOf(req.diagram))) {
+        if (el._type !== 'UMLContainmentView') continue
+        const link = el as EdgeView
+        if (link.tail?.model === source && link.head?.model !== target) removals.push(el)
+      }
     }
-    return { model: null, view, insertions, refAdditions: [], ...(moves.length > 0 ? { moves } : {}) }
+    return {
+      model: null,
+      view,
+      insertions,
+      refAdditions: [],
+      ...(moves.length > 0 ? { moves } : {}),
+      ...(removals.length > 0 ? { removals } : {})
+    }
   }
 
   const owner = spec.ownedBy ? (req.diagram._parent as Elem) : (source as Elem)
