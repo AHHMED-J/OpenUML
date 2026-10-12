@@ -31,6 +31,7 @@ import {
   type Rect,
   type SegmentOrientation
 } from '../core'
+import { nameEditText } from '../layout/helpers'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { getTextMeasurer } from '../layout/measurer'
 import type { DiagramLayout, EditRegion, EditTarget, NodeDivider } from '../layout/types'
@@ -50,6 +51,7 @@ import {
   moveAxisOf,
   moveEdgeLabel,
   moveSelection,
+  previewLayout,
   reconnectEnd,
   resizeNode,
   resizeSubView,
@@ -93,6 +95,50 @@ type Gesture =
   | { type: 'pan'; startClient: Point; scroll: Point }
 
 const DRAG_THRESHOLD = 3
+/** Duration of the zoom transition (none when the system asks for reduced motion). */
+const ZOOM_ANIMATION_MS = 160
+
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The edit a drag gesture commits on release, for the live preview while dragging (null when the
+ * gesture has nothing to show yet or is previewed with an overlay only: creation, reconnection).
+ */
+function gestureChange(g: Gesture, env: DiagramEnv, layout: DiagramLayout): (() => void) | null {
+  switch (g.type) {
+    case 'move':
+      return g.moved ? () => moveSelection(env, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined) : null
+    case 'resize':
+      return g.rect !== g.box ? () => resizeNode(env, g.id, g.rect) : null
+    case 'divider':
+      return g.moved ? () => resizeSubView(env, g.divider.viewId, g.y - g.divider.top) : null
+    case 'edge-shift':
+      return g.moved && g.dy !== 0 ? () => moveSelection(env, [g.edgeId], 0, g.dy) : null
+    case 'vertex':
+      return g.moved && !g.end ? () => setEdgeVertices(env, g.edgeId, g.points) : null
+    case 'segment':
+      return g.moved ? () => setEdgeVertices(env, g.edgeId, g.points) : null
+    case 'label': {
+      const labelViewId = g.labelViewId
+      return g.moved && labelViewId ? () => moveEdgeLabel(env, layout, g.edgeId, labelViewId, g.current) : null
+    }
+    case 'create-node':
+      // A drawn rectangle shows the new element itself; where it cannot be placed, the outline stays.
+      return g.rect.width >= 4 || g.rect.height >= 4
+        ? () => {
+            if (!createNodeAt(env, layout, g.kind as never, g.rect, { quiet: true })) throw new Error(`${g.kind} cannot be placed here`)
+          }
+        : null
+    default:
+      return null
+  }
+}
 
 function isTextInput(el: EventTarget | null): boolean {
   const e = el as HTMLElement | null
@@ -105,7 +151,9 @@ function edgeMidBox(points: readonly Point[]): Rect {
 }
 
 export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
-  const { diagramId, tool, onToolUsed, zoom, onZoomChange, showGrid, snapToGrid } = props
+  const { diagramId, tool, onToolUsed, zoom: targetZoom, onZoomChange, showGrid, snapToGrid } = props
+  /** The zoom drawn: follows `targetZoom` with a short transition (see the zoom effect below). */
+  const [zoom, setShownZoom] = useState(targetZoom)
   const engine = useProjectStore((s) => s.engine)
   const repository = useProjectStore((s) => s.repository)
   const version = useProjectStore((s) => s.version)
@@ -143,10 +191,14 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const svgRef = useRef<SVGSVGElement>(null)
   const gesture = useRef<Gesture | null>(null)
   const spaceDown = useRef(false)
-  const live = useRef({ zoom, layout, selected, selectedSet, env, tool, snapToGrid })
-  live.current = { zoom, layout, selected, selectedSet, env, tool, snapToGrid }
+  const live = useRef({ zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid })
+  live.current = { zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid }
 
   const [preview, setPreview] = useState<DragPreview | null>(null)
+  /** While dragging: the diagram as it will be when the gesture is released (see `scheduleLive`). */
+  const [liveLayout, setLiveLayout] = useState<DiagramLayout | null>(null)
+  const liveFrame = useRef<number | null>(null)
+  const liveFallback = useRef<DragPreview | null>(null)
   const [cursor, setCursor] = useState<string>('default')
   const [editing, setEditing] = useState<QuickEditState | null>(null)
   const [viewport, setViewport] = useState({ width: 800, height: 600 })
@@ -170,7 +222,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     return () => ro?.disconnect()
   }, [])
 
-  const bounds = layout?.bounds
+  /** What is drawn: the live drag result while dragging, else the model's layout. */
+  const shown = liveLayout ?? layout
+  const bounds = shown?.bounds
   const canvasWidth = canvasExtent(bounds ? bounds.left + bounds.width : 0, viewport.width, zoom)
   const canvasHeight = canvasExtent(bounds ? bounds.top + bounds.height : 0, viewport.height, zoom)
 
@@ -185,23 +239,48 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const snapValue = useCallback((v: number): number => (live.current.snapToGrid ? snap(v, GRID.size) : Math.round(v)), [])
 
   // ---- Zoom keeping a screen point fixed.
+  /** Set when the next zoom change must apply at once (continuous trackpad pinch). */
+  const zoomImmediately = useRef(false)
   const zoomAround = useCallback(
-    (next: number, screen: Point) => {
+    (next: number, screen: Point, animate = true) => {
       const el = scrollRef.current
+      // The anchor is taken at the zoom drawn now (possibly mid-transition).
       const z = live.current.zoom
       const target = clampZoom(next)
-      if (!el || target === z) return
+      if (!el || target === live.current.targetZoom) return
       pendingScroll.current = { anchor: { x: (el.scrollLeft + screen.x) / z, y: (el.scrollTop + screen.y) / z }, screen }
+      zoomImmediately.current = !animate
       onZoomChange(target)
     },
     [onZoomChange]
   )
 
+  // Zoom transition: the drawn zoom eases toward the target; a new target restarts from where it is.
+  useEffect(() => {
+    const from = live.current.zoom
+    const immediate = zoomImmediately.current
+    zoomImmediately.current = false
+    if (from === targetZoom) return
+    if (immediate || prefersReducedMotion()) {
+      setShownZoom(targetZoom)
+      return
+    }
+    const start = performance.now()
+    let frame = requestAnimationFrame(function step(now: number): void {
+      const t = Math.min(1, Math.max(0, (now - start) / ZOOM_ANIMATION_MS))
+      const eased = 1 - (1 - t) ** 3
+      setShownZoom(t === 1 ? targetZoom : from + (targetZoom - from) * eased)
+      if (t < 1) frame = requestAnimationFrame(step)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [targetZoom])
+
+  // Keeps the anchored point under the same screen point on every frame of the transition.
   useLayoutEffect(() => {
     const el = scrollRef.current
     const p = pendingScroll.current
     if (!el || !p) return
-    pendingScroll.current = null
+    if (zoom === live.current.targetZoom) pendingScroll.current = null
     el.scrollLeft = Math.max(0, p.anchor.x * zoom - p.screen.x)
     el.scrollTop = Math.max(0, p.anchor.y * zoom - p.screen.y)
   }, [zoom])
@@ -214,9 +293,12 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
       const rect = el.getBoundingClientRect()
-      const z = live.current.zoom
-      const next = Math.abs(e.deltaY) >= 40 ? stepZoom(z, e.deltaY < 0 ? 1 : -1) : z * Math.exp(-e.deltaY * 0.01)
-      zoomAround(next, { x: e.clientX - rect.left, y: e.clientY - rect.top })
+      // From the target, so quick wheel steps accumulate while the transition runs.
+      const z = live.current.targetZoom
+      // Mouse wheel notches step (animated); trackpad pinches arrive as many small deltas and follow the fingers.
+      const notch = Math.abs(e.deltaY) >= 40
+      const next = notch ? stepZoom(z, e.deltaY < 0 ? 1 : -1) : z * Math.exp(-e.deltaY * 0.01)
+      zoomAround(next, { x: e.clientX - rect.left, y: e.clientY - rect.top }, notch)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
@@ -252,7 +334,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return true
       }
       if (view.model && edge.points.length > 0) {
-        openRegion(viewId, { box: edgeMidBox(edge.points), target: { kind: 'name', elementId: view.model._id }, text: String(view.model['name'] ?? ''), font: edge.style.font })
+        openRegion(viewId, { box: edgeMidBox(edge.points), target: { kind: 'name', elementId: view.model._id }, text: nameEditText(view.model), font: edge.style.font })
         return true
       }
       return false
@@ -337,7 +419,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!el || !b) return
         const z = clampZoom(Math.min(1, (el.clientWidth - 20) / (b.left + b.width + CANVAS_FIT_PADDING), (el.clientHeight - 20) / (b.top + b.height + CANVAS_FIT_PADDING)))
         pendingScroll.current = { anchor: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
-        if (z === live.current.zoom) {
+        if (z === live.current.targetZoom) {
           el.scrollLeft = 0
           el.scrollTop = 0
         } else onZoomChange(z)
@@ -356,6 +438,40 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     setActiveEditor(handle)
     return () => releaseActiveEditor(handle)
   }, [handle])
+
+  // ---- Live drag preview: once per frame, the gesture's edit runs as a dry run and its layout is
+  // drawn, so views, attached edges and growing containers follow the pointer. `fallback` is the
+  // outline overlay shown when the gesture has no live preview (or the dry run fails).
+  const scheduleLive = (fallback: DragPreview | null): void => {
+    liveFallback.current = fallback
+    if (liveFrame.current !== null) return
+    liveFrame.current = requestAnimationFrame(() => {
+      liveFrame.current = null
+      const g = gesture.current
+      const { layout: l, env: en } = live.current
+      if (!g || !l || !en) return
+      const change = gestureChange(g, en, l)
+      const next = change ? previewLayout(en, change, previousLayout.current) : null
+      const fb = liveFallback.current
+      setLiveLayout(next)
+      // With a live layout only the drop-target highlight remains as an overlay.
+      setPreview(next ? (fb?.kind === 'boxes' && fb.container ? { kind: 'boxes', rects: [], container: fb.container } : null) : fb)
+    })
+  }
+
+  const stopLive = (): void => {
+    if (liveFrame.current !== null) cancelAnimationFrame(liveFrame.current)
+    liveFrame.current = null
+    liveFallback.current = null
+    setLiveLayout(null)
+  }
+
+  useEffect(
+    () => () => {
+      if (liveFrame.current !== null) cancelAnimationFrame(liveFrame.current)
+    },
+    []
+  )
 
   // ---- Selection helpers.
   const setSelection = useCallback((ids: readonly string[]) => select({ views: ids }), [select])
@@ -591,7 +707,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const container = findDropContainer(en, l, p, g.nodes)
         g.container = container
         g.recontain = isContainmentChange(g.nodes, container)
-        setPreview({
+        scheduleLive({
           kind: 'boxes',
           rects: g.boxes.map((b) => ({ ...b, left: b.left + g.dx, top: b.top + g.dy })),
           container: g.recontain && container ? (l.nodes.get(container._id)?.box ?? null) : null
@@ -603,7 +719,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         g.moved = true
         const raw = g.divider.y + p.y - g.start.y
         g.y = Math.min(g.divider.maxY, Math.max(g.divider.minY, snapOn ? snap(raw, GRID.size) : Math.round(raw)))
-        setPreview({ kind: 'polyline', points: [{ x: g.divider.left, y: g.y }, { x: g.divider.left + g.divider.width, y: g.y }] })
+        scheduleLive({ kind: 'polyline', points: [{ x: g.divider.left, y: g.y }, { x: g.divider.left + g.divider.width, y: g.y }] })
         return
       }
       case 'edge-shift': {
@@ -611,7 +727,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         g.moved = true
         const y0 = g.points[0]?.y ?? 0
         g.dy = (snapOn ? snap(y0 + p.y - g.start.y, GRID.size) : Math.round(y0 + p.y - g.start.y)) - y0
-        setPreview({ kind: 'polyline', points: g.points.map((q) => ({ x: q.x, y: q.y + g.dy })) })
+        scheduleLive({ kind: 'polyline', points: g.points.map((q) => ({ x: q.x, y: q.y + g.dy })) })
         return
       }
       case 'resize': {
@@ -620,7 +736,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         let r = resizeByHandle(g.box, g.handle, dx, dy, { minWidth: g.minWidth, minHeight: g.minHeight, keepRatio: g.keepRatio })
         if (snapOn && !g.keepRatio) r = snapResized(r, g.box, g.handle, g.minWidth, g.minHeight)
         g.rect = r
-        setPreview({ kind: 'boxes', rects: [r] })
+        scheduleLive({ kind: 'boxes', rects: [r] })
         return
       }
       case 'band': {
@@ -632,7 +748,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'create-node': {
         const end = { x: snapValue(p.x), y: snapValue(p.y) }
         g.rect = rectFromPoints(g.start, end)
-        if (g.rect.width > 0 || g.rect.height > 0) setPreview({ kind: 'boxes', rects: [g.rect] })
+        if (g.rect.width > 0 || g.rect.height > 0) scheduleLive({ kind: 'boxes', rects: [g.rect] })
         return
       }
       case 'create-edge':
@@ -643,7 +759,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         g.moved = true
         const q = g.end ? p : { x: snapOn ? snap(p.x, GRID.size) : Math.round(p.x), y: snapOn ? snap(p.y, GRID.size) : Math.round(p.y) }
         g.points[g.index] = q
-        setPreview({ kind: 'polyline', points: [...g.points] })
+        scheduleLive({ kind: 'polyline', points: [...g.points] })
         return
       }
       case 'segment': {
@@ -665,13 +781,13 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (g.index === 0) pts.splice(1, 0, { ...(g.base[0] as Point), ...(g.orientation === 'horizontal' ? { y: (pts[0] as Point).y } : { x: (pts[0] as Point).x }) })
         if (g.index + 1 === g.base.length - 1) pts.push({ ...(g.base[g.base.length - 1] as Point) })
         g.points = pts
-        setPreview({ kind: 'polyline', points: pts })
+        scheduleLive({ kind: 'polyline', points: pts })
         return
       }
       case 'label': {
         g.moved = true
         g.current = { ...g.box, left: Math.round(g.box.left + p.x - g.start.x), top: Math.round(g.box.top + p.y - g.start.y) }
-        setPreview({ kind: 'boxes', rects: [g.current] })
+        scheduleLive({ kind: 'boxes', rects: [g.current] })
         return
       }
     }
@@ -681,6 +797,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     const g = gesture.current
     gesture.current = null
     setPreview(null)
+    // The committed layout replaces the live one in the same render: no jump on release.
+    stopLive()
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     const { layout: l, env: en, selected: selIds } = live.current
     if (!g || !l || !en || cancelled) return
@@ -825,6 +943,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       if (gesture.current) {
         gesture.current = null
         setPreview(null)
+        stopLive()
         e.preventDefault()
       }
       return
@@ -930,8 +1049,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
                 <rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={`url(#${gridId})`} pointerEvents="none" />
               </>
             )}
-            <DiagramContent layout={layout} />
-            <SelectionOverlay layout={layout} selected={selected} zoom={zoom} />
+            <DiagramContent layout={liveLayout ?? layout} />
+            <SelectionOverlay layout={liveLayout ?? layout} selected={selected} zoom={zoom} />
             <DragOverlay preview={preview} zoom={zoom} />
           </g>
         </svg>

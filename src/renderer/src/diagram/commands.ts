@@ -8,7 +8,7 @@ import { deleteFromView, setFieldsOfAll, type CommandDefinition, type CommandReg
 import { fieldOf, isKindOf, type Diagram, type View } from '../model'
 import { activeDiagram, projectStore, selectedViews } from '../store'
 import { GRID, LineStyle, stepZoom, ZOOM } from './core'
-import { canCopyViewsOf, copyViews, duplicateViews, parseClipboard, pasteViews, serializeClipboard, type ViewClipboardPayload } from './clipboard'
+import { canCopyViewsOf, copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard, type ViewClipboardPayload, type ViewHostPredicate } from './clipboard'
 import { moveSelection, type DiagramEnv } from './editor/actions'
 import { getActiveEditor } from './editor/activeEditor'
 import { ALIGN_OPS, alignViews, reorderViews } from './editor/alignment'
@@ -18,6 +18,10 @@ import { getTextMeasurer } from './layout/measurer'
 export interface DiagramCommandContext {
   getZoom(): number
   setZoom(zoom: number): void
+  /** Which view types a diagram type may hold, for views pasted from another diagram type (default: none). */
+  canHostView?: ViewHostPredicate
+  /** Tells the user why a paste was refused (default: console warning). */
+  notify?(message: string): void
 }
 
 /** Command IDs registered by `registerDiagramCommands`. */
@@ -49,6 +53,7 @@ export const DiagramCommandIds = {
 // Clipboard storage: kept in memory and mirrored to the system clipboard as text.
 
 let memoryClipboard: ViewClipboardPayload | null = null
+let pasteContext: Pick<DiagramCommandContext, 'canHostView' | 'notify'> = {}
 
 export function getClipboardPayload(): ViewClipboardPayload | null {
   return memoryClipboard
@@ -62,13 +67,20 @@ function writeSystemClipboard(text: string): void {
   }
 }
 
-async function readSystemClipboard(): Promise<ViewClipboardPayload | null> {
+/**
+ * The payload to paste: the system clipboard's when it holds OpenUML views, nothing when it holds
+ * anything else (copied after the views, so the views are stale), and the in-memory copy only when
+ * the system clipboard cannot be read.
+ */
+async function clipboardPayload(): Promise<ViewClipboardPayload | null> {
+  let text: string | undefined
   try {
-    const text = await globalThis.navigator?.clipboard?.readText()
-    return text ? parseClipboard(text) : null
+    text = await globalThis.navigator?.clipboard?.readText()
   } catch {
-    return null
+    return memoryClipboard
   }
+  if (text === undefined) return memoryClipboard
+  return parseClipboard(text)
 }
 
 function isTextFieldFocused(): boolean {
@@ -122,15 +134,17 @@ export function copySelection(): boolean {
 export async function pasteClipboard(): Promise<string[]> {
   const diagram = currentDiagram()
   if (!diagram) return []
-  const payload = (await readSystemClipboard()) ?? memoryClipboard
+  const payload = await clipboardPayload()
   if (!payload) return []
   const center = getActiveEditor(diagram._id)?.viewportCenter()
   try {
-    const ids = pasteViews(state().engine, diagram, payload, center)
+    const ids = pasteViews(state().engine, diagram, payload, center, pasteContext.canHostView)
     selectViews(ids)
     return ids
   } catch (err) {
-    console.warn('Paste failed:', (err as Error).message)
+    const message = `Cannot paste: ${(err as Error).message}`
+    if (err instanceof PasteError && pasteContext.notify) pasteContext.notify(message)
+    else console.warn(message)
     return []
   }
 }
@@ -184,6 +198,10 @@ const ALIGN_LABELS: Record<string, string> = {
  */
 export function registerDiagramCommands(registry: CommandRegistry, ctx: DiagramCommandContext): () => void {
   const disposers: Array<() => void> = []
+  pasteContext = { canHostView: ctx.canHostView, notify: ctx.notify }
+  disposers.push(() => {
+    pasteContext = {}
+  })
   const add = (command: CommandDefinition): void => {
     if (!registry.has(command.id)) disposers.push(registry.register(command))
   }

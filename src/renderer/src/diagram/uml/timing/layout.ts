@@ -35,7 +35,7 @@ export function layoutTimingFrame(view: NodeView, ctx: LayoutContext): NodeLayou
     data: (box) => ({ label: layoutFrameLabel(box, 'sd', name, style.font, ctx.measurer) }),
     regions: (box) =>
       owner
-        ? [{ box: layoutFrameLabel(box, 'sd', name, style.font, ctx.measurer).name?.box ?? box, target: { kind: 'name', elementId: owner._id }, text: name, font: style.font }]
+        ? [{ box: layoutFrameLabel(box, 'sd', name, style.font, ctx.measurer).name?.box ?? box, target: { kind: 'name', elementId: owner._id }, text: nameEditText(owner), font: style.font }]
         : []
   })
   return { ...layout, hitAreas: frameHitAreas(layout.box, layout.data.label) }

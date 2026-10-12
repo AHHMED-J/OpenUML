@@ -6,6 +6,7 @@
   "license": "MIT",
   "private": true,
   "main": "./out/main/index.js",
+  "desktopName": "openuml.desktop",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -36,5 +37,62 @@
     "esbuild@0.25.12": true,
     "esbuild@0.28.2": true,
     "electron-winstaller@5.4.0": true
+  },
+  "build": {
+    "appId": "io.github.ahhmed-j.openuml",
+    "productName": "OpenUML",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "resources/**"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "mdj",
+        "name": "OpenUML Model",
+        "description": "OpenUML model",
+        "mimeType": "application/x-openuml-model",
+        "role": "Editor",
+        "icon": "document"
+      }
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "linux": {
+      "icon": "build/icons",
+      "category": "Development",
+      "target": [
+        "AppImage"
+      ],
+      "syncDesktopName": true
+    }
   }
 }
