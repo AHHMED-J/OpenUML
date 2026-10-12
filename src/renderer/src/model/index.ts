@@ -40,3 +40,24 @@ export * from './metamodel'
 export * from './repository'
 export * from './view-builders'
 export * from './factories'
+export { newRegion, newStateMachine, type StateMachineNodeKind } from './factories-statemachine'
+export type { TimingNodeKind } from './factories-timing'
+export * from './structure-factories'
+export * from './factories-rad'
+export * from './idef0-numbering'
+export {
+  IDEF0_AREA,
+  IDEF0_BOX,
+  IDEF0_CONTEXT_BOX,
+  IDEF0_PORT_SIZE,
+  IDEF0_SHEET,
+  diagramOfScope,
+  planBoundaryArrow,
+  planDecompose,
+  planIdef0Arrow,
+  portBounds,
+  staircaseBox,
+  type Idef0ArrowRequest,
+  type Idef0EdgeKind,
+  type Idef0NodeKind
+} from './factories-idef0'

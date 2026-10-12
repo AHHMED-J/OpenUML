@@ -62,7 +62,7 @@ function items(model: Elem, field: string): Elem[] {
   return Array.isArray(list) ? (list as Elem[]) : []
 }
 
-function stereotypeForm(view: UMLClassifierView): StereotypeForm {
+export function stereotypeForm(view: UMLClassifierView): StereotypeForm {
   const v = view.stereotypeDisplay
   return v === 'none' || v === 'decoration' || v === 'decoration-label' || v === 'icon' || v === 'icon-label' ? v : 'label'
 }
@@ -71,13 +71,13 @@ function rowFont(base: Font, italic: boolean): Font {
   return italic ? { ...base, style: base.style | 2 } : base
 }
 
-interface Compartment {
+export interface Compartment {
   readonly kind: CompartmentKind
   readonly measure: ListCompartmentMeasure
 }
 
 /** Builds the visible list compartments of a classifier view. */
-function compartmentsOf(view: UMLClassifierView, model: Elem, font: Font, ctx: LayoutContext): Compartment[] {
+export function compartmentsOf(view: UMLClassifierView, model: Elem, font: Font, ctx: LayoutContext): Compartment[] {
   const format: FeatureFormat = {
     showVisibility: view.showVisibility !== false,
     showType: view.showType !== false,
@@ -231,7 +231,7 @@ export function layoutClassifier(view: NodeView, ctx: LayoutContext): NodeLayout
   })
 }
 
-function nameRegion(model: Elem | null, rect: Rect, m: NameCompartmentMeasure, font: Font): EditRegion[] {
+export function nameRegion(model: Elem | null, rect: Rect, m: NameCompartmentMeasure, font: Font): EditRegion[] {
   if (!model) return []
   const nameItem = m.items.find((i) => i.index === 1)
   return [{ box: rect, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: nameItem?.font ?? font }]

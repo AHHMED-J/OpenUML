@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readMdj, validateModel, writeMdj } from '../format'
 import {
+  canConnect,
   createDefaultProject,
   fieldsOf,
   isElem,
@@ -17,6 +18,10 @@ import {
   type EdgeKind,
   type NodeKind,
   type NodeView,
+  type StateMachineNodeKind,
+  type Idef0NodeKind,
+  type RadNodeKind,
+  type TimingNodeKind,
   type UMLClassifierView,
   type UMLNameCompartmentView,
   type UMLSeqLifelineView,
@@ -57,10 +62,31 @@ function setup() {
   const useCase = apply(planDiagram('UseCaseDiagram', model)).diagram
   const sequence = apply(planDiagram('SequenceDiagram', model)).diagram
   const activity = apply(planDiagram('ActivityDiagram', model)).diagram
-  return { project, model, classDiagram, useCase, sequence, activity }
+  const object = apply(planDiagram('ObjectDiagram', model)).diagram
+  const composite = apply(planDiagram('CompositeStructureDiagram', model)).diagram
+  const communication = apply(planDiagram('CommunicationDiagram', model)).diagram
+  const overview = apply(planDiagram('InteractionOverviewDiagram', model)).diagram
+  return { project, model, classDiagram, useCase, sequence, activity, object, composite, communication, overview }
 }
 
-const DIAGRAM_OF: Record<NodeKind, 'classDiagram' | 'useCase' | 'sequence' | 'activity'> = {
+type DiagramBucket = 'classDiagram' | 'useCase' | 'sequence' | 'activity' | 'object' | 'composite' | 'communication' | 'overview'
+
+/** State machine and timing kinds are covered by their own tests (they need containers and own regions). */
+type GenericKind = Exclude<NodeKind, StateMachineNodeKind | TimingNodeKind | Idef0NodeKind | RadNodeKind>
+
+const DIAGRAM_OF: Record<GenericKind, DiagramBucket> = {
+  Object: 'object',
+  ArtifactInstance: 'object',
+  ComponentInstance: 'object',
+  NodeInstance: 'object',
+  Port: 'composite',
+  Part: 'composite',
+  Collaboration: 'composite',
+  CollaborationUse: 'composite',
+  CommLifeline: 'communication',
+  InteractionUseInOverview: 'overview',
+  InteractionInOverview: 'overview',
+  InformationItem: 'classDiagram',
   Class: 'classDiagram',
   Interface: 'classDiagram',
   Enumeration: 'classDiagram',
@@ -71,11 +97,23 @@ const DIAGRAM_OF: Record<NodeKind, 'classDiagram' | 'useCase' | 'sequence' | 'ac
   Model: 'classDiagram',
   Note: 'classDiagram',
   Text: 'classDiagram',
+  Component: 'classDiagram',
+  Artifact: 'classDiagram',
+  Subsystem: 'classDiagram',
+  Node: 'classDiagram',
+  Profile: 'classDiagram',
+  MetaClass: 'classDiagram',
+  Stereotype: 'classDiagram',
   Actor: 'useCase',
   UseCase: 'useCase',
   Subject: 'useCase',
   Lifeline: 'sequence',
   CombinedFragment: 'sequence',
+  Endpoint: 'sequence',
+  Gate: 'sequence',
+  StateInvariant: 'sequence',
+  Continuation: 'sequence',
+  InteractionUse: 'sequence',
   Action: 'activity',
   SendSignal: 'activity',
   AcceptSignal: 'activity',
@@ -92,6 +130,15 @@ const DIAGRAM_OF: Record<NodeKind, 'classDiagram' | 'useCase' | 'sequence' | 'ac
   HorizontalPartition: 'activity',
   InputPin: 'activity',
   OutputPin: 'activity'
+}
+
+/** A host view for kinds created on another view (pins on an action, ports on a classifier). */
+const GENERIC_KINDS = (Object.keys(NODE_KINDS) as NodeKind[]).filter((k): k is GenericKind => k in DIAGRAM_OF)
+
+function hostFor(kind: NodeKind, diagram: Diagram): View | undefined {
+  if (kind === 'InputPin' || kind === 'OutputPin') return apply(planNode({ kind: 'Action', diagram, left: 100, top: 100 })).view as View
+  if (kind === 'Port') return apply(planNode({ kind: 'Collaboration', diagram, left: 100, top: 100 })).view as View
+  return undefined
 }
 
 describe('diagram factories', () => {
@@ -129,13 +176,10 @@ describe('diagram factories', () => {
 })
 
 describe('node factories', () => {
-  it.each(Object.keys(NODE_KINDS) as NodeKind[])('%s', (kind) => {
+  it.each(GENERIC_KINDS)('%s', (kind) => {
     const ctx = setup()
     const diagram = ctx[DIAGRAM_OF[kind]]
-    let container: View | undefined
-    if (kind === 'InputPin' || kind === 'OutputPin') {
-      container = apply(planNode({ kind: 'Action', diagram, left: 100, top: 100 })).view as View
-    }
+    const container = hostFor(kind, diagram)
     const plan = apply(planNode({ kind, diagram, left: 50, top: 60, container }))
     const spec = NODE_KINDS[kind]
     const view = plan.view as NodeView
@@ -153,7 +197,7 @@ describe('node factories', () => {
     }
     expect(plan.model?._type).toBe(spec.modelType)
     expect(view.model).toBe(plan.model)
-    expect(plan.model?.['name']).toMatch(/^[A-Za-z]+1$/)
+    expect(plan.model?.['name']).toMatch(kind === 'MetaClass' ? /^UMLClass$/ : /^[A-Za-z]+1$/)
     const owner = plan.model?._parent as Elem
     expect(owner[plan.insertions[0]?.field ?? '']).toContain(plan.model)
     if (spec.field && kind !== 'InputPin' && kind !== 'OutputPin') {
@@ -339,6 +383,32 @@ describe('edge factories', () => {
     expect(self.model?.['source']).toBe(self.model?.['target'])
   })
 
+  it('found and lost messages connect lifelines with endpoints; gates and fragments are created', () => {
+    const { sequence } = setup()
+    const interaction = sequence._parent as Elem
+    const l1 = apply(planNode({ kind: 'Lifeline', diagram: sequence, left: 50, top: 0 })).view as UMLSeqLifelineView
+    const ep = apply(planNode({ kind: 'Endpoint', diagram: sequence, left: 10, top: 80 })).view as View
+    const gate = apply(planNode({ kind: 'Gate', diagram: sequence, left: 400, top: 80 })).view as View
+    expect(ep.model?._type).toBe('UMLEndpoint')
+    expect(interaction['participants']).toContain(ep.model)
+    const found = apply(planEdge({ kind: 'Message', diagram: sequence, tail: ep, head: l1, y: 90 }))
+    expect(found.model).toMatchObject({ source: ep.model, target: l1.model })
+    expect((found.view as UMLSeqMessageView).tail).toBe(ep)
+    expect((found.view as UMLSeqMessageView).activation?.visible).toBe(true)
+    const lost = apply(planEdge({ kind: 'Message', diagram: sequence, tail: l1, head: gate, y: 120 }))
+    expect(lost.model).toMatchObject({ source: l1.model, target: gate.model })
+    expect((lost.view as UMLSeqMessageView).activation?.visible).toBe(false)
+    expect(canConnect('Message', ep, gate)).toBe(false)
+
+    const inv = apply(planNode({ kind: 'StateInvariant', diagram: sequence, left: 20, top: 150, covered: l1.model as Elem })).model as Elem
+    expect(inv['covered']).toBe(l1.model)
+    expect(interaction['fragments']).toContain(inv)
+    for (const kind of ['Continuation', 'InteractionUse'] as const) {
+      const m = apply(planNode({ kind, diagram: sequence, left: 20, top: 200 })).model as Elem
+      expect(interaction['fragments']).toContain(m)
+    }
+  })
+
   it('flows live in the activity; note links have no model', () => {
     const { activity, classDiagram } = setup()
     const init = apply(planNode({ kind: 'InitialNode', diagram: activity, left: 0, top: 0 })).view as View
@@ -375,12 +445,9 @@ describe('features', () => {
 describe('everything together', () => {
   it('a project with every kind validates and survives a save/load round-trip', () => {
     const ctx = setup()
-    for (const kind of Object.keys(NODE_KINDS) as NodeKind[]) {
+    for (const kind of GENERIC_KINDS) {
       const diagram = ctx[DIAGRAM_OF[kind]]
-      const container =
-        kind === 'InputPin' || kind === 'OutputPin'
-          ? (apply(planNode({ kind: 'Action', diagram, left: 0, top: 0 })).view as View)
-          : undefined
+      const container = hostFor(kind, diagram)
       apply(planNode({ kind, diagram, left: 10, top: 10, container }))
     }
     const views = (d: Diagram, type: string) => d.ownedViews.filter((v) => isKindOf(v, type))

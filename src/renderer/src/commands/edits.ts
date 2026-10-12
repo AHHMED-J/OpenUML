@@ -32,6 +32,8 @@ import { OperationError } from './operation'
 export function applyPlan(b: OperationBuilder, plan: CreationPlan): void {
   for (const ins of plan.insertions) b.insert(ins.owner, ins.field, ins.element, ins.index)
   for (const add of plan.refAdditions) b.addRef(add.owner, add.field, add.target)
+  for (const m of plan.moves ?? []) b.move(m.element, m.owner, m.field)
+  for (const set of plan.sets ?? []) b.set(set.owner, set.field, set.value)
 }
 
 function kindLabel(kind: string): string {
@@ -188,6 +190,12 @@ export function moveViews(engine: ModelEngine, views: readonly View[], dx: numbe
     if (moved.has(v)) return
     moved.add(v)
     for (const c of v.containedViews) visit(c)
+    // Sub-views may contain views too (a state's region holds the vertices dropped into it).
+    for (const s of v.subViews ?? []) if (isKindOf(s, 'View')) visitSub(s)
+  }
+  const visitSub = (v: View): void => {
+    for (const c of v.containedViews ?? []) visit(c)
+    for (const s of v.subViews ?? []) if (isKindOf(s, 'View')) visitSub(s)
   }
   views.forEach(visit)
   engine.transact('Move Views', (b) => {

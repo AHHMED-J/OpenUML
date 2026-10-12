@@ -14,13 +14,14 @@ import {
 import type { SortMode } from '../uiStore'
 
 /** Containment fields never shown as tree children (views, tags, association ends). */
-const HIDDEN_FIELDS = new Set(['ownedViews', 'subViews', 'tags', 'end1', 'end2'])
+const HIDDEN_FIELDS = new Set(['ownedViews', 'subViews', 'tags', 'end1', 'end2', 'ports'])
 
 const TYPE_ORDER: Readonly<Record<string, number>> = {
   UMLModel: 1000,
   UMLPackage: 1001,
   UMLSubsystem: 1002,
   UMLUseCaseSubject: 1003,
+  IDEF0Model: 1004,
   UMLTemplateParameter: 1100,
   UMLParameter: 1101,
   UMLEnumerationLiteral: 1102,
@@ -41,6 +42,7 @@ const TYPE_ORDER: Readonly<Record<string, number>> = {
   UMLNode: 1208,
   UMLUseCase: 1209,
   UMLActor: 1210,
+  IDEF0Function: 1211,
   UMLCollaboration: 1400,
   UMLStateMachine: 1401,
   UMLInteraction: 1402,
@@ -169,8 +171,31 @@ export function expandableIds(root: Elem): string[] {
 }
 
 /**
+ * Containment rule for `ownedElements` (the generic packaged-element slot): whether `target` may
+ * own `source` there. The slot exists on every model element, but only some owners are
+ * meaningful:
+ * - the project and packages (Model, Profile) own any packageable element, relationship or diagram;
+ * - classes, interfaces, components and collaborations own nested classifiers/behaviors, and diagrams;
+ * - other classifiers and behaviors (activities, interactions, ...) own diagrams only (their
+ *   contents live in dedicated fields: attributes, operations, nodes, edges, lifelines, ...);
+ * - anything else (features, pins, messages, ...) owns nothing there.
+ */
+export function canOwn(target: Elem, source: Elem): boolean {
+  if (isKindOf(source, 'Project') || isKindOf(source, 'View')) return false
+  const isDiagram = isKindOf(source, 'Diagram')
+  if (isKindOf(target, 'Project') || isKindOf(target, 'UMLPackage')) return true
+  // A subsystem is a component, but also a package-like unit of decomposition.
+  const nestsClassifiers =
+    isKindOf(target, 'UMLClass') || isKindOf(target, 'UMLInterface') || isKindOf(target, 'UMLComponent') || isKindOf(target, 'UMLNode') || isKindOf(target, 'UMLCollaboration')
+  if (nestsClassifiers) return isDiagram || isKindOf(source, 'UMLClassifier') || isKindOf(source, 'UMLBehavior')
+  if (isKindOf(target, 'UMLClassifier') || isKindOf(target, 'UMLBehavior')) return isDiagram
+  return false
+}
+
+/**
  * The containment field of `target` that can hold `source` when dropped on it (keeping the
- * source's current field name when the target has it), or null if the drop is invalid.
+ * source's current field name when the target has it), or null if the drop is invalid. Besides
+ * the metamodel's field types, `ownedElements` drops follow the `canOwn` containment rules.
  */
 export function dropField(target: Elem, source: Elem): string | null {
   if (target === source || isKindOf(source, 'Project') || isKindOf(source, 'View') || isKindOf(target, 'View')) return null
@@ -185,11 +210,12 @@ export function dropField(target: Elem, source: Elem): string | null {
   const accepts = (f: FieldDef | undefined): f is FieldDef =>
     f !== undefined && f.kind === 'objs' && !HIDDEN_FIELDS.has(f.name) && isKindOf(source, f.type)
   const same = fieldOf(target, current.name)
-  if (accepts(same)) return same.name
+  if (accepts(same)) return same.name === 'ownedElements' && !canOwn(target, source) ? null : same.name
   const owned = fieldOf(target, 'ownedElements')
-  if (current.name === 'ownedElements' && accepts(owned)) return owned.name
-  // Diagrams and packageable elements can always live in ownedElements of a model element.
-  if (accepts(owned) && (isKindOf(source, 'Diagram') || current.name === 'ownedElements')) return owned.name
+  if (!accepts(owned) || !canOwn(target, source)) return null
+  if (current.name === 'ownedElements') return owned.name
+  // Diagrams can live in ownedElements of any element that may own them.
+  if (isKindOf(source, 'Diagram')) return owned.name
   return null
 }
 

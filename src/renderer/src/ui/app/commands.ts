@@ -10,6 +10,7 @@ import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
 import { DEFAULT_KEYMAP } from '../menus/keymaps'
 import { uiStore } from '../uiStore'
 import { registerAppCommands } from './appCommands'
+import { registerIdef0 } from './idef0'
 import { bridge, isTextInputFocused, platform } from './bridge'
 
 export const registry = new CommandRegistry()
@@ -41,6 +42,7 @@ export function initCommands(): void {
   for (const command of core.all()) {
     if (command.id !== Cmd.fileNew && !registry.has(command.id)) registry.register(command)
   }
+  registerIdef0(registry)
   registerAppCommands(registry)
   for (const warning of keymap.warnings) console.warn(warning)
 }

@@ -143,16 +143,16 @@ describe('readMdj / writeMdj', () => {
             name: 'C',
             ownedElements: [
               {
-                _type: 'UMLStateMachine',
+                _type: 'UMLFutureMachine',
                 _id: 'sm',
                 _parent: { $ref: 'c' },
                 name: 'SM',
                 regions: [
                   {
-                    _type: 'UMLRegion',
+                    _type: 'UMLFutureRegion',
                     _id: 'r',
                     _parent: { $ref: 'sm' },
-                    vertices: [{ _type: 'UMLState', _id: 's1', _parent: { $ref: 'r' }, name: 'Idle' }]
+                    vertices: [{ _type: 'UMLFutureState', _id: 's1', _parent: { $ref: 'r' }, name: 'Idle' }]
                   }
                 ],
                 context: { $ref: 'c' },

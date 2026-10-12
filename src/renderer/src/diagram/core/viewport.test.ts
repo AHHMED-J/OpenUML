@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { rect } from './geometry'
 import { GRID, ZOOM } from './style'
 import {
+  canvasExtent,
   clampOrigin,
   clampZoom,
   diagramToScreen,
@@ -78,5 +79,19 @@ describe('zoom and transform', () => {
   it('computes export bounds with a 10-unit margin', () => {
     expect(exportBounds([rect(10, 10, 20, 20), rect(50, 0, 10, 10)])).toEqual(rect(0, -10, 70, 50))
     expect(exportBounds([])).toBeNull()
+  })
+})
+
+describe('canvasExtent', () => {
+  it('is exactly the viewport when the content fits (no scrollbars, e.g. after fit to window)', () => {
+    expect(canvasExtent(700, 1000, 1)).toBe(1000)
+    // Fit zoom for a 1500-wide content in 1000 px: (1000 - 20) / (1500 + 10).
+    const z = clampZoom((1000 - 20) / 1510)
+    expect(canvasExtent(1500, 1000, z) * z).toBeLessThanOrEqual(1000 + 1e-9)
+  })
+
+  it('adds scroll room beyond content that does not fit', () => {
+    expect(canvasExtent(1500, 1000, 1)).toBe(1900)
+    expect(canvasExtent(100, 0, 1)).toBe(500)
   })
 })
