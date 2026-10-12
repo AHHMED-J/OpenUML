@@ -40,3 +40,4 @@ Each milestone is recorded with an ISO-8601 timestamp (local time, with UTC offs
 | 2026-10-12T00:19:24-07:00 | Phase A complete: all 15 UML diagram types implemented (state machine, timing, component, deployment, package, profile, object, composite structure, communication, interaction overview, information flow added); 614 tests green; pushed to PR #1 |
 | 2026-10-12T12:25:45-07:00 | RAD course notes received and text/images extracted; spec agents launched for Role Activity Diagram (from the notes) and IDEF0 (from FIPS 183) |
 | 2026-10-12T12:33:15-07:00 | IDEF0 spec completed (from FIPS 183); IDEF0 build agent launched; RAD spec still in progress |
+| 2026-10-12T12:34:51-07:00 | RAD spec completed from the user's course notes (16 figures converted and verified); RAD build agent launched alongside IDEF0 build |
