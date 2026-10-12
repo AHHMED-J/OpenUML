@@ -58,6 +58,8 @@ export function collectDeletion(repo: Repository, seeds: readonly Elem[], mode: 
         else if (field === 'reference' && isKindOf(source, 'RelationshipEnd')) add(source._parent)
         // RAD: removing a refinement removes its branches (and, through them, their state lines).
         else if (field === 'refinement' && isKindOf(source, 'RADBranch')) add(source)
+        // A communication message only exists beside its connector; sequence messages keep theirs.
+        else if (field === 'connector' && isKindOf(source, 'UMLMessage') && repo.viewsOf(source).every((v) => v._type === 'UMLCommMessageView')) add(source)
         else if (field === 'model' && isKindOf(source, 'View')) add(source)
       }
     }
