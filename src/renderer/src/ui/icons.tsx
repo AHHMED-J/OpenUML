@@ -456,6 +456,79 @@ function typeGlyph(type: string): React.ReactNode {
       )
     case 'UMLTimingDiagram':
       return diagramIcon(<path d="M3.5 10.5h3v-4h3v4h3" />)
+    case 'RADProcess':
+      return (
+        <>
+          <rect x={2} y={3} width={12} height={10} rx={3} fill={A.behavior} fillOpacity={0.2} />
+          <rect x={4.5} y={5.5} width={2.6} height={2.6} />
+          <path d="M5.8 8.1v2.6" />
+        </>
+      )
+    case 'RADRole':
+      return (
+        <>
+          <rect x={2.5} y={2.5} width={11} height={11} rx={3} fill="var(--text-muted)" fillOpacity={0.35} />
+          <rect x={5.5} y={5} width={2.6} height={2.6} fill="var(--surface)" />
+          <path d="M6.8 7.6v3.4" />
+        </>
+      )
+    case 'RADActivity':
+      return <rect x={4} y={4} width={8} height={8} fill="var(--surface)" />
+    case 'RADInteraction':
+      return (
+        <>
+          <rect x={2.5} y={5} width={5} height={5} fill="var(--surface)" />
+          <path d="M7.5 7.5h6.5" strokeWidth={2.2} />
+        </>
+      )
+    case 'RADUndefinedProcess':
+      return <ellipse cx={8} cy={8} rx={6} ry={3.6} fill="var(--surface)" />
+    case 'RADStateMarker':
+      return (
+        <>
+          <ellipse cx={8} cy={8} rx={6} ry={4} />
+          <ellipse cx={8} cy={8} rx={3.4} ry={2} />
+        </>
+      )
+    case 'RADWait':
+      return (
+        <>
+          <path d="M1.5 8h4.5M4.4 6.2L6 8l-1.6 1.8" />
+          <circle cx={10} cy={8} r={3.6} fill="var(--surface)" />
+        </>
+      )
+    case 'RADRoleStart':
+      return <path d="M3.5 4h4.5l4 4-4 4H3.5z" fill="var(--surface)" />
+    case 'RADCaseRefinement':
+    case 'RADCaseBranch':
+      return (
+        <>
+          <path d="M5.5 8h5" />
+          <circle cx={4} cy={8} r={2.4} fill="var(--surface)" />
+          <circle cx={12} cy={8} r={2.4} fill="var(--surface)" />
+        </>
+      )
+    case 'RADPartRefinement':
+    case 'RADPartBranch':
+      return (
+        <>
+          <path d="M5.5 8h4.5" />
+          <circle cx={4} cy={8} r={2.4} fill="var(--surface)" />
+          <path d="M12 5.2l2.4 5.2H9.6z" fill="var(--surface)" />
+        </>
+      )
+    case 'RADStateLine':
+      return <path d="M8 2v12" />
+    case 'RADInteractionLink':
+      return <path d="M2 8h12" strokeWidth={2.4} />
+    case 'RADDiagram':
+      return diagramIcon(
+        <>
+          <rect x={4} y={4.5} width={3.4} height={3.4} />
+          <path d="M5.7 7.9V11.5M7.4 6.2h3.2" />
+          <rect x={10.2} y={5} width={2.4} height={2.4} />
+        </>
+      )
     case 'UMLObject':
       return (
         <>
@@ -654,6 +727,22 @@ const NODE_KIND_TYPES: Record<string, string> = {
   TimeConstraint: 'UMLConstraint',
   DurationConstraint: 'UMLConstraint',
   Text: 'Text',
+  RADRole: 'RADRole',
+  RADActivity: 'RADActivity',
+  RADInteraction: 'RADInteraction',
+  RADUndefinedProcess: 'RADUndefinedProcess',
+  RADStateMarker: 'RADStateMarker',
+  RADStartMarker: 'RADStateMarker',
+  RADEndMarker: 'RADStateMarker',
+  RADWait: 'RADWait',
+  RADRoleStart: 'RADRoleStart',
+  RADExternalRoleStart: 'RADRoleStart',
+  RADCaseRefinement: 'RADCaseRefinement',
+  RADPartRefinement: 'RADPartRefinement',
+  RADCaseBranch: 'RADCaseBranch',
+  RADPartBranch: 'RADPartBranch',
+  RADStateLine: 'RADStateLine',
+  RADInteractionLink: 'RADInteractionLink',
   Component: 'UMLComponent',
   Artifact: 'UMLArtifact',
   Subsystem: 'UMLSubsystem',
