@@ -45,7 +45,9 @@ export function validateModel(root: Elem): string[] {
     }
 
     if (isKindOf(el, 'EdgeView') && !isKindOf(el, 'FreelineEdgeView')) {
-      if (!el.head || !el.tail) problems.push(`${at}: edge without head or tail`)
+      // An IDEF0 call arrow leaves a function box and has no head view.
+      const headless = el._type === 'IDEF0ArrowView' && el.model?.['role'] === 'call'
+      if ((!el.head && !headless) || !el.tail) problems.push(`${at}: edge without head or tail`)
       const model = el.model
       if (el.head && el.tail && model) {
         const [src, dst] = isKindOf(model, 'UndirectedRelationship')
