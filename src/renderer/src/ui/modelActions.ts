@@ -8,6 +8,7 @@ import {
   createModelElement,
   type ModelEngine
 } from '../commands'
+import { decomposeFunction } from '../diagram'
 import {
   createElement,
   defaultName,
@@ -250,7 +251,14 @@ export const ADD_DIAGRAM_ITEMS: readonly AddDiagramItem[] = [
     type: 'UMLInteractionOverviewDiagram',
     accepts: (e) => projectOrPackage(e) || isClassifier(e) || isKindOf(e, 'UMLInteraction') || isKindOf(e, 'UMLActivity')
   },
-  { kind: 'InformationFlowDiagram', label: 'Information Flow Diagram', type: 'UMLInformationFlowDiagram', accepts: projectOrPackage }
+  { kind: 'InformationFlowDiagram', label: 'Information Flow Diagram', type: 'UMLInformationFlowDiagram', accepts: projectOrPackage },
+  {
+    kind: 'IDEF0Diagram',
+    label: 'IDEF0 Diagram',
+    type: 'IDEF0Diagram',
+    // A new model on a project or package; a decomposition on a function that has no child diagram yet.
+    accepts: (e) => projectOrPackage(e) || (isKindOf(e, 'IDEF0Function') && !e['childDiagram'])
+  }
 ]
 
 /** Items of Model > Add visible for `parent`. */
@@ -277,5 +285,6 @@ export function addModelElement(engine: ModelEngine, parent: Elem, item: AddItem
 export function addDiagram(engine: ModelEngine, parent: Elem, kind: DiagramKind): Elem {
   const item = ADD_DIAGRAM_ITEMS.find((i) => i.kind === kind)
   if (item && !item.accepts(parent)) throw new Error(`${item.label} cannot be placed here.`)
+  if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) return decomposeFunction(engine, parent, 3)
   return createDiagram(engine, kind, parent).diagram
 }
