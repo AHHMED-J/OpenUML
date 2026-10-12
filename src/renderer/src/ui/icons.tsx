@@ -90,6 +90,20 @@ const diamond = <path d="M8 2.5l5 5.5-5 5.5-5-5.5z" />
 
 function relationshipGlyph(kind: string): React.ReactNode {
   switch (kind) {
+    case 'IDEF0Arrow':
+      return (
+        <>
+          <line x1={2} y1={8} x2={13} y2={8} />
+          <path d="M10 5.5L13.5 8 10 10.5z" fill="currentColor" />
+        </>
+      )
+    case 'IDEF0Call':
+      return (
+        <>
+          <line x1={8} y1={2.5} x2={8} y2={12.5} />
+          <path d="M5.5 10L8 13.5 10.5 10z" fill="currentColor" />
+        </>
+      )
     case 'Generalization':
       return (
         <>
@@ -456,6 +470,34 @@ function typeGlyph(type: string): React.ReactNode {
       )
     case 'UMLTimingDiagram':
       return diagramIcon(<path d="M3.5 10.5h3v-4h3v4h3" />)
+    case 'IDEF0Diagram':
+      return diagramIcon(
+        <>
+          <rect x={5.5} y={5.5} width={5} height={4} />
+          <path d="M3 7.5h2.5M10.5 7.5H13M8 3.5v2M8 9.5v2" />
+        </>
+      )
+    case 'IDEF0Model':
+    case 'IDEF0Function':
+      return (
+        <>
+          <rect x={4} y={4.5} width={8} height={7} fill="var(--surface)" />
+          <path d="M1.5 8H4M12 8h2.5M8 2v2.5M8 11.5V14" />
+        </>
+      )
+    case 'IDEF0Port':
+      return <rect x={5.5} y={5.5} width={5} height={5} fill="var(--surface)" />
+    case 'IDEF0Arrow':
+      return relationshipGlyph('IDEF0Arrow')
+    case 'IDEF0ModelNote':
+      return (
+        <>
+          <rect x={4} y={4} width={8} height={8} fill="var(--surface)" />
+          <text x={8} y={10.2} fontSize={6.5} textAnchor="middle" stroke="none" fill="currentColor">
+            1
+          </text>
+        </>
+      )
     case 'RADProcess':
       return (
         <>
@@ -726,6 +768,8 @@ const NODE_KIND_TYPES: Record<string, string> = {
   TimeTick: 'UMLTimeTick',
   TimeConstraint: 'UMLConstraint',
   DurationConstraint: 'UMLConstraint',
+  IDEF0Function: 'IDEF0Function',
+  IDEF0ModelNote: 'IDEF0ModelNote',
   Text: 'Text',
   RADRole: 'RADRole',
   RADActivity: 'RADActivity',
