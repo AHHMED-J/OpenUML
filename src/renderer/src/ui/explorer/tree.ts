@@ -184,7 +184,7 @@ export function canOwn(target: Elem, source: Elem): boolean {
   if (isKindOf(target, 'Project') || isKindOf(target, 'UMLPackage')) return true
   // A subsystem is a component, but also a package-like unit of decomposition.
   const nestsClassifiers =
-    isKindOf(target, 'UMLClass') || isKindOf(target, 'UMLInterface') || isKindOf(target, 'UMLComponent') || isKindOf(target, 'UMLCollaboration')
+    isKindOf(target, 'UMLClass') || isKindOf(target, 'UMLInterface') || isKindOf(target, 'UMLComponent') || isKindOf(target, 'UMLNode') || isKindOf(target, 'UMLCollaboration')
   if (nestsClassifiers) return isDiagram || isKindOf(source, 'UMLClassifier') || isKindOf(source, 'UMLBehavior')
   if (isKindOf(target, 'UMLClassifier') || isKindOf(target, 'UMLBehavior')) return isDiagram
   return false

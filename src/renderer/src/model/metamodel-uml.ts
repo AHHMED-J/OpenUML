@@ -206,6 +206,23 @@ const MODEL_TYPES: TypeDef[] = [
   t('UMLSubsystem', 'UMLComponent'),
   t('UMLUseCaseSubject', 'UMLSubsystem', [ref('represent', 'UMLClassifier')]),
 
+  // Component / deployment / package / profile diagrams
+  t('UMLArtifact', 'UMLClassifier', [str('fileName', '')]),
+  t('UMLComponentRealization', 'UMLRealization'),
+  t('UMLNode', 'UMLClassifier'),
+  t('UMLDeployment', 'UMLDependency'),
+  t('UMLCommunicationPath', 'UMLAssociation'),
+  t('UMLProfile', 'UMLPackage'),
+  t('UMLImage', 'UMLModelElement', [
+    int('width', 0),
+    int('height', 0),
+    str('content', ''),
+    str('smallIcon', '')
+  ]),
+  t('UMLStereotype', 'UMLClass', [obj('icon', 'UMLImage')]),
+  t('UMLMetaClass', 'UMLModelElement'),
+  t('UMLExtension', 'UMLDirectedRelationship'),
+
   // Sequence diagram
   t('UMLCollaboration', 'UMLClassifier'),
   t('UMLInteractionFragment', 'UMLBehavior', [], { abstract: true }),
@@ -317,6 +334,10 @@ const VIEW_TYPES: TypeDef[] = [
     bool('showActivation', true)
   ]),
   t('UMLActivityDiagram', 'UMLDiagram'),
+  t('UMLComponentDiagram', 'UMLDiagram'),
+  t('UMLDeploymentDiagram', 'UMLDiagram'),
+  t('UMLPackageDiagram', 'UMLDiagram'),
+  t('UMLProfileDiagram', 'UMLDiagram'),
 
   // Compartments and items
   t('UMLCompartmentView', 'NodeView', [], { abstract: true }),
@@ -421,6 +442,19 @@ const VIEW_TYPES: TypeDef[] = [
     emb('headQualifiersCompartment', 'UMLQualifierCompartmentView')
   ]),
   t('UMLContainmentView', 'EdgeView'),
+
+  // Component / deployment / package / profile views
+  t('UMLComponentView', 'UMLClassifierView'),
+  t('UMLArtifactView', 'UMLClassifierView'),
+  t('UMLNodeView', 'UMLClassifierView'),
+  t('UMLSubsystemView', 'UMLPackageView'),
+  t('UMLProfileView', 'UMLPackageView'),
+  t('UMLMetaClassView', 'UMLGeneralNodeView'),
+  t('UMLStereotypeView', 'UMLClassView'),
+  t('UMLComponentRealizationView', 'UMLGeneralEdgeView'),
+  t('UMLDeploymentView', 'UMLGeneralEdgeView'),
+  t('UMLCommunicationPathView', 'UMLAssociationView'),
+  t('UMLExtensionView', 'UMLGeneralEdgeView'),
 
   // Use case diagram views
   t('UMLActorView', 'UMLClassifierView'),
