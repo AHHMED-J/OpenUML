@@ -58,6 +58,15 @@ function lifelineModel(view: View): Elem | null {
   return isKindOf(view.model, 'UMLLifeline') ? view.model : null
 }
 
+/** Free line length kept below the lowest message so a lower message can be added without lengthening. */
+export const LIFELINE_SLACK = 40
+
+/** Bottom of the diagram's frame view (null when the diagram has none). */
+export function lifelineFrameBottom(ctx: LayoutContext): number | null {
+  const frame = (ctx.diagram.ownedViews ?? []).find((v) => isKindOf(v, 'UMLFrameView') && v.visible !== false) as NodeView | undefined
+  return frame && typeof frame.top === 'number' && typeof frame.height === 'number' ? frame.top + frame.height : null
+}
+
 /** Lifeline layout: header at its stored y (or centered on its create message), line down to below the lowest message. */
 export function layoutLifeline(view: NodeView, ctx: LayoutContext): NodeLayout<LifelineData> {
   const model = lifelineModel(view)
@@ -85,7 +94,13 @@ export function layoutLifeline(view: NodeView, ctx: LayoutContext): NodeLayout<L
     height = minHeight
   } else {
     const lowest = info.lowestY
-    const line = Math.max(LIFELINE_MIN_LINE_LENGTH, lowest === null ? 0 : lowest + SPACING.lifelineBottomMargin - lineTop)
+    // Reaches the diagram frame's bottom, and always leaves room below the lowest message to attach another.
+    const frameBottom = lifelineFrameBottom(ctx)
+    const reach = Math.max(
+      lowest === null ? 0 : lowest + SPACING.lifelineBottomMargin + LIFELINE_SLACK,
+      frameBottom === null ? 0 : frameBottom - SPACING.lifelineBottomMargin
+    )
+    const line = Math.max(LIFELINE_MIN_LINE_LENGTH, reach - lineTop)
     minHeight = headerH + line
   }
   const effective = { ...view, top, ...(height !== undefined ? { height } : {}) } as NodeView
@@ -359,7 +374,14 @@ export function layoutRoundedLabelBox(view: NodeView, ctx: LayoutContext): NodeL
       radius: Math.min(box.height / 2, 15),
       line: { text, font: style.font, align: 'center', box: { left: box.left, top: box.top + (box.height - size.height) / 2, width: box.width, height: size.height } }
     }),
-    regions: (box) => (model && !isKindOf(view, 'UMLStateInvariantView') ? [{ box, target: { kind: 'name', elementId: model._id }, text: nameOf(model), font: style.font }] : [])
+    regions: (box) => {
+      if (!model) return []
+      if (isKindOf(view, 'UMLStateInvariantView')) {
+        const raw = typeof invariant === 'string' ? invariant : ''
+        return [{ box, target: { kind: 'field', elementId: model._id, field: 'invariant' }, text: raw, font: style.font }]
+      }
+      return [{ box, target: { kind: 'name', elementId: model._id }, text: nameOf(model), font: style.font }]
+    }
   })
 }
 

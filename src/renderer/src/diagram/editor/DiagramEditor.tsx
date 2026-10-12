@@ -36,6 +36,7 @@ import { DiagramContent } from '../render/DiagramContent'
 import { copySelection, pasteClipboard } from '../commands'
 import {
   createEdgeBetween,
+  createEndpointMessage,
   createNodeAt,
   createTextAt,
   deleteViews,
@@ -383,6 +384,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       if (isNodeKind(t.kind)) {
         const start = { x: snapValue(p.x), y: snapValue(p.y) }
         gesture.current = { type: 'create-node', start, kind: t.kind, rect: { left: start.x, top: start.y, width: 0, height: 0 } }
+      } else if (t.freeEnd === 'tail') {
+        // Found message: starts on empty canvas, ends on a lifeline.
+        gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p }
+        setPreview({ kind: 'line', from: p, to: p })
       } else {
         const target = hitTestDiagram(l, p, { selected: new Set(), zoom: z, nodesOnly: true })
         if (target) {
@@ -699,6 +704,23 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       }
       case 'create-edge': {
         const target = hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
+        if (g.tool.freeEnd) {
+          // Found message (free tail, lifeline at the release point) or lost message (free head).
+          const id =
+            g.tool.freeEnd === 'tail'
+              ? target
+                ? createEndpointMessage(en, l, g.tool, target.viewId, g.start, g.start.y)
+                : null
+              : target
+                ? null
+                : createEndpointMessage(en, l, g.tool, g.tailId, p, g.start.y)
+          if (id) {
+            setSelection([id])
+            onToolUsed()
+            requestEdit(id)
+          } else console.warn(`Invalid connection (${g.tool.kind})`)
+          return
+        }
         const id = target ? createEdgeBetween(en, l, g.tool, g.tailId, target.viewId, g.start) : null
         if (id) {
           setSelection([id])

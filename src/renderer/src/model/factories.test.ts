@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readMdj, validateModel, writeMdj } from '../format'
 import {
+  canConnect,
   createDefaultProject,
   fieldsOf,
   isElem,
@@ -76,6 +77,11 @@ const DIAGRAM_OF: Record<NodeKind, 'classDiagram' | 'useCase' | 'sequence' | 'ac
   Subject: 'useCase',
   Lifeline: 'sequence',
   CombinedFragment: 'sequence',
+  Endpoint: 'sequence',
+  Gate: 'sequence',
+  StateInvariant: 'sequence',
+  Continuation: 'sequence',
+  InteractionUse: 'sequence',
   Action: 'activity',
   SendSignal: 'activity',
   AcceptSignal: 'activity',
@@ -337,6 +343,32 @@ describe('edge factories', () => {
     const self = apply(planEdge({ kind: 'Message', diagram: sequence, tail: l1, head: l1, y: 200 }))
     expect((self.view as UMLSeqMessageView).points).toHaveLength(4)
     expect(self.model?.['source']).toBe(self.model?.['target'])
+  })
+
+  it('found and lost messages connect lifelines with endpoints; gates and fragments are created', () => {
+    const { sequence } = setup()
+    const interaction = sequence._parent as Elem
+    const l1 = apply(planNode({ kind: 'Lifeline', diagram: sequence, left: 50, top: 0 })).view as UMLSeqLifelineView
+    const ep = apply(planNode({ kind: 'Endpoint', diagram: sequence, left: 10, top: 80 })).view as View
+    const gate = apply(planNode({ kind: 'Gate', diagram: sequence, left: 400, top: 80 })).view as View
+    expect(ep.model?._type).toBe('UMLEndpoint')
+    expect(interaction['participants']).toContain(ep.model)
+    const found = apply(planEdge({ kind: 'Message', diagram: sequence, tail: ep, head: l1, y: 90 }))
+    expect(found.model).toMatchObject({ source: ep.model, target: l1.model })
+    expect((found.view as UMLSeqMessageView).tail).toBe(ep)
+    expect((found.view as UMLSeqMessageView).activation?.visible).toBe(true)
+    const lost = apply(planEdge({ kind: 'Message', diagram: sequence, tail: l1, head: gate, y: 120 }))
+    expect(lost.model).toMatchObject({ source: l1.model, target: gate.model })
+    expect((lost.view as UMLSeqMessageView).activation?.visible).toBe(false)
+    expect(canConnect('Message', ep, gate)).toBe(false)
+
+    const inv = apply(planNode({ kind: 'StateInvariant', diagram: sequence, left: 20, top: 150, covered: l1.model as Elem })).model as Elem
+    expect(inv['covered']).toBe(l1.model)
+    expect(interaction['fragments']).toContain(inv)
+    for (const kind of ['Continuation', 'InteractionUse'] as const) {
+      const m = apply(planNode({ kind, diagram: sequence, left: 20, top: 200 })).model as Elem
+      expect(interaction['fragments']).toContain(m)
+    }
   })
 
   it('flows live in the activity; note links have no model', () => {

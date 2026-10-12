@@ -342,6 +342,11 @@ const NODE_KIND_TYPES: Record<string, string> = {
   Subject: 'UMLUseCaseSubject',
   Lifeline: 'UMLLifeline',
   CombinedFragment: 'UMLCombinedFragment',
+  Endpoint: 'UMLEndpoint',
+  Gate: 'UMLGate',
+  StateInvariant: 'UMLStateInvariant',
+  Continuation: 'UMLContinuation',
+  InteractionUse: 'UMLInteractionUse',
   Action: 'UMLAction',
   SendSignal: 'UMLSignal',
   AcceptSignal: 'UMLAction',
@@ -362,9 +367,19 @@ const NODE_KIND_TYPES: Record<string, string> = {
   Text: 'Text'
 }
 
-export function ToolIcon({ kind, messageSort }: { kind: string; messageSort?: string }): React.JSX.Element {
+export function ToolIcon({ kind, messageSort, freeEnd }: { kind: string; messageSort?: string; freeEnd?: 'tail' | 'head' }): React.JSX.Element {
   const type = NODE_KIND_TYPES[kind]
   if (type) return <TypeIcon type={type} />
+  if (kind === 'Message' && freeEnd) {
+    const found = freeEnd === 'tail'
+    return (
+      <Svg>
+        <circle cx={found ? 3.5 : 12.5} cy={8} r={1.8} fill="currentColor" />
+        <line x1={found ? 5.5 : 2} y1={8} x2={found ? 13.5 : 10.5} y2={8} />
+        <path d={found ? 'M10.5 5.5L13.5 8l-3 2.5' : 'M5 5.5L2 8l3 2.5'} fill="none" />
+      </Svg>
+    )
+  }
   if (kind === 'Message' && messageSort && messageSort !== 'synchCall') {
     const dashed = messageSort === 'reply'
     const open = messageSort !== 'createMessage' && messageSort !== 'deleteMessage'

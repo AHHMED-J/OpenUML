@@ -169,6 +169,11 @@ export type NodeKind =
   // sequence diagram
   | 'Lifeline'
   | 'CombinedFragment'
+  | 'Endpoint'
+  | 'Gate'
+  | 'StateInvariant'
+  | 'Continuation'
+  | 'InteractionUse'
   // activity diagram
   | 'Action'
   | 'SendSignal'
@@ -225,6 +230,11 @@ export const NODE_KINDS: Readonly<Record<NodeKind, NodeKindSpec>> = {
     field: 'fragments',
     size: [300, 150]
   },
+  Endpoint: { modelType: 'UMLEndpoint', viewType: 'UMLEndpointView', field: 'participants', size: [15, 15] },
+  Gate: { modelType: 'UMLGate', viewType: 'UMLGateView', field: 'participants', size: [15, 15] },
+  StateInvariant: { modelType: 'UMLStateInvariant', modelInit: { invariant: '' }, viewType: 'UMLStateInvariantView', field: 'fragments', size: [80, 25] },
+  Continuation: { modelType: 'UMLContinuation', viewType: 'UMLContinuationView', field: 'fragments', size: [80, 30] },
+  InteractionUse: { modelType: 'UMLInteractionUse', viewType: 'UMLInteractionUseView', field: 'fragments', size: [120, 70] },
   Action: { modelType: 'UMLAction', viewType: 'UMLActionView', field: CONTROL_FIELD, size: [100, 50] },
   SendSignal: {
     modelType: 'UMLAction',
@@ -297,6 +307,8 @@ export interface NodeRequest {
   readonly container?: View
   /** Initial name; default `<TypeName><n>`. */
   readonly name?: string
+  /** State invariants: the lifeline the invariant constrains. */
+  readonly covered?: Elem
 }
 
 /** The containment field used for `kind` in `owner` (falls back to `ownedElements`). */
@@ -326,6 +338,7 @@ export function planNode(req: NodeRequest): CreationPlan {
       name: req.name ?? defaultName(spec.modelType, siblings),
       ...spec.modelInit
     })
+    if (req.covered && fieldOf(model, 'covered')) model['covered'] = req.covered
     insertions.push({ owner, field, element: model })
   }
 
@@ -388,6 +401,17 @@ function buildNodeView(
       return buildLifelineView(model as Elem, bounds, insertions)
     case 'CombinedFragment':
       return buildCombinedFragmentView(model as Elem, bounds)
+    case 'Endpoint':
+    case 'Gate':
+      return createElement<NodeView>(spec.viewType, { model, ...bounds })
+    case 'StateInvariant':
+    case 'Continuation':
+    case 'InteractionUse': {
+      const view = createElement<NodeView>(spec.viewType, { model, ...bounds })
+      addEmbeddedLabel(view, req.kind === 'StateInvariant' ? 'invariantLabel' : 'nameLabel')
+      if (req.kind === 'InteractionUse') addEmbeddedLabel(view, 'frameTypeLabel', { font: { face: 'Arial', size: 13, style: 1 } })
+      return view
+    }
     case 'InitialNode':
     case 'ActivityFinalNode':
     case 'FlowFinalNode':
@@ -628,6 +652,10 @@ function lifelineViewOf(view: View): UMLSeqLifelineView | null {
   return null
 }
 
+function isEndpointView(view: View): boolean {
+  return isKindOf(view, 'UMLMessageEndpointView')
+}
+
 /** Whether an edge of `kind` may connect `tail` to `head` (model types must fit). */
 export function canConnect(kind: EdgeKind, tail: View, head: View): boolean {
   const a = tail.model
@@ -648,8 +676,12 @@ export function canConnect(kind: EdgeKind, tail: View, head: View): boolean {
     case 'Include':
     case 'Extend':
       return isKindOf(a, 'UMLUseCase') && isKindOf(b, 'UMLUseCase')
-    case 'Message':
-      return lifelineViewOf(tail) !== null && lifelineViewOf(head) !== null
+    case 'Message': {
+      // Lifeline to lifeline, or a lifeline with a found/lost endpoint or a gate.
+      const t = lifelineViewOf(tail) !== null
+      const h = lifelineViewOf(head) !== null
+      return (t || isEndpointView(tail)) && (h || isEndpointView(head)) && (t || h)
+    }
     case 'ControlFlow':
     case 'ObjectFlow':
       return ACTIVITY_NODE_TYPES.some((t) => isKindOf(a, t)) && ACTIVITY_NODE_TYPES.some((t) => isKindOf(b, t))
@@ -723,10 +755,11 @@ const SORTS_WITH_ACTIVATION = new Set(['synchCall', 'asynchCall', 'deleteMessage
  * tail/head are the lifelines' line parts.
  */
 function planMessage(req: EdgeRequest): CreationPlan {
-  const tailLifeline = lifelineViewOf(req.tail) as UMLSeqLifelineView
-  const headLifeline = lifelineViewOf(req.head) as UMLSeqLifelineView
-  const tailLine = (tailLifeline.linePart ?? tailLifeline) as NodeView
-  const headLine = (headLifeline.linePart ?? headLifeline) as NodeView
+  const tailLifeline = lifelineViewOf(req.tail)
+  const headLifeline = lifelineViewOf(req.head)
+  // An end is a lifeline (its line part) or a found/lost endpoint / gate view.
+  const tailLine = (tailLifeline ? (tailLifeline.linePart ?? tailLifeline) : req.tail) as NodeView
+  const headLine = (headLifeline ? (headLifeline.linePart ?? headLifeline) : req.head) as NodeView
   const interaction = req.diagram._parent as Elem
   const field = fieldOf(interaction, 'messages') ? 'messages' : 'ownedElements'
   const sort = req.messageSort ?? 'synchCall'
@@ -735,8 +768,8 @@ function planMessage(req: EdgeRequest): CreationPlan {
   const model = createElement('UMLMessage', {
     name: req.name ?? (SORTS_WITHOUT_NAME.has(sort) ? '' : defaultName('UMLMessage', siblings)),
     messageSort: sort,
-    source: tailLifeline.model,
-    target: headLifeline.model
+    source: tailLifeline ? tailLifeline.model : req.tail.model,
+    target: headLifeline ? headLifeline.model : req.head.model
   })
 
   const y = Math.round(req.y ?? req.points?.[0]?.y ?? tailLine.top + 40)
@@ -744,7 +777,7 @@ function planMessage(req: EdgeRequest): CreationPlan {
   const hx = Math.round(headLine.left + headLine.width / 2)
   const points: Point[] = req.points
     ? [...req.points]
-    : tailLifeline === headLifeline
+    : tailLifeline !== null && tailLifeline === headLifeline
       ? [
           { x: tx, y },
           { x: tx + 30, y },
@@ -768,7 +801,7 @@ function planMessage(req: EdgeRequest): CreationPlan {
     view,
     createElement<NodeView>('UMLActivationView', {
       model,
-      visible: SORTS_WITH_ACTIVATION.has(sort),
+      visible: SORTS_WITH_ACTIVATION.has(sort) && headLifeline !== null,
       left: Math.round(headLine.left + headLine.width / 2) - 7,
       top: arrival.y,
       width: 14,

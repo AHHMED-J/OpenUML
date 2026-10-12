@@ -85,7 +85,7 @@ function Group({
                 onClick={() => uiStore.getState().clickTool(item)}
                 onDoubleClick={() => uiStore.getState().lockTool(item)}
               >
-                <ToolIcon kind={item.kind} messageSort={item.messageSort} />
+                <ToolIcon kind={item.kind} messageSort={item.messageSort} freeEnd={item.freeEnd} />
                 <span className="tool-label">{item.label}</span>
                 {active && locked ? (
                   <span className="tool-lock" aria-label="locked">
