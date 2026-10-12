@@ -23,6 +23,24 @@ class, use case, sequence and activity diagrams and reads and writes `.mdj` proj
 - **Themes** – light and dark, following the system setting by default; preferences for grid, snap and default
   font size.
 
+## Installing a build
+
+Installers are not stored in the repository (each is over 100 MB); build them with
+`npm run dist` ([Packaging](#packaging)) or take them from the project's GitHub releases once
+published. The builds are **not code-signed** (that needs paid Apple and Microsoft certificates),
+so each system warns on first launch:
+
+- **Windows:** SmartScreen shows "Windows protected your PC": click *More info*, then *Run anyway*.
+  The installer lets you choose the folder and registers OpenUML as the editor of `.mdj` files.
+- **macOS:** unzip, drag `OpenUML.app` to *Applications*, then right-click it and choose *Open*
+  (or *System Settings > Privacy & Security > Open Anyway*). Builds made off macOS are signed ad
+  hoc, which Apple Silicon requires to run them at all.
+- **Linux:** `chmod +x OpenUML-<version>.AppImage && ./OpenUML-<version>.AppImage`. Without FUSE 2,
+  add `--appimage-extract-and-run`; on Ubuntu 24.04 and later you may also need `--no-sandbox`.
+
+Builds made on Linux have been run only there; the Windows and macOS ones need testing on their
+own systems.
+
 ## Getting started
 
 Requirements: Node.js 20 or later.

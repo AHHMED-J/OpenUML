@@ -23,3 +23,6 @@ extracted/
 .DS_Store
 .vscode/
 .idea/
+
+# Local installer builds (published as GitHub releases, not committed)
+downloads/
