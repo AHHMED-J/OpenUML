@@ -41,7 +41,7 @@ export function Toolbox(): React.JSX.Element {
       <div className="toolbox-groups">
         {diagramType === null ? <div className="empty-note">Open a diagram to see its tools.</div> : null}
         {groups.map((g) => (
-          <Group key={g.id} group={g} open={open[g.id] ?? false} onToggle={() => setOpen({ ...open, [g.id]: !open[g.id] })} activeTool={tool} locked={locked} />
+          <Group key={g.id} group={g} open={open[g.id] ?? false} onToggle={() => setOpen((prev) => ({ ...prev, [g.id]: !prev[g.id] }))} activeTool={tool} locked={locked} />
         ))}
       </div>
     </div>

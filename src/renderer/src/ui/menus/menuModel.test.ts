@@ -4,7 +4,6 @@ import { Keymap } from '../keymap'
 import {
   decodeMenuCommand,
   encodeMenuCommand,
-  nativeAcceleratorDescriptors,
   resolveMenu,
   toNativeMenu,
   type MenuContext,
@@ -128,7 +127,6 @@ describe('native menu conversion', () => {
     expect(file[3]).toEqual({ type: 'separator' })
     expect(file[4]).toEqual({ role: 'quit', label: 'Quit' })
     expect(native[1]).toMatchObject({ type: 'checkbox', checked: true, accelerator: 'Cmd+G' })
-    expect([...nativeAcceleratorDescriptors(resolved)].sort()).toEqual(['cmd-g', 'cmd-s'])
   })
 
   it('round-trips command tokens', () => {

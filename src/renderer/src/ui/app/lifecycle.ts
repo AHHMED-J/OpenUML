@@ -4,18 +4,15 @@
  * global keyboard dispatcher. `startShell()` returns a cleanup function.
  */
 import { projectStore } from '../../store'
-import { eventToDescriptor, isNativeEditKeystroke } from '../keymap'
+import { bindingToDispatch, eventToDescriptor } from '../keymap'
 import { buildAppMenu } from '../menus/appMenu'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
-import { nativeAcceleratorDescriptors, resolveMenu, toNativeMenu, type MenuContext } from '../menus/menuModel'
+import { resolveMenu, toNativeMenu, type MenuContext } from '../menus/menuModel'
 import { uiStore } from '../uiStore'
 import { bridge, isTextInputFocused, platform } from './bridge'
 import { initCommands, keymap, registry, reportError, runCommand } from './commands'
 import { handleCloseRequest, openProjectPath, windowTitle } from './fileOps'
 import { decodeMenuCommand } from '../menus/menuModel'
-
-/** Descriptors handled by native menu accelerators (the keyboard dispatcher skips them). */
-let nativeAccelerators = new Set<string>()
 
 export function menuContext(): MenuContext {
   return {
@@ -38,7 +35,6 @@ let lastMenuJson = ''
 function syncMenu(): void {
   if (!bridge) return
   const resolved = resolveMenu(buildAppMenu(platform), menuContext())
-  nativeAccelerators = nativeAcceleratorDescriptors(resolved)
   const menu = toNativeMenu(resolved, platform)
   const json = JSON.stringify(menu)
   if (json === lastMenuJson) return
@@ -46,20 +42,19 @@ function syncMenu(): void {
   bridge.setMenu(menu)
 }
 
+const TEXT_BLOCKED_COMMANDS: ReadonlySet<string> = new Set([Cmd.toolSelect])
+
 function onKeyDown(e: KeyboardEvent): void {
   if (e.defaultPrevented || e.isComposing) return
   const descriptor = eventToDescriptor(e)
   if (!descriptor) return
   const ui = uiStore.getState()
-  const textFocused = isTextInputFocused()
-  if (textFocused && isNativeEditKeystroke(descriptor, platform)) return
   // Modal dialogs and open menus handle their own keys.
   if (ui.modal || ui.contextMenu) return
-  // Keys registered as native menu accelerators are dispatched by the menu.
-  if (bridge && nativeAccelerators.has(descriptor)) return
-  const binding = keymap.match(descriptor)
+  // Menu accelerators are dispatched here as well (see `bindingToDispatch`): the native menu only
+  // receives keys the page leaves unhandled, so this is the single path for the canvas and panels.
+  const binding = bindingToDispatch(keymap, descriptor, { textFocused: isTextInputFocused(), textBlockedCommands: TEXT_BLOCKED_COMMANDS })
   if (!binding) return
-  if (textFocused && (binding.command === Cmd.toolSelect || !/^(cmd|ctrl|alt)-/.test(descriptor))) return
   e.preventDefault()
   e.stopPropagation()
   runCommand(binding.command, binding.args)
