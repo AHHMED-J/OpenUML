@@ -9,6 +9,23 @@ import { ToolIcon, UiIcon } from '../icons'
 import { sameTool, uiStore, useUiStore } from '../uiStore'
 import { palettesFor, type PaletteGroup } from './palettes'
 
+/** Toolbox header action: the Select tool. */
+export function ToolboxActions(): React.JSX.Element {
+  const tool = useUiStore((s) => s.tool)
+  return (
+    <button
+      className={`icon-button${tool === null ? ' pressed' : ''}`}
+      aria-pressed={tool === null}
+      title="Select (Esc)"
+      aria-label="Select tool"
+      onClick={() => uiStore.getState().setTool(null)}
+    >
+      <UiIcon name="pointer" />
+    </button>
+  )
+}
+
+/** Toolbox body (the panel chrome and header come from the dock). */
 export function Toolbox(): React.JSX.Element {
   const diagramType = useProjectStore((s) => activeDiagram(s)?._type ?? null)
   const tool = useUiStore((s) => s.tool)
@@ -26,18 +43,6 @@ export function Toolbox(): React.JSX.Element {
 
   return (
     <div className="panel toolbox">
-      <div className="panel-header">
-        <span className="panel-title">Toolbox</span>
-        <button
-          className={`icon-button${tool === null ? ' pressed' : ''}`}
-          aria-pressed={tool === null}
-          title="Select (Esc)"
-          aria-label="Select tool"
-          onClick={() => uiStore.getState().setTool(null)}
-        >
-          <UiIcon name="pointer" />
-        </button>
-      </div>
       <div className="toolbox-groups">
         {diagramType === null ? <div className="empty-note">Open a diagram to see its tools.</div> : null}
         {groups.map((g) => (

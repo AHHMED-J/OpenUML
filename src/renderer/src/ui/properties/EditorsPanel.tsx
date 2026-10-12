@@ -1,41 +1,40 @@
-/** Editors holder: collapsible Styles, Properties and Documentation sections. */
+/**
+ * Editor panel bodies: Styles, Properties and Documentation are independently dockable panels
+ * (chrome, header and collapse state come from the dock).
+ */
 import type React from 'react'
-import { UiIcon } from '../icons'
-import { uiStore, useUiStore, type EditorSection } from '../uiStore'
 import { DocumentationEditor } from './DocumentationEditor'
 import { PropertyEditor } from './PropertyEditor'
 import { StyleEditor } from './StyleEditor'
 
-function Section({ id, title, children }: { id: EditorSection; title: string; children: React.ReactNode }): React.JSX.Element {
-  const open = useUiStore((s) => s.sections[id])
-  const bodyId = `section-${id}`
+function EditorBody({ name, children }: { name: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <section className={`editor-section${open ? ' open' : ''}`} aria-label={title}>
-      <button className="section-header" aria-expanded={open} aria-controls={bodyId} onClick={() => uiStore.getState().toggleSection(id)}>
-        <UiIcon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
-        <span>{title}</span>
-      </button>
-      {open ? (
-        <div className="section-body" id={bodyId}>
-          {children}
-        </div>
-      ) : null}
-    </section>
+    <div className={`panel editor-panel ${name}-panel`}>
+      <div className="section-body">{children}</div>
+    </div>
   )
 }
 
-export function EditorsPanel(): React.JSX.Element {
+export function StylesPanel(): React.JSX.Element {
   return (
-    <div className="panel editors">
-      <Section id="styles" title="Styles">
-        <StyleEditor />
-      </Section>
-      <Section id="properties" title="Properties">
-        <PropertyEditor />
-      </Section>
-      <Section id="documentation" title="Documentation">
-        <DocumentationEditor />
-      </Section>
-    </div>
+    <EditorBody name="styles">
+      <StyleEditor />
+    </EditorBody>
+  )
+}
+
+export function PropertiesPanel(): React.JSX.Element {
+  return (
+    <EditorBody name="properties">
+      <PropertyEditor />
+    </EditorBody>
+  )
+}
+
+export function DocumentationPanel(): React.JSX.Element {
+  return (
+    <EditorBody name="documentation">
+      <DocumentationEditor />
+    </EditorBody>
   )
 }

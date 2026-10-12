@@ -16,7 +16,7 @@ import { activeDiagram, projectStore, selectedModels, selectedViews } from '../.
 import { expandableIds } from '../explorer/tree'
 import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
-import { promptText, ZOOM_STEP, uiStore, type PanelId } from '../uiStore'
+import { promptText, ZOOM_STEP, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge } from './bridge'
 import {
   closeWindow,
@@ -186,11 +186,11 @@ function zoomBy(delta: number | null): void {
   ui().setZoom(id, delta === null ? 1 : ui().zoomOf(id) + delta)
 }
 
-function panelToggle(id: string, label: string, panel: PanelId): CommandDefinition {
+function panelToggle(id: string, label: string, panel: ToggleablePanel): CommandDefinition {
   return {
     id,
     label: `Toggle ${label}`,
-    isChecked: () => ui().panels[panel].visible,
+    isChecked: () => ui().isPanelVisible(panel),
     run: () => ui().togglePanel(panel)
   }
 }
@@ -469,6 +469,12 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add(panelToggle(Cmd.viewStatusbar, 'Status Bar', 'statusbar'))
   add(panelToggle(Cmd.viewToolbox, 'Toolbox', 'toolbox'))
   add(panelToggle(Cmd.viewEditors, 'Editors', 'editors'))
+  add(panelToggle(Cmd.viewModelExplorer, 'Model Explorer', 'explorer'))
+  add(panelToggle(Cmd.viewWorkingDiagrams, 'Working Diagrams', 'workingDiagrams'))
+  add(panelToggle(Cmd.viewStyles, 'Styles', 'styles'))
+  add(panelToggle(Cmd.viewProperties, 'Properties', 'properties'))
+  add(panelToggle(Cmd.viewDocumentation, 'Documentation', 'documentation'))
+  add({ id: Cmd.viewResetLayout, label: 'Reset Layout', run: () => ui().resetLayout() })
 
   // Explorer
   add({ id: Cmd.explorerSortByAdded, label: 'Sort by Added', isChecked: () => ui().sortBy === 'added', run: () => ui().setSortBy('added') })

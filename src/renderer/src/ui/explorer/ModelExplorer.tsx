@@ -52,6 +52,23 @@ function searchRows(root: Elem, query: string, sortBy: 'added' | 'name'): Row[] 
 
 let draggedId: string | null = null
 
+/** Model Explorer header action: the explorer options menu. */
+export function ExplorerActions(): React.JSX.Element {
+  return (
+    <button
+      className="icon-button"
+      title="Explorer options"
+      aria-label="Explorer options"
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        uiStore.getState().openContextMenu({ x: r.left, y: r.bottom + 2, menu: 'explorer-settings' })
+      }}
+    >
+      <UiIcon name="gear" />
+    </button>
+  )
+}
+
 export function ModelExplorer(): React.JSX.Element {
   const version = useProjectStore((s) => s.version)
   const project = useProjectStore((s) => s.project)
@@ -208,20 +225,6 @@ export function ModelExplorer(): React.JSX.Element {
 
   return (
     <div className="panel explorer">
-      <div className="panel-header">
-        <span className="panel-title">Model Explorer</span>
-        <button
-          className="icon-button"
-          title="Explorer options"
-          aria-label="Explorer options"
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect()
-            uiStore.getState().openContextMenu({ x: r.left, y: r.bottom + 2, menu: 'explorer-settings' })
-          }}
-        >
-          <UiIcon name="gear" />
-        </button>
-      </div>
       <div className="search-box">
         <UiIcon name="search" size={14} />
         <input

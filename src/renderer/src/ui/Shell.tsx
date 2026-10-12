@@ -1,7 +1,10 @@
 /**
- * Application shell layout: toolbar; left sidebar (Model Explorer + Working Diagrams); center
- * diagram area with tabs; right navigator (Toolbox + Styles/Properties/Documentation); status bar.
- * Panels are resizable (splitters) and collapsible (View menu); sizes persist per viewer.
+ * Application shell layout: toolbar; left and right dock areas around the center diagram area;
+ * status bar. Each dock area is a vertical stack of dockable panels (Model Explorer, Working
+ * Diagrams, Toolbox, Styles, Properties, Documentation — by default explorer + working diagrams
+ * on the left, toolbox + editors on the right). Panels are rearranged by long-pressing their
+ * header and dragging (`dock/`); areas and panels are resizable (splitters) and collapsible;
+ * the layout persists per viewer.
  */
 import { useEffect } from 'react'
 import type React from 'react'
@@ -9,14 +12,12 @@ import { initCommands } from './app/commands'
 import { startShell } from './app/lifecycle'
 import { Splitter } from './components/Splitter'
 import { DiagramArea } from './diagramArea/DiagramArea'
-import { WorkingDiagrams } from './diagramArea/WorkingDiagrams'
-import { ModelExplorer } from './explorer/ModelExplorer'
+import { DockAnnouncer, DockEdgeZone, DockStack } from './dock/DockArea'
+import { isAreaEmpty } from './dock/dockModel'
 import { ContextMenuHost } from './menus/ContextMenu'
 import { ModalHost, Toasts } from './Overlays'
-import { EditorsPanel } from './properties/EditorsPanel'
 import { StatusBar } from './StatusBar'
 import { Toolbar } from './Toolbar'
-import { Toolbox } from './toolbox/Toolbox'
 import { uiStore, useUiStore, type ThemePreference } from './uiStore'
 
 function effectiveTheme(pref: ThemePreference): 'dark' | 'light' {
@@ -45,80 +46,53 @@ export function Shell(): React.JSX.Element {
   useTheme()
   useEffect(() => startShell(), [])
   const panels = useUiStore((s) => s.panels)
+  const dock = useUiStore((s) => s.dock)
   const resize = uiStore.getState().setPanelSize
-  const showNavigator = panels.navigator.visible && (panels.toolbox.visible || panels.editors.visible)
+  // An area collapses out of the window when hidden or when none of its panels is shown.
+  const showLeft = panels.sidebar.visible && !isAreaEmpty(dock, 'left')
+  const showRight = panels.navigator.visible && !isAreaEmpty(dock, 'right')
 
   return (
     <div className="app">
       {panels.toolbar.visible ? <Toolbar /> : null}
       <div className="workspace">
-        {panels.sidebar.visible ? (
+        {showLeft ? (
           <>
-            <aside className="sidebar" style={{ width: panels.sidebar.size }} aria-label="Sidebar">
-              <div className="fill">
-                <ModelExplorer />
-              </div>
-              <Splitter
-                orientation="horizontal"
-                after
-                size={panels.workingDiagrams.size}
-                min={60}
-                max={Math.max(120, window.innerHeight - 220)}
-                label="Resize working diagrams"
-                onResize={(s) => resize('workingDiagrams', s)}
-              />
-              <div style={{ height: panels.workingDiagrams.size }} className="fixed">
-                <WorkingDiagrams />
-              </div>
+            <aside className="sidebar dock-area dock-area-left" style={{ width: panels.sidebar.size }} aria-label="Left sidebar">
+              <DockStack area="left" />
             </aside>
             <Splitter
               orientation="vertical"
               size={panels.sidebar.size}
               min={160}
               max={600}
-              label="Resize sidebar"
+              label="Resize left sidebar"
               onResize={(s) => resize('sidebar', s)}
             />
           </>
         ) : null}
         <DiagramArea />
-        {showNavigator ? (
+        {showRight ? (
           <>
             <Splitter
               orientation="vertical"
               after
               size={panels.navigator.size}
-              min={220}
+              min={180}
               max={700}
-              label="Resize navigator"
+              label="Resize right sidebar"
               onResize={(s) => resize('navigator', s)}
             />
-            <aside className="navigator" style={{ width: panels.navigator.size }} aria-label="Navigator">
-              {panels.toolbox.visible ? (
-                <div className={panels.editors.visible ? 'fixed' : 'fill'} style={panels.editors.visible ? { height: panels.toolbox.size } : undefined}>
-                  <Toolbox />
-                </div>
-              ) : null}
-              {panels.toolbox.visible && panels.editors.visible ? (
-                <Splitter
-                  orientation="horizontal"
-                  size={panels.toolbox.size}
-                  min={60}
-                  max={Math.max(120, window.innerHeight - 200)}
-                  label="Resize toolbox"
-                  onResize={(s) => resize('toolbox', s)}
-                />
-              ) : null}
-              {panels.editors.visible ? (
-                <div className="fill">
-                  <EditorsPanel />
-                </div>
-              ) : null}
+            <aside className="navigator dock-area dock-area-right" style={{ width: panels.navigator.size }} aria-label="Right sidebar">
+              <DockStack area="right" />
             </aside>
           </>
         ) : null}
+        <DockEdgeZone area="left" shown={showLeft} />
+        <DockEdgeZone area="right" shown={showRight} />
       </div>
       {panels.statusbar.visible ? <StatusBar /> : null}
+      <DockAnnouncer />
       <ContextMenuHost />
       <ModalHost />
       <Toasts />

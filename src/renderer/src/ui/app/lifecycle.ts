@@ -85,7 +85,7 @@ export function startShell(): () => void {
   )
   cleanups.push(
     uiStore.subscribe((s, prev) => {
-      if (s.panels !== prev.panels || s.prefs !== prev.prefs || s.recentFiles !== prev.recentFiles || s.sortBy !== prev.sortBy) {
+      if (s.panels !== prev.panels || s.dock !== prev.dock || s.prefs !== prev.prefs || s.recentFiles !== prev.recentFiles || s.sortBy !== prev.sortBy) {
         scheduleMenu()
       }
     })

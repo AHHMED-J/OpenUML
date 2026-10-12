@@ -22,7 +22,7 @@ the module's `index.ts`.
 | Commands | `commands/` | Undoable operations (each user action = one operation of field changes, insertions and removals), undo/redo stacks, the command registry (IDs → handlers + enablement), keymaps and menu definitions. |
 | Store | `store/` | Application state (open project, file path, dirty flag, active diagram, selection, preferences) exposed to React through a Zustand store. |
 | Diagram | `diagram/` | View geometry, measurement and layout of node/edge views, edge routing and junctions, hit testing, SVG rendering of every notation, the interactive diagram editor (select, move, resize, create, connect, inline edit, zoom). One subfolder per diagram family: `diagram/uml/class`, `diagram/uml/usecase`, `diagram/uml/sequence`, `diagram/uml/activity`. |
-| UI | `ui/` | Application shell: model explorer, property editor, documentation editor, toolbox, diagram tabs, status bar, dialogs. |
+| UI | `ui/` | Application shell: model explorer, property editor, documentation editor, toolbox, diagram tabs, status bar, dialogs; panel docking (`ui/dock/`: panels rearranged between the left and right areas by long-press drag, persisted per viewer). |
 | Export | `export/` | PNG and SVG export of diagrams. |
 
 ## Key decisions

@@ -18,13 +18,11 @@ export function diagramLabel(d: Diagram): string {
   return d.name || `(${d._type.replace(/^UML/, '')})`
 }
 
+/** Working Diagrams body (the panel chrome and header come from the dock). */
 export function WorkingDiagrams(): React.JSX.Element {
   const { diagrams, activeId } = useOpenDiagrams()
   return (
     <div className="panel working-diagrams">
-      <div className="panel-header">
-        <span className="panel-title">Working Diagrams</span>
-      </div>
       <div className="list" role="listbox" aria-label="Working diagrams">
         {diagrams.length === 0 ? <div className="empty-note">No open diagrams</div> : null}
         {diagrams.map((d) => (

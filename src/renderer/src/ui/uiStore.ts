@@ -5,6 +5,21 @@
  */
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
+import {
+  areaOf,
+  describePosition,
+  movePanel,
+  movePanelBy,
+  movePanelToArea,
+  resetLayout as defaultDockLayout,
+  sanitizeDockLayout,
+  setPanelCollapsed,
+  setPanelSizes,
+  setPanelVisible,
+  type DockAreaId,
+  type DockLayout,
+  type DockPanelId
+} from './dock/dockModel'
 import { loadJson, saveJson } from './persist'
 import { addRecentFile, removeRecentFile, sanitizeRecentFiles } from './recentFiles'
 
@@ -25,8 +40,13 @@ export interface PanelState {
   readonly size: number
 }
 
-export type PanelId = 'sidebar' | 'navigator' | 'toolbar' | 'statusbar' | 'toolbox' | 'editors' | 'workingDiagrams'
-export type EditorSection = 'styles' | 'properties' | 'documentation'
+/** Fixed chrome. `sidebar` / `navigator` are the left / right dock areas (visibility and width). */
+export type PanelId = 'sidebar' | 'navigator' | 'toolbar' | 'statusbar'
+/** Anything the View menu can show/hide: chrome, a dockable panel, or all three editors. */
+export type ToggleablePanel = PanelId | DockPanelId | 'editors'
+export const EDITOR_PANELS: readonly DockPanelId[] = ['styles', 'properties', 'documentation']
+/** The `panels` entry holding a dock area's visibility and width. */
+export const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', right: 'navigator' }
 
 export interface Preferences {
   readonly theme: ThemePreference
@@ -49,10 +69,7 @@ export const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
   sidebar: { visible: true, size: 260 },
   navigator: { visible: true, size: 300 },
   toolbar: { visible: true, size: 34 },
-  statusbar: { visible: true, size: 24 },
-  toolbox: { visible: true, size: 260 },
-  editors: { visible: true, size: 380 },
-  workingDiagrams: { visible: true, size: 150 }
+  statusbar: { visible: true, size: 24 }
 }
 
 export interface Toast {
@@ -95,7 +112,10 @@ export interface UiState {
   readonly toolLocked: boolean
   readonly zoomByDiagram: Readonly<Record<string, number>>
   readonly panels: Readonly<Record<PanelId, PanelState>>
-  readonly sections: Readonly<Record<EditorSection, boolean>>
+  /** Which dock area holds which panels, their height weights and collapsed/visible flags. */
+  readonly dock: DockLayout
+  /** Latest docking announcement for screen readers (`tick` changes on every move). */
+  readonly dockAnnouncement: { readonly text: string; readonly tick: number }
   readonly showAdvancedProperties: boolean
   readonly prefs: Preferences
   readonly sortBy: SortMode
@@ -121,9 +141,19 @@ export interface UiState {
   toolUsed(): void
   zoomOf(diagramId: string | null): number
   setZoom(diagramId: string, zoom: number): void
-  togglePanel(id: PanelId): void
+  isPanelVisible(id: ToggleablePanel): boolean
+  togglePanel(id: ToggleablePanel): void
   setPanelSize(id: PanelId, size: number): void
-  toggleSection(id: EditorSection): void
+  /** Docks `id` into `area` before `beforeId` (null = end); `size` optionally sets its height weight. */
+  moveDockPanel(id: DockPanelId, area: DockAreaId, beforeId: DockPanelId | null, size?: number): void
+  moveDockPanelBy(id: DockPanelId, step: -1 | 1): void
+  moveDockPanelToArea(id: DockPanelId, area: DockAreaId): void
+  /** Height weights; `persist: false` for live splitter drags (persist on release). */
+  setDockPanelSizes(sizes: Partial<Record<DockPanelId, number>>, persist?: boolean): void
+  toggleDockCollapsed(id: DockPanelId): void
+  setDockPanelVisible(id: DockPanelId, visible: boolean): void
+  /** Restores the default docking (panel positions, sizes, area widths and visibility). */
+  resetLayout(): void
   setShowAdvancedProperties(show: boolean): void
   setPrefs(changes: Partial<Preferences>): void
   resetPrefs(): void
@@ -155,7 +185,9 @@ export function clampZoom(zoom: number): number {
 
 interface PersistedLayout {
   panels?: Partial<Record<PanelId, PanelState>>
-  sections?: Partial<Record<EditorSection, boolean>>
+  dock?: unknown
+  /** Legacy (before docking): open state of the editor sections. */
+  sections?: Partial<Record<'styles' | 'properties' | 'documentation', boolean>>
   sortBy?: SortMode
   showStereotype?: boolean
   showAdvancedProperties?: boolean
@@ -187,7 +219,26 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
   }
 }
 
+/** The persisted dock layout, or one migrated from the pre-docking layout keys. */
+function loadDock(layout: PersistedLayout): DockLayout {
+  if (layout.dock !== undefined) return sanitizeDockLayout(layout.dock)
+  let dock = defaultDockLayout()
+  const legacy = (layout.panels ?? {}) as Record<string, Partial<PanelState> | undefined>
+  const flag = (v: unknown): v is boolean => typeof v === 'boolean'
+  if (flag(legacy['toolbox']?.visible)) dock = setPanelVisible(dock, 'toolbox', legacy['toolbox'].visible)
+  if (flag(legacy['editors']?.visible)) for (const id of EDITOR_PANELS) dock = setPanelVisible(dock, id, legacy['editors'].visible)
+  for (const id of ['toolbox', 'workingDiagrams'] as const) {
+    const size = legacy[id]?.size
+    if (typeof size === 'number') dock = setPanelSizes(dock, { [id]: size })
+  }
+  for (const id of ['styles', 'properties', 'documentation'] as const) {
+    if (layout.sections?.[id] === false) dock = setPanelCollapsed(dock, id, true)
+  }
+  return dock
+}
+
 let toastCounter = 0
+let announceCounter = 0
 
 export function createUiStore() {
   const layout = loadJson<PersistedLayout>('layout', {})
@@ -196,7 +247,7 @@ export function createUiStore() {
       const s = get()
       saveJson('layout', {
         panels: s.panels,
-        sections: s.sections,
+        dock: s.dock,
         sortBy: s.sortBy,
         showStereotype: s.showStereotype,
         showAdvancedProperties: s.showAdvancedProperties
@@ -206,12 +257,30 @@ export function createUiStore() {
       set({ recentFiles })
       saveJson('recentFiles', recentFiles)
     }
+    /** Commits a dock layout; `revealId`'s area is shown, and its new position announced when `announce`. */
+    const setDock = (dock: DockLayout, revealId?: DockPanelId, announce = revealId !== undefined): void => {
+      const s = get()
+      if (dock === s.dock) return
+      let panels = s.panels
+      // Docking into a hidden area shows it.
+      if (revealId) {
+        const key = AREA_PANEL[areaOf(dock, revealId)]
+        if (!panels[key].visible) panels = { ...panels, [key]: { ...panels[key], visible: true } }
+      }
+      set({
+        dock,
+        panels,
+        ...(revealId && announce ? { dockAnnouncement: { text: describePosition(dock, revealId), tick: ++announceCounter } } : {})
+      })
+      persistLayout()
+    }
     return {
       tool: null,
       toolLocked: false,
       zoomByDiagram: {},
       panels: sanitizePanels(layout.panels),
-      sections: { styles: true, properties: true, documentation: true, ...layout.sections },
+      dock: loadDock(layout),
+      dockAnnouncement: { text: '', tick: 0 },
       showAdvancedProperties: layout.showAdvancedProperties === true,
       prefs: sanitizePrefs(loadJson<Partial<Preferences>>('preferences', {})),
       sortBy: layout.sortBy === 'name' ? 'name' : 'added',
@@ -247,18 +316,64 @@ export function createUiStore() {
       setZoom(diagramId, zoom) {
         set({ zoomByDiagram: { ...get().zoomByDiagram, [diagramId]: clampZoom(zoom) } })
       },
+      isPanelVisible(id) {
+        const s = get()
+        if (id === 'editors') return EDITOR_PANELS.some((p) => s.dock.panels[p].visible)
+        if (id in s.panels) return s.panels[id as PanelId].visible
+        return s.dock.panels[id as DockPanelId].visible
+      },
       togglePanel(id) {
-        const p = get().panels[id]
-        set({ panels: { ...get().panels, [id]: { ...p, visible: !p.visible } } })
-        persistLayout()
+        const s = get()
+        if (id === 'editors') {
+          const show = !s.isPanelVisible('editors')
+          let dock = s.dock
+          for (const p of EDITOR_PANELS) dock = setPanelVisible(dock, p, show)
+          setDock(dock)
+          return
+        }
+        if (id in s.panels) {
+          const p = s.panels[id as PanelId]
+          set({ panels: { ...s.panels, [id]: { ...p, visible: !p.visible } } })
+          persistLayout()
+          return
+        }
+        const dockId = id as DockPanelId
+        const show = !s.dock.panels[dockId].visible
+        setDock(setPanelVisible(s.dock, dockId, show), show ? dockId : undefined, false)
       },
       setPanelSize(id, size) {
         const p = get().panels[id]
         set({ panels: { ...get().panels, [id]: { ...p, size: Math.max(0, Math.round(size)) } } })
         persistLayout()
       },
-      toggleSection(id) {
-        set({ sections: { ...get().sections, [id]: !get().sections[id] } })
+      moveDockPanel(id, area, beforeId, size) {
+        let dock = movePanel(get().dock, id, area, beforeId)
+        if (size !== undefined && dock !== get().dock) dock = setPanelSizes(dock, { [id]: size })
+        setDock(dock, id)
+      },
+      moveDockPanelBy(id, step) {
+        setDock(movePanelBy(get().dock, id, step), id)
+      },
+      moveDockPanelToArea(id, area) {
+        setDock(movePanelToArea(get().dock, id, area), id)
+      },
+      setDockPanelSizes(sizes, persist = true) {
+        const dock = setPanelSizes(get().dock, sizes)
+        if (dock !== get().dock) set({ dock })
+        if (persist) persistLayout()
+      },
+      toggleDockCollapsed(id) {
+        setDock(setPanelCollapsed(get().dock, id, !get().dock.panels[id].collapsed))
+      },
+      setDockPanelVisible(id, visible) {
+        setDock(setPanelVisible(get().dock, id, visible), visible ? id : undefined, false)
+      },
+      resetLayout() {
+        set({
+          dock: defaultDockLayout(),
+          panels: { ...get().panels, sidebar: DEFAULT_PANELS.sidebar, navigator: DEFAULT_PANELS.navigator },
+          dockAnnouncement: { text: 'Layout reset to default', tick: ++announceCounter }
+        })
         persistLayout()
       },
       setShowAdvancedProperties(show) {
