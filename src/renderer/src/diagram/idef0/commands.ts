@@ -34,7 +34,7 @@ export interface Idef0ListItem {
 
 /** The interactive services the shell provides to the IDEF0 commands. */
 export interface Idef0CommandContext {
-  /** Asks for the number of child boxes (3 to 6); null = cancelled. */
+  /** Asks for the number of child boxes (1 to 6; fewer than 3 is warned by W01); null = cancelled. */
   promptBoxCount(): Promise<number | null>
   /** Opens a diagram tab and selects views (ids) in it. */
   openDiagram(diagramId: string, selectViewIds?: readonly string[]): void

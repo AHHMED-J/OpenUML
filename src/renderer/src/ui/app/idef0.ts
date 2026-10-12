@@ -10,7 +10,7 @@ const ps = () => projectStore.getState()
 export const idef0Context: Idef0CommandContext = {
   async promptBoxCount() {
     for (;;) {
-      const text = await promptText('Number of child boxes (3 to 6)', '3')
+      const text = await promptText('Number of child boxes (1 to 6; IDEF0 recommends 3 to 6)', '3')
       if (text === null) return null
       const n = Number(text.trim())
       if (Number.isInteger(n) && n >= 1 && n <= 6) return n
