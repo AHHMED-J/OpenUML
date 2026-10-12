@@ -8,6 +8,7 @@ import { hasDefault, type FieldDef, type TypeDef } from './metamodel-dsl'
 import { UML_ENUMS, UML_TYPES } from './metamodel-uml'
 import { STRUCTURE_ENUMS, STRUCTURE_MODEL_TYPES, STRUCTURE_VIEW_TYPES } from './metamodel-structure'
 import { STATEMACHINE_ENUMS, STATEMACHINE_TYPES } from './metamodel-statemachine'
+import { RAD_ENUMS, RAD_TYPES } from './metamodel-rad'
 import { IDEF0_ENUMS, IDEF0_TYPES } from './metamodel-idef0'
 import type { Elem, TypeMap } from './types'
 import { DEFAULT_FONT } from './values'
@@ -47,11 +48,13 @@ registerTypes(UML_TYPES)
 registerTypes(STRUCTURE_MODEL_TYPES)
 registerTypes(STRUCTURE_VIEW_TYPES)
 registerTypes(STATEMACHINE_TYPES)
+registerTypes(RAD_TYPES)
 registerTypes(IDEF0_TYPES)
 registerEnums(CORE_ENUMS)
 registerEnums(UML_ENUMS)
 registerEnums(STRUCTURE_ENUMS)
 registerEnums(STATEMACHINE_ENUMS)
+registerEnums(RAD_ENUMS)
 registerEnums(IDEF0_ENUMS)
 
 function resolve(name: string, seen: Set<string> = new Set()): TypeInfo | undefined {
