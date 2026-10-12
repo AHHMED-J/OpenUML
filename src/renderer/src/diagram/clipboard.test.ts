@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { addAttribute } from '../commands'
 import { isKindOf, type EdgeView, type Elem, type NodeView, type UMLClassifierView, type View } from '../model'
-import { copyViews, duplicateViews, parseClipboard, pasteViews, serializeClipboard } from './clipboard'
+import { diagramCanHostView } from '../ui/toolbox/palettes'
+import { createDiagram } from '../commands'
+import { copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard } from './clipboard'
 import { createNodeAt, moveSelection } from './editor/actions'
 import { testDiagram } from './testUtils'
 
@@ -114,5 +116,36 @@ describe('view clipboard', () => {
     const clsCopy = ids.map((id) => t.repository.get(id) as View).find((v) => isKindOf(v.model, 'UMLClass'))
     expect(clsCopy?.model?._parent).toBe(pkgCopy?.model)
     for (const c of classes) expect(t.repository.viewsOf(c)).toHaveLength(1)
+  })
+
+  it('pastes views copied from another diagram type only where that diagram can draw them', () => {
+    const t = testDiagram()
+    const cls = t.node('Class', 0, 0)
+    const note = t.node('Note', 200, 0)
+    const owner = t.diagram._parent as Elem
+    const classPayload = copyViews(t.repository, t.diagram, [cls._id], t.layout())!
+    const notePayload = copyViews(t.repository, t.diagram, [note._id], t.layout())!
+    const idef0 = createDiagram(t.engine, 'IDEF0Diagram', owner).diagram
+    const composite = createDiagram(t.engine, 'CompositeStructureDiagram', owner).diagram
+    const other = createDiagram(t.engine, 'ClassDiagram', owner).diagram
+    // Same diagram type: always.
+    expect(pasteViews(t.engine, other, classPayload)).toHaveLength(1)
+    // Another type: refused without a predicate, and where the palette cannot draw the view.
+    expect(() => pasteViews(t.engine, composite, classPayload)).toThrow(PasteError)
+    const idef0Views = idef0.ownedViews.length
+    expect(() => pasteViews(t.engine, idef0, classPayload, undefined, diagramCanHostView)).toThrow(PasteError)
+    expect(idef0.ownedViews).toHaveLength(idef0Views)
+    // Accepted where the palette draws it (classes on composite structure, notes everywhere).
+    expect(pasteViews(t.engine, composite, classPayload, undefined, diagramCanHostView)).toHaveLength(1)
+    expect(pasteViews(t.engine, idef0, notePayload, undefined, diagramCanHostView)).toHaveLength(1)
+  })
+
+  it('rejects malformed clipboard payloads', () => {
+    const base = { format: 'openuml/views', version: 1, diagramType: 'UMLClassDiagram', views: [], outerRefs: [], bounds: null }
+    expect(parseClipboard(JSON.stringify(base))).not.toBeNull()
+    expect(parseClipboard(JSON.stringify({ ...base, outerRefs: undefined }))).toBeNull()
+    expect(parseClipboard(JSON.stringify({ ...base, diagramType: 3 }))).toBeNull()
+    expect(parseClipboard(JSON.stringify({ ...base, views: [1] }))).toBeNull()
+    expect(parseClipboard('hello')).toBeNull()
   })
 })

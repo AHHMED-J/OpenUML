@@ -137,9 +137,14 @@ export async function openProjectPath(path: string, askToSave = true): Promise<v
 }
 
 async function writeProject(path: string): Promise<void> {
+  // Edits made while the file is being written are not in `text`: they must stay unsaved.
+  const { engine } = ps()
+  const point = engine.savePoint
   const text = ps().serializeProject()
   await requireBridge().writeTextFile(path, text)
-  ps().markSaved(path)
+  // The project was replaced (new/open) while writing: the open one was not saved.
+  if (ps().engine !== engine) return
+  ps().markSaved(path, point)
   ui().addRecent(path)
   bridge?.addRecentDocument(path)
   rememberWorkingDiagrams()

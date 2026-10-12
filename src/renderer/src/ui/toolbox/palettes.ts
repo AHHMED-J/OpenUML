@@ -2,7 +2,7 @@
  * Toolbox palettes per diagram type. Each item's `kind` is a key of the model's `NODE_KINDS`
  * (rectangle/point gestures) or `EDGE_KINDS` (line gestures).
  */
-import type { EdgeKind, NodeKind } from '../../model'
+import { EDGE_KINDS, NODE_KINDS, type EdgeKind, type NodeKind } from '../../model'
 import type { PaletteTool } from '../uiStore'
 
 export interface PaletteItem extends PaletteTool {
@@ -392,4 +392,14 @@ export const PALETTES: readonly PaletteGroup[] = [
 export function palettesFor(diagramType: string | null): PaletteGroup[] {
   if (!diagramType) return []
   return PALETTES.filter((g) => !g.diagramTypes || g.diagramTypes.includes(diagramType))
+}
+
+/** True when a tool of the diagram type's palette creates views of `viewType` (used to vet pasted views). */
+export function diagramCanHostView(diagramType: string, viewType: string): boolean {
+  return palettesFor(diagramType).some((g) =>
+    g.items.some((item) => {
+      const spec = (NODE_KINDS as Record<string, { viewType: string } | undefined>)[item.kind] ?? (EDGE_KINDS as Record<string, { viewType: string } | undefined>)[item.kind]
+      return spec?.viewType === viewType
+    })
+  )
 }

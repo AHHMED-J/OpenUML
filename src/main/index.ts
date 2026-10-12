@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, extname, join, resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { extname, join, resolve } from 'node:path'
 import { IpcChannels, type FileFilter, type MenuItemSpec, type NativeEditAction } from '../shared/ipc'
+import { FileAccess, writeFileAtomic } from './fileAccess'
 
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
@@ -10,6 +11,8 @@ let closeConfirmed = false
 let startupFile: string | null = findFileArgument(process.argv)
 /** Set once the renderer has asked for the startup file; later open-file events are forwarded. */
 let rendererReady = false
+/** Paths the renderer may read and write (see `FileAccess`). */
+const fileAccess = new FileAccess()
 
 function findFileArgument(argv: readonly string[]): string | null {
   // Skip the executable (and, in development, the app path).
@@ -40,7 +43,7 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   })
 
@@ -98,9 +101,8 @@ function debugMenu(): MenuItemConstructorOptions {
   }
 }
 
-async function writeWithFolders(path: string, data: string | Buffer): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
-  await writeFile(path, data)
+function denied(path: unknown): Error {
+  return new Error(`Access to ${typeof path === 'string' ? path : 'this path'} is not allowed`)
 }
 
 function registerIpc(): void {
@@ -115,15 +117,26 @@ function registerIpc(): void {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], filters })
     const path = result.filePaths[0]
     if (result.canceled || !path) return null
-    return { path, content: await readFile(path, 'utf8') }
+    const content = await readFile(path, 'utf8')
+    fileAccess.grantFile(path)
+    return { path, content }
   })
 
-  ipcMain.handle(IpcChannels.readTextFile, (_event, path: string) => readFile(path, 'utf8'))
+  ipcMain.handle(IpcChannels.readTextFile, async (_event, path: unknown) => {
+    if (!fileAccess.canRead(path)) throw denied(path)
+    const content = await readFile(path, 'utf8')
+    // A project opened by path (recent files, the OS) may be saved back in place.
+    fileAccess.grantFile(path)
+    return content
+  })
 
   ipcMain.handle(IpcChannels.chooseSavePath, async (_event, defaultName: string, filters: FileFilter[]) => {
     if (!mainWindow) return null
     const result = await dialog.showSaveDialog(mainWindow, { defaultPath: defaultName, filters })
-    return result.canceled || !result.filePath ? null : result.filePath
+    if (result.canceled || !result.filePath) return null
+    // The renderer appends the extension when the user typed none.
+    fileAccess.grantFile(result.filePath, filters.flatMap((f) => f.extensions))
+    return result.filePath
   })
 
   ipcMain.handle(IpcChannels.chooseFolder, async (_event, title: string) => {
@@ -133,14 +146,20 @@ function registerIpc(): void {
       properties: ['openDirectory', 'createDirectory']
     })
     const path = result.filePaths[0]
-    return result.canceled || !path ? null : path
+    if (result.canceled || !path) return null
+    fileAccess.grantFolder(path)
+    return path
   })
 
-  ipcMain.handle(IpcChannels.writeTextFile, (_event, path: string, content: string) => writeWithFolders(path, content))
+  ipcMain.handle(IpcChannels.writeTextFile, (_event, path: unknown, content: unknown) => {
+    if (!fileAccess.canWrite(path) || typeof content !== 'string') throw denied(path)
+    return writeFileAtomic(path, content)
+  })
 
-  ipcMain.handle(IpcChannels.writeBinaryFile, (_event, path: string, base64: string) =>
-    writeWithFolders(path, Buffer.from(base64, 'base64'))
-  )
+  ipcMain.handle(IpcChannels.writeBinaryFile, (_event, path: unknown, base64: unknown) => {
+    if (!fileAccess.canWrite(path) || typeof base64 !== 'string') throw denied(path)
+    return writeFileAtomic(path, Buffer.from(base64, 'base64'))
+  })
 
   ipcMain.handle(IpcChannels.showMessageBox, async (_event, options: Electron.MessageBoxOptions) => {
     if (!mainWindow) return 0
