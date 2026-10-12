@@ -93,6 +93,34 @@ const stateMachineItems: readonly AddItem[] = [
   }
 ]
 
+const isRadProcess = (e: Elem): boolean => isKindOf(e, 'RADProcess')
+const isRadRole = (e: Elem): boolean => isKindOf(e, 'RADRole')
+const radElementItem = (id: string, label: string, type: string, baseName: string, init?: (el: Elem) => void): AddItem => ({
+  id,
+  label,
+  type,
+  field: 'elements',
+  baseName,
+  accepts: isRadRole,
+  ...(init ? { init } : {})
+})
+const radItems: readonly AddItem[] = [
+  { id: 'rad-process', label: 'RAD Process', type: 'RADProcess', accepts: projectOrPackage },
+  { id: 'rad-role', label: 'Role', type: 'RADRole', field: 'roles', baseName: 'Role', accepts: isRadProcess },
+  radElementItem('rad-activity', 'Activity', 'RADActivity', 'Activity'),
+  radElementItem('rad-interaction', 'Interaction', 'RADInteraction', 'Interaction'),
+  radElementItem('rad-undefined-process', 'Undefined Process', 'RADUndefinedProcess', 'Process'),
+  radElementItem('rad-state-marker', 'State Marker', 'RADStateMarker', 'Marker', (el) => {
+    el['name'] = ''
+  }),
+  radElementItem('rad-wait', 'Wait', 'RADWait', 'Event'),
+  radElementItem('rad-role-start', 'Role Start', 'RADRoleStart', 'Start', (el) => {
+    el['name'] = ''
+  }),
+  radElementItem('rad-case-refinement', 'Case Refinement', 'RADCaseRefinement', 'Question'),
+  radElementItem('rad-part-refinement', 'Part Refinement', 'RADPartRefinement', 'Split')
+]
+
 export const ADD_ITEMS: readonly AddItem[] = [
   { id: 'model', label: 'Model', type: 'UMLModel', accepts: projectOrPackage },
   { id: 'package', label: 'Package', type: 'UMLPackage', accepts: projectOrPackage },
@@ -146,7 +174,8 @@ export const ADD_ITEMS: readonly AddItem[] = [
     feature: 'Operand',
     accepts: (e) => isKindOf(e, 'UMLCombinedFragment')
   },
-  ...stateMachineItems
+  ...stateMachineItems,
+  ...radItems
 ]
 
 export interface AddDiagramItem {
@@ -191,6 +220,12 @@ export const ADD_DIAGRAM_ITEMS: readonly AddDiagramItem[] = [
     label: 'Timing Diagram',
     type: 'UMLTimingDiagram',
     accepts: (e) => projectOrPackage(e) || isClassifier(e) || isKindOf(e, 'UMLInteraction')
+  },
+  {
+    kind: 'RADDiagram',
+    label: 'Role Activity Diagram',
+    type: 'RADDiagram',
+    accepts: (e) => projectOrPackage(e) || isRadProcess(e)
   },
   { kind: 'ComponentDiagram', label: 'Component Diagram', type: 'UMLComponentDiagram', accepts: projectOrPackage },
   { kind: 'DeploymentDiagram', label: 'Deployment Diagram', type: 'UMLDeploymentDiagram', accepts: projectOrPackage },
