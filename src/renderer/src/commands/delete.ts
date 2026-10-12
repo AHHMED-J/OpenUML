@@ -56,6 +56,8 @@ export function collectDeletion(repo: Repository, seeds: readonly Elem[], mode: 
       } else if (mode === 'model') {
         if ((field === 'source' || field === 'target') && isKindOf(source, 'DirectedRelationship')) add(source)
         else if (field === 'reference' && isKindOf(source, 'RelationshipEnd')) add(source._parent)
+        // RAD: removing a refinement removes its branches (and, through them, their state lines).
+        else if (field === 'refinement' && isKindOf(source, 'RADBranch')) add(source)
         else if (field === 'model' && isKindOf(source, 'View')) add(source)
       }
     }
