@@ -44,6 +44,7 @@ import {
   createTextAt,
   deleteViews,
   findDropContainer,
+  hooksFor,
   isContainmentChange,
   isNodeKind,
   moveAxisOf,
@@ -396,7 +397,14 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p }
         setPreview({ kind: 'line', from: p, to: p })
       } else {
-        const target = hitTestDiagram(l, p, { selected: new Set(), zoom: z, nodesOnly: true })
+        const hooks = hooksFor(en.diagram)
+        const pickedId = hooks?.pickEnd ? hooks.pickEnd(l, p, t) : null
+        const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: z, nodesOnly: true })
+        if (!target && hooks?.freeEnds?.(t)) {
+          // Line tools that may start on empty canvas (IDEF0 boundary arrows).
+          gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p }
+          setPreview({ kind: 'line', from: p, to: p })
+        }
         if (target) {
           const box = l.nodes.get(target.viewId)?.box
           const from = box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : p
@@ -710,7 +718,18 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return
       }
       case 'create-edge': {
-        const target = hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
+        const hooks = hooksFor(en.diagram)
+        const pickedId = hooks?.pickEnd ? hooks.pickEnd(l, p, g.tool) : null
+        const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
+        const hooked = hooks?.createEdge?.(en, l, g.tool, g.tailId || null, target?.viewId ?? null, g.start, p)
+        if (hooked !== undefined) {
+          if (hooked) {
+            setSelection([hooked])
+            onToolUsed()
+            requestEdit(hooked)
+          } else console.warn(`Invalid connection (${g.tool.kind})`)
+          return
+        }
         if (g.tool.freeEnd) {
           // Found message (free tail, lifeline at the release point) or lost message (free head).
           const id =
@@ -741,7 +760,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!g.moved) return
         if (g.end) {
           const target = hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
-          if (target) reconnectEnd(en, g.edgeId, g.end, target.viewId)
+          if (target) reconnectEnd(en, g.edgeId, g.end, target.viewId, p)
           return
         }
         setEdgeVertices(en, g.edgeId, g.points)
