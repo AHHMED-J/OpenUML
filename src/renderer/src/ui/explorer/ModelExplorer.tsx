@@ -292,7 +292,13 @@ export function ModelExplorer(): React.JSX.Element {
               }}
               onDragOver={(e) => {
                 const source = draggedId ? projectStore.getState().repository.get(draggedId) : undefined
-                if (!source || !dropField(el, source)) return
+                if (!source) return
+                if (!dropField(el, source)) {
+                  // Invalid target: not-allowed cursor and no highlight.
+                  e.dataTransfer.dropEffect = 'none'
+                  if (dropTarget === el._id) setDropTarget(null)
+                  return
+                }
                 e.preventDefault()
                 e.dataTransfer.dropEffect = 'move'
                 if (dropTarget !== el._id) setDropTarget(el._id)

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { addAttribute, ModelEngine } from '../../commands'
 import { createDefaultProject, createElement, Repository, type Elem } from '../../model'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addDiagramItemsFor, addItemsFor, addModelElement } from '../modelActions'
-import { dropField, expandableIds, explorerChildren, explorerLabel, hasExplorerChildren, pathTo } from './tree'
+import { canOwn, dropField, expandableIds, explorerChildren, explorerLabel, hasExplorerChildren, pathTo } from './tree'
 
 function setup(): { engine: ModelEngine; project: Elem; model: Elem } {
   const project = createDefaultProject()
@@ -77,6 +77,47 @@ describe('explorer tree', () => {
     // An element cannot be dropped into its own descendant.
     expect(dropField(cls, model)).toBeNull()
     expect(dropField(pkg, model)).toBeNull()
+  })
+
+  it('applies containment rules: packages own packageables, interfaces/actors/features own no packages', () => {
+    const { engine, model } = setup()
+    const pkg = addModelElement(engine, model, item('package'))
+    const pkg2 = addModelElement(engine, model, item('package'))
+    const cls = addModelElement(engine, model, item('class'))
+    const iface = addModelElement(engine, model, item('interface'))
+    const actor = addModelElement(engine, model, item('actor'))
+    const enumeration = addModelElement(engine, model, item('enumeration'))
+    const activity = addModelElement(engine, model, item('activity'))
+    const diagram = explorerChildren(model).find((c) => c._type === 'UMLClassDiagram') as Elem
+    const attr = addAttribute(engine, cls)
+
+    // Packages and models own packages, classifiers and diagrams.
+    expect(dropField(pkg, pkg2)).toBe('ownedElements')
+    expect(dropField(pkg, iface)).toBe('ownedElements')
+    expect(dropField(pkg, diagram)).toBe('ownedElements')
+    // A package cannot be dropped onto an interface, actor, enumeration, activity or attribute.
+    for (const target of [iface, actor, enumeration, activity, attr]) expect(dropField(target, pkg2), target._type).toBeNull()
+    // Classes and interfaces nest classifiers, not packages.
+    expect(dropField(cls, iface)).toBe('ownedElements')
+    expect(dropField(iface, cls)).toBe('ownedElements')
+    expect(dropField(cls, pkg)).toBeNull()
+    // Actors/enumerations/activities cannot own classifiers, but diagrams may live in classifiers and activities.
+    expect(dropField(actor, cls)).toBeNull()
+    expect(dropField(enumeration, cls)).toBeNull()
+    expect(dropField(activity, cls)).toBeNull()
+    expect(dropField(activity, diagram)).toBe('ownedElements')
+    expect(dropField(attr, diagram)).toBeNull()
+    // Features keep following the metamodel field types.
+    expect(dropField(iface, attr)).toBe('attributes')
+  })
+
+  it('canOwn is false for the project root and views, and for non-owners', () => {
+    const { engine, project, model } = setup()
+    const cls = addModelElement(engine, model, item('class'))
+    expect(canOwn(model, project)).toBe(false)
+    expect(canOwn(project, model)).toBe(true)
+    expect(canOwn(cls, model)).toBe(false)
+    expect(canOwn(cls, addModelElement(engine, model, item('class')))).toBe(true)
   })
 
   it('computes paths and expandable ids', () => {
