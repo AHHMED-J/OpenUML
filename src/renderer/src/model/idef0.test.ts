@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { createDiagram, createEdge, createNode, ModelEngine } from '../commands'
+import { applyPlan, createDiagram, createEdge, createNode, ModelEngine } from '../commands'
 import { readMdj, validateModel, writeMdj } from '../format'
 import { buildOrderExample } from './idef0-example'
 import {
@@ -16,7 +16,7 @@ import {
   slotOffsets,
   staircaseOrder
 } from './idef0-numbering'
-import { canConnect, createDefaultProject, getEnumLiterals, getTypeInfo, initialValue, instantiate, isKindOf, planDiagram, planNode, typeDisplayName } from './index'
+import { canConnect, createDefaultProject, getEnumLiterals, getTypeInfo, initialValue, instantiate, isKindOf, planDiagram, planIdef0Arrow, planNode, typeDisplayName } from './index'
 import { Repository } from './repository'
 import type { Diagram, Elem, NodeView, View } from './types'
 
@@ -224,6 +224,23 @@ describe('IDEF0 creation', () => {
     expect(arrow._parent).toBe(top)
     expect((edge.view as View)['lineStyle']).toBe(2)
     expect(canConnect('IDEF0Arrow', b1 as View, b2 as View)).toBe(true)
+    expect(validateModel(project)).toEqual([])
+  })
+})
+
+describe('IDEF0 boundary arrows', () => {
+  it('gives an arrow released on empty canvas the output role and a boundary output port', () => {
+    const { project, engine } = newProject()
+    const ctx = createDiagram(engine, 'IDEF0Diagram', project)
+    const diagram = ctx.diagram as Diagram
+    const box = diagram.ownedViews[1] as View
+    const plan = planIdef0Arrow({ diagram, tail: box, head: null, at: { x: 900, y: 349 } })
+    engine.transact('Create', (b) => applyPlan(b, plan))
+    const arrow = plan.model as Elem
+    expect(arrow).toMatchObject({ role: 'output', source: box.model })
+    const port = arrow['target'] as Elem
+    expect(port).toMatchObject({ _type: 'IDEF0Port', role: 'output', corresponds: null })
+    expect(port._parent).toBe(ctx.model)
     expect(validateModel(project)).toEqual([])
   })
 })

@@ -347,7 +347,7 @@ export function canConnectIdef0(kind: Idef0EdgeKind, tail: View, head: View): bo
 
 /** Role the arrow takes as seen by its function end, from the kind of its ends. */
 function defaultRole(tail: View | null, head: View | null): Idef0Role {
-  if (isPortView(head)) return 'output'
+  if (!head || isPortView(head)) return 'output'
   if (isArrowView(head)) return 'output'
   if (isArrowView(tail)) return roleOf(tail.model as Elem)
   return 'input'
