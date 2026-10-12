@@ -37,6 +37,7 @@ const COMPOSITE = 'UMLCompositeStructureDiagram'
 const COMMUNICATION = 'UMLCommunicationDiagram'
 const OVERVIEW = 'UMLInteractionOverviewDiagram'
 const INFOFLOW = 'UMLInformationFlowDiagram'
+const IDEF0 = 'IDEF0Diagram'
 const RAD = 'RADDiagram'
 
 const node = (id: string, label: string, kind: NodeKind, gesture: 'rect' | 'point' = 'rect'): PaletteItem => ({
@@ -368,9 +369,21 @@ export const PALETTES: readonly PaletteGroup[] = [
     ]
   },
   {
+    id: 'idef0',
+    title: 'IDEF0',
+    diagramTypes: [IDEF0],
+    autoExpand: [IDEF0],
+    items: [
+      node('idef0-function', 'Function', 'IDEF0Function'),
+      edge('idef0-arrow', 'Arrow', 'IDEF0Arrow'),
+      edge('idef0-call', 'Call Arrow', 'IDEF0Call'),
+      node('idef0-model-note', 'Model Note', 'IDEF0ModelNote', 'point')
+    ]
+  },
+  {
     id: 'annotations',
     title: 'Annotations',
-    autoExpand: [CLASS, USECASE, SEQUENCE, ACTIVITY, STATECHART, TIMING, COMPONENT, DEPLOYMENT, PACKAGE, PROFILE, OBJECT, COMPOSITE, COMMUNICATION, OVERVIEW, INFOFLOW, RAD],
+    autoExpand: [CLASS, USECASE, SEQUENCE, ACTIVITY, STATECHART, TIMING, COMPONENT, DEPLOYMENT, PACKAGE, PROFILE, OBJECT, COMPOSITE, COMMUNICATION, OVERVIEW, INFOFLOW, IDEF0, RAD],
     items: [node('text', 'Text', 'Text'), node('note', 'Note', 'Note'), edge('note-link', 'Note Link', 'NoteLink')]
   }
 ]
