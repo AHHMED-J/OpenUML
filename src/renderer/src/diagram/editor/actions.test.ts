@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { addOperation, addParameter, setFields } from '../../commands'
 import { createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
 import { testDiagram } from '../testUtils'
@@ -35,6 +35,28 @@ describe('live drag preview', () => {
       expect(JSON.stringify([...preview!.nodes])).toBe(JSON.stringify([...committed.nodes]))
       expect(JSON.stringify([...preview!.edges])).toBe(JSON.stringify([...committed.edges]))
       t.engine.undo()
+    }
+  })
+
+  it('shows a node being drawn as it will be created, and fails quietly where it cannot be placed', () => {
+    const t = testDiagram()
+    const before = t.diagram.ownedViews.length
+    const rect = { left: 40, top: 60, width: 160, height: 90 }
+    const preview = previewLayout(t, () => void createNodeAt(t, t.layout(), 'Class', rect, { quiet: true }), t.layout())
+    expect(t.diagram.ownedViews).toHaveLength(before)
+    const id = createNodeAt(t, t.layout(), 'Class', rect) as string
+    const drawn = [...preview!.nodes.values()].map((n) => n.box)
+    expect(drawn).toContainEqual(t.layout().nodes.get(id)?.box)
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      // A timing state must be placed on a lifeline.
+      expect(createNodeAt(t, t.layout(), 'TimingState', rect, { quiet: true })).toBeNull()
+      expect(warn).not.toHaveBeenCalled()
+      expect(createNodeAt(t, t.layout(), 'TimingState', rect)).toBeNull()
+      expect(warn).toHaveBeenCalledTimes(1)
+    } finally {
+      warn.mockRestore()
     }
   })
 

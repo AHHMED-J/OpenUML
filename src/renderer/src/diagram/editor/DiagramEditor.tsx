@@ -95,6 +95,16 @@ type Gesture =
   | { type: 'pan'; startClient: Point; scroll: Point }
 
 const DRAG_THRESHOLD = 3
+/** Duration of the zoom transition (none when the system asks for reduced motion). */
+const ZOOM_ANIMATION_MS = 160
+
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  } catch {
+    return false
+  }
+}
 
 /**
  * The edit a drag gesture commits on release, for the live preview while dragging (null when the
@@ -118,6 +128,13 @@ function gestureChange(g: Gesture, env: DiagramEnv, layout: DiagramLayout): (() 
       const labelViewId = g.labelViewId
       return g.moved && labelViewId ? () => moveEdgeLabel(env, layout, g.edgeId, labelViewId, g.current) : null
     }
+    case 'create-node':
+      // A drawn rectangle shows the new element itself; where it cannot be placed, the outline stays.
+      return g.rect.width >= 4 || g.rect.height >= 4
+        ? () => {
+            if (!createNodeAt(env, layout, g.kind as never, g.rect, { quiet: true })) throw new Error(`${g.kind} cannot be placed here`)
+          }
+        : null
     default:
       return null
   }
@@ -134,7 +151,9 @@ function edgeMidBox(points: readonly Point[]): Rect {
 }
 
 export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
-  const { diagramId, tool, onToolUsed, zoom, onZoomChange, showGrid, snapToGrid } = props
+  const { diagramId, tool, onToolUsed, zoom: targetZoom, onZoomChange, showGrid, snapToGrid } = props
+  /** The zoom drawn: follows `targetZoom` with a short transition (see the zoom effect below). */
+  const [zoom, setShownZoom] = useState(targetZoom)
   const engine = useProjectStore((s) => s.engine)
   const repository = useProjectStore((s) => s.repository)
   const version = useProjectStore((s) => s.version)
@@ -172,8 +191,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const svgRef = useRef<SVGSVGElement>(null)
   const gesture = useRef<Gesture | null>(null)
   const spaceDown = useRef(false)
-  const live = useRef({ zoom, layout, selected, selectedSet, env, tool, snapToGrid })
-  live.current = { zoom, layout, selected, selectedSet, env, tool, snapToGrid }
+  const live = useRef({ zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid })
+  live.current = { zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid }
 
   const [preview, setPreview] = useState<DragPreview | null>(null)
   /** While dragging: the diagram as it will be when the gesture is released (see `scheduleLive`). */
@@ -220,23 +239,48 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const snapValue = useCallback((v: number): number => (live.current.snapToGrid ? snap(v, GRID.size) : Math.round(v)), [])
 
   // ---- Zoom keeping a screen point fixed.
+  /** Set when the next zoom change must apply at once (continuous trackpad pinch). */
+  const zoomImmediately = useRef(false)
   const zoomAround = useCallback(
-    (next: number, screen: Point) => {
+    (next: number, screen: Point, animate = true) => {
       const el = scrollRef.current
+      // The anchor is taken at the zoom drawn now (possibly mid-transition).
       const z = live.current.zoom
       const target = clampZoom(next)
-      if (!el || target === z) return
+      if (!el || target === live.current.targetZoom) return
       pendingScroll.current = { anchor: { x: (el.scrollLeft + screen.x) / z, y: (el.scrollTop + screen.y) / z }, screen }
+      zoomImmediately.current = !animate
       onZoomChange(target)
     },
     [onZoomChange]
   )
 
+  // Zoom transition: the drawn zoom eases toward the target; a new target restarts from where it is.
+  useEffect(() => {
+    const from = live.current.zoom
+    const immediate = zoomImmediately.current
+    zoomImmediately.current = false
+    if (from === targetZoom) return
+    if (immediate || prefersReducedMotion()) {
+      setShownZoom(targetZoom)
+      return
+    }
+    const start = performance.now()
+    let frame = requestAnimationFrame(function step(now: number): void {
+      const t = Math.min(1, Math.max(0, (now - start) / ZOOM_ANIMATION_MS))
+      const eased = 1 - (1 - t) ** 3
+      setShownZoom(t === 1 ? targetZoom : from + (targetZoom - from) * eased)
+      if (t < 1) frame = requestAnimationFrame(step)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [targetZoom])
+
+  // Keeps the anchored point under the same screen point on every frame of the transition.
   useLayoutEffect(() => {
     const el = scrollRef.current
     const p = pendingScroll.current
     if (!el || !p) return
-    pendingScroll.current = null
+    if (zoom === live.current.targetZoom) pendingScroll.current = null
     el.scrollLeft = Math.max(0, p.anchor.x * zoom - p.screen.x)
     el.scrollTop = Math.max(0, p.anchor.y * zoom - p.screen.y)
   }, [zoom])
@@ -249,9 +293,12 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
       const rect = el.getBoundingClientRect()
-      const z = live.current.zoom
-      const next = Math.abs(e.deltaY) >= 40 ? stepZoom(z, e.deltaY < 0 ? 1 : -1) : z * Math.exp(-e.deltaY * 0.01)
-      zoomAround(next, { x: e.clientX - rect.left, y: e.clientY - rect.top })
+      // From the target, so quick wheel steps accumulate while the transition runs.
+      const z = live.current.targetZoom
+      // Mouse wheel notches step (animated); trackpad pinches arrive as many small deltas and follow the fingers.
+      const notch = Math.abs(e.deltaY) >= 40
+      const next = notch ? stepZoom(z, e.deltaY < 0 ? 1 : -1) : z * Math.exp(-e.deltaY * 0.01)
+      zoomAround(next, { x: e.clientX - rect.left, y: e.clientY - rect.top }, notch)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
@@ -372,7 +419,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!el || !b) return
         const z = clampZoom(Math.min(1, (el.clientWidth - 20) / (b.left + b.width + CANVAS_FIT_PADDING), (el.clientHeight - 20) / (b.top + b.height + CANVAS_FIT_PADDING)))
         pendingScroll.current = { anchor: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
-        if (z === live.current.zoom) {
+        if (z === live.current.targetZoom) {
           el.scrollLeft = 0
           el.scrollTop = 0
         } else onZoomChange(z)
@@ -701,7 +748,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'create-node': {
         const end = { x: snapValue(p.x), y: snapValue(p.y) }
         g.rect = rectFromPoints(g.start, end)
-        if (g.rect.width > 0 || g.rect.height > 0) setPreview({ kind: 'boxes', rects: [g.rect] })
+        if (g.rect.width > 0 || g.rect.height > 0) scheduleLive({ kind: 'boxes', rects: [g.rect] })
         return
       }
       case 'create-edge':
