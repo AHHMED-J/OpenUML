@@ -3,6 +3,7 @@
  * files opened by the OS, the native application menu (rebuilt when state changes) and the
  * global keyboard dispatcher. `startShell()` returns a cleanup function.
  */
+import { setRadAutoThread } from '../../model'
 import { projectStore } from '../../store'
 import { bindingToDispatch, eventToDescriptor } from '../keymap'
 import { buildAppMenu } from '../menus/appMenu'
@@ -75,6 +76,12 @@ export function startShell(): () => void {
   }
   syncTitle()
   syncMenu()
+  setRadAutoThread(uiStore.getState().prefs.radAutoThread)
+  cleanups.push(
+    uiStore.subscribe((s, prev) => {
+      if (s.prefs.radAutoThread !== prev.prefs.radAutoThread) setRadAutoThread(s.prefs.radAutoThread)
+    })
+  )
   cleanups.push(
     projectStore.subscribe((s, prev) => {
       if (s.dirty !== prev.dirty || s.filePath !== prev.filePath || s.project !== prev.project || s.version !== prev.version) {

@@ -57,6 +57,8 @@ export interface Preferences {
   readonly gridSize: number
   /** Default font size for new views. */
   readonly defaultFontSize: number
+  /** RAD: a new element placed below an open-ended element gets a state line from it. */
+  readonly radAutoThread: boolean
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -64,7 +66,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   showGrid: true,
   snapToGrid: true,
   gridSize: 8,
-  defaultFontSize: 13
+  defaultFontSize: 13,
+  radAutoThread: true
 }
 
 export const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
@@ -217,7 +220,8 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
     defaultFontSize:
       typeof v.defaultFontSize === 'number' && v.defaultFontSize >= 6 && v.defaultFontSize <= 72
         ? Math.round(v.defaultFontSize)
-        : DEFAULT_PREFERENCES.defaultFontSize
+        : DEFAULT_PREFERENCES.defaultFontSize,
+    radAutoThread: typeof v.radAutoThread === 'boolean' ? v.radAutoThread : DEFAULT_PREFERENCES.radAutoThread
   }
 }
 

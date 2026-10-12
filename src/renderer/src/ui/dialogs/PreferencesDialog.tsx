@@ -59,6 +59,10 @@ export function PreferencesDialog(): React.JSX.Element {
           <input id="pref-snap" type="checkbox" checked={prefs.snapToGrid} onChange={(e) => set({ snapToGrid: e.target.checked })} />
         </div>
         <div className="pref-row">
+          <label htmlFor="pref-rad-thread">Role activity diagrams: connect new elements with a state line</label>
+          <input id="pref-rad-thread" type="checkbox" checked={prefs.radAutoThread} onChange={(e) => set({ radAutoThread: e.target.checked })} />
+        </div>
+        <div className="pref-row">
           <label htmlFor="pref-grid-size">Grid size</label>
           <select id="pref-grid-size" value={prefs.gridSize} onChange={(e) => set({ gridSize: Number(e.target.value) })}>
             {GRID_SIZES.map((s) => (
