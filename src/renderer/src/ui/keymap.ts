@@ -305,3 +305,29 @@ export function isNativeEditKeystroke(descriptor: string, platform: Platform): b
   if (!mod && !k.ctrl && !k.cmd && k.key.length === 1) return true
   return false
 }
+
+export interface KeyDispatchContext {
+  /** Keyboard focus is in an editable text control. */
+  readonly textFocused: boolean
+  /** Commands that a focused text field must not trigger with an unmodified key (e.g. Esc → Select tool). */
+  readonly textBlockedCommands?: ReadonlySet<string>
+}
+
+/**
+ * The binding the window-level keyboard dispatcher runs for a keystroke, or undefined to leave the
+ * key alone. Native edit keys stay with a focused text field; otherwise text fields only see
+ * modified shortcuts. Keys that the native menu also registers as accelerators are dispatched here
+ * too: the dispatcher prevents the default, so the menu (which only receives keys the page did not
+ * handle) never runs them twice, and they work wherever the page has focus.
+ */
+export function bindingToDispatch(
+  keymap: Keymap,
+  descriptor: string,
+  ctx: KeyDispatchContext
+): ResolvedBinding | undefined {
+  if (ctx.textFocused && isNativeEditKeystroke(descriptor, keymap.platform)) return undefined
+  const binding = keymap.match(descriptor)
+  if (!binding) return undefined
+  if (ctx.textFocused && (ctx.textBlockedCommands?.has(binding.command) || !/^(cmd|ctrl|alt)-/.test(descriptor))) return undefined
+  return binding
+}

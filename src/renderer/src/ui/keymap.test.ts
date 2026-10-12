@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bindingToDispatch,
   displayKeystroke,
   eventToDescriptor,
   formatKeystroke,
@@ -126,5 +127,21 @@ describe('formatting', () => {
     expect(isNativeEditKeystroke('cmd-s', 'darwin')).toBe(false)
     expect(isNativeEditKeystroke('ctrl-c', 'darwin')).toBe(false)
     expect(isNativeEditKeystroke('f4', 'linux')).toBe(false)
+  })
+
+  it('dispatches menu-accelerator shortcuts from the page (Cmd+Z on the canvas)', () => {
+    const mac = new Keymap('darwin', DEFAULT_KEYMAP)
+    // Regression: undo/redo were left to the native menu and did nothing when the page had focus.
+    expect(bindingToDispatch(mac, 'cmd-z', { textFocused: false })?.command).toBe('edit.undo')
+    expect(bindingToDispatch(mac, 'cmd-shift-z', { textFocused: false })?.command).toBe('edit.redo')
+    expect(mac.keystrokeFor('edit.redo')).toBe('cmd-shift-z')
+    const win = new Keymap('win32', DEFAULT_KEYMAP)
+    expect(bindingToDispatch(win, 'ctrl-y', { textFocused: false })?.command).toBe('edit.redo')
+    expect(win.keystrokeFor('edit.redo')).toBe('ctrl-y')
+    // Focused text fields keep native editing keys and unmodified keys.
+    expect(bindingToDispatch(mac, 'cmd-z', { textFocused: true })).toBeUndefined()
+    expect(bindingToDispatch(mac, 'delete', { textFocused: true })).toBeUndefined()
+    expect(bindingToDispatch(mac, 'esc', { textFocused: true, textBlockedCommands: new Set(['tool.select']) })).toBeUndefined()
+    expect(bindingToDispatch(mac, 'cmd-s', { textFocused: true })?.command).toBe('file.save')
   })
 })

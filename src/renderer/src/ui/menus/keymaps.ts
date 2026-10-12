@@ -14,6 +14,8 @@ export const DEFAULT_KEYMAP: readonly KeyBinding[] = [
   { key: 'cmd-,', command: Cmd.appPreferences, platforms: MAC },
   // Edit
   { key: 'cmdctrl-z', command: Cmd.editUndo },
+  // Redo shows (and is registered natively as) ⇧⌘Z on macOS, Ctrl+Y elsewhere.
+  { key: 'cmd-shift-z', command: Cmd.editRedo, platforms: MAC },
   { key: 'cmdctrl-y', command: Cmd.editRedo },
   { key: 'cmdctrl-shift-z', command: Cmd.editRedo },
   { key: 'cmdctrl-x', command: Cmd.editCut },

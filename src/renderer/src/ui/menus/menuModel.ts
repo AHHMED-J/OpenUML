@@ -181,18 +181,3 @@ export function toNativeMenu(items: readonly ResolvedMenuItem[], platform: Platf
     return spec
   })
 }
-
-/** Descriptors registered as native accelerators (the renderer keymap leaves them to the menu). */
-export function nativeAcceleratorDescriptors(items: readonly ResolvedMenuItem[]): Set<string> {
-  const result = new Set<string>()
-  const visit = (list: readonly ResolvedMenuItem[]): void => {
-    for (const item of list) {
-      if (item.kind === 'submenu') visit(item.items)
-      else if (item.kind === 'item' && item.keystroke && !item.role && isNativeAcceleratorAllowed(item.keystroke)) {
-        result.add(item.keystroke)
-      }
-    }
-  }
-  visit(items)
-  return result
-}
