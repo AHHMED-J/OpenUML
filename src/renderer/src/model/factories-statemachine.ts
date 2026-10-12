@@ -241,8 +241,16 @@ export function lowestCommonRegion(a: Elem | null | undefined, b: Elem | null | 
   return null
 }
 
+/**
+ * Transitions join vertices, except that a final state or terminate pseudostate has no outgoing
+ * transitions and an initial pseudostate has no incoming ones (UML 2.5 §14.5.4, §14.5.6).
+ */
 export function canConnectStateMachine(tail: View, head: View): boolean {
-  return isKindOf(tail.model, 'UMLVertex') && isKindOf(head.model, 'UMLVertex')
+  const source = tail.model
+  const target = head.model
+  if (!source || !target || !isKindOf(source, 'UMLVertex') || !isKindOf(target, 'UMLVertex')) return false
+  if (isKindOf(source, 'UMLFinalState') || (isKindOf(source, 'UMLPseudostate') && source['kind'] === 'terminate')) return false
+  return !(isKindOf(target, 'UMLPseudostate') && target['kind'] === 'initial')
 }
 
 function defaultTransitionPoints(tail: View, head: View): Point[] {
