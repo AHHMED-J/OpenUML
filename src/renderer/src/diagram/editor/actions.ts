@@ -29,6 +29,7 @@ import {
 } from '../../model'
 import {
   LineStyle,
+  distancePointToPolyline,
   edgeLabelParamsFromBox,
   routeEdge,
   simplifyOblique,
@@ -37,8 +38,8 @@ import {
   type TextMeasurer
 } from '../core'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
-import type { DiagramLayout } from '../layout/types'
-import { edgeNotationFor, nodeNotationFor } from '../render/registry'
+import type { DiagramLayout, NodeLayout } from '../layout/types'
+import { edgeNotationFor, nodeNotationFor, type ContainerBehavior } from '../render/registry'
 
 export interface DiagramEnv {
   readonly engine: ModelEngine
@@ -76,6 +77,9 @@ export function syncGeometry(env: DiagramEnv, b: OperationBuilder): void {
     if (!view) continue
     if (view.width !== node.box.width || view.height !== node.box.height) {
       b.setAll(view, { width: node.box.width, height: node.box.height })
+    }
+    if (node.derivedPosition && (view.left !== node.box.left || view.top !== node.box.top)) {
+      b.setAll(view, { left: node.box.left, top: node.box.top })
     }
   }
   for (const [id, edge] of layout.edges) {
@@ -128,8 +132,28 @@ export function findDropContainer(env: DiagramEnv, layout: DiagramLayout, p: Poi
     if (!node || !rectHas(node.box, p)) continue
     const view = repo.get(node.viewId) as View | undefined
     if (!view || excluded.has(view)) continue
+    const nested = subContainerAt(env, node, p, (behavior, host) => moving.every((m) => behavior.accepts(host, m.model ?? null)))
+    if (nested) return nested
     const behavior = nodeNotationFor(view).container
     if (behavior && moving.every((m) => behavior.accepts(view, m.model ?? null))) return view
+  }
+  return null
+}
+
+/** The nested container view (e.g. a state's region) of `node` under `p` that satisfies `accepts`. */
+function subContainerAt(
+  env: DiagramEnv,
+  node: NodeLayout,
+  p: Point,
+  accepts: (behavior: ContainerBehavior, host: View) => boolean
+): View | null {
+  const subs = node.subContainers ?? []
+  for (let j = subs.length - 1; j >= 0; j--) {
+    const sub = subs[j]
+    if (!sub || !rectHas(sub.box, p)) continue
+    const host = env.engine.repository.get(sub.viewId) as View | undefined
+    const behavior = host ? nodeNotationFor(host).container : undefined
+    if (host && behavior && accepts(behavior, host)) return host
   }
   return null
 }
@@ -170,6 +194,8 @@ function recontain(b: OperationBuilder, env: DiagramEnv, nodes: readonly View[],
     if (old) b.removeRef(old, 'containedViews', v)
     b.set(v, 'containerView', container)
     if (container) b.addRef(container, 'containedViews', v)
+    const handler = container ?? old
+    if (handler && nodeNotationFor(handler).container?.reparent?.({ builder: b, diagram: env.diagram, child: v, container, previous: old })) continue
     const model = v.model
     if (!model) continue
     if (container) {
@@ -201,7 +227,10 @@ export function moveSelection(env: DiagramEnv, ids: readonly string[], dx: numbe
     // Views inside another moved view move with it.
     const moved = new Set<View>(views)
     const roots = views.filter((v) => {
-      for (let c = v.containerView; c; c = c.containerView) if (moved.has(c)) return false
+      for (let c = v.containerView; c; c = c.containerView) {
+        // A region is a sub-view of its state: the state moving takes its contents along.
+        for (let a: Elem | null = c; a && isKindOf(a, 'View'); a = a._parent) if (moved.has(a)) return false
+      }
       return true
     })
     moveViews(env.engine, roots, dx, dy)
@@ -297,17 +326,34 @@ export function creationContainer(env: DiagramEnv, layout: DiagramLayout, kind: 
   const repo = env.engine.repository
   for (let i = layout.order.length - 1; i >= 0; i--) {
     const node = layout.nodes.get(layout.order[i] as string)
-    const pin = kind === 'InputPin' || kind === 'OutputPin'
+    const pin = kind === 'InputPin' || kind === 'OutputPin' || kind === 'ConnectionPointReference'
     // Pins straddle the action's border, so clicks within a small tolerance outside it count too.
     if (!node || !rectHas(pin ? inflate(node.box, PIN_BORDER_TOLERANCE) : node.box, p)) continue
     const view = repo.get(node.viewId) as View | undefined
     if (!view) continue
     if (pin) {
-      if (isKindOf(view.model, 'UMLAction')) return view
+      if (isKindOf(view.model, kind === 'ConnectionPointReference' ? 'UMLState' : 'UMLAction')) return view
       continue
     }
+    const nested = subContainerAt(env, node, p, (b, host) => b.accepts(host, probe))
+    if (nested) return nested
     const behavior = nodeNotationFor(view).container
     if (behavior?.accepts(view, probe)) return view
+  }
+  return null
+}
+
+/** The message or time segment under `p` that a new time constraint attaches to. */
+function timeConstraintHost(env: DiagramEnv, layout: DiagramLayout, p: Point): View | null {
+  const repo = env.engine.repository
+  for (const edge of layout.edges.values()) {
+    if ((edge.viewType === 'UMLTimingMessageView' || edge.viewType === 'UMLSeqMessageView') && distancePointToPolyline(p, edge.points) <= 6) {
+      return (repo.get(edge.viewId) as View | undefined) ?? null
+    }
+  }
+  for (let i = layout.order.length - 1; i >= 0; i--) {
+    const node = layout.nodes.get(layout.order[i] as string)
+    if (node && node.viewType === 'UMLTimeSegmentView' && rectHas(node.box, p)) return (repo.get(node.viewId) as View | undefined) ?? null
   }
   return null
 }
@@ -319,15 +365,18 @@ export function creationContainer(env: DiagramEnv, layout: DiagramLayout, kind: 
 export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeKind, rect: Rect): string | null {
   const click = rect.width < 4 && rect.height < 4
   const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-  const container = creationContainer(env, layout, kind, click ? { x: rect.left, y: rect.top } : center)
-  if ((kind === 'InputPin' || kind === 'OutputPin') && !container) return null
+  const at = click ? { x: rect.left, y: rect.top } : center
+  // A time constraint annotates a message or a time segment: that view is its host.
+  const host = kind === 'TimeConstraint' ? timeConstraintHost(env, layout, at) : null
+  if (kind === 'TimeConstraint' && !host) return null
+  const container = host ?? creationContainer(env, layout, kind, at)
+  if ((kind === 'InputPin' || kind === 'OutputPin' || kind === 'ConnectionPointReference') && !container) return null
   const spec = NODE_KINDS[kind]
   const probe: Elem | null = spec.modelType ? { _type: spec.modelType, _id: '', _parent: null } : null
   // A state invariant constrains the lifeline it is dropped on, and is centered on its line.
   let covered: Elem | undefined
   let left = rect.left
   if (kind === 'StateInvariant') {
-    const at = click ? { x: rect.left, y: rect.top } : center
     const hit = [...layout.order].reverse().map((id) => layout.nodes.get(id)).find((n) => n && n.viewType === 'UMLSeqLifelineView' && rectHas(n.box, at))
     const model = hit ? (env.engine.repository.get(hit.viewId) as View | undefined)?.model : null
     if (hit && model) {
@@ -367,7 +416,8 @@ export function createEdgeBetween(env: DiagramEnv, layout: DiagramLayout, tool: 
   const kind = tool.kind as EdgeKind
   if (!tail || !head || !canConnect(kind, tail, head)) return null
   let points: Point[] | undefined
-  if (kind !== 'Message') {
+  // Messages route themselves (sequence: horizontal at the press y; timing: between the segments).
+  if (kind !== 'Message' && kind !== 'TimingMessage') {
     const t = layout.nodes.get(tailId)
     const h = layout.nodes.get(headId)
     if (t && h) {

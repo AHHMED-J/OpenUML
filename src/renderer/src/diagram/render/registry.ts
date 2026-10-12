@@ -4,7 +4,8 @@
  * `diagram/uml/<family>/index.ts`; see the header of `diagram/index.ts` for the extension guide.
  */
 import type { ComponentType } from 'react'
-import type { EdgeKind, EdgeView, Elem, NodeView, View } from '../../model'
+import type { OperationBuilder } from '../../commands'
+import type { Diagram, EdgeKind, EdgeView, Elem, NodeView, View } from '../../model'
 import { isKindOf } from '../../model'
 import type { EdgeLayout, LayoutContext, NodeLayout } from '../layout/types'
 
@@ -25,6 +26,24 @@ export interface ContainerBehavior {
    * the model where it is (visual containment only).
    */
   ownerFor?(container: View, childModel: Elem | null): { readonly owner: Elem; readonly field: string } | null
+  /**
+   * Custom model change when a view moves into this container (or out of it, `container` null in
+   * the context, called on the previous container's behavior). Return true when handled; the
+   * default model move (`ownerFor` into `ownedElements`) is then skipped.
+   */
+  reparent?(ctx: ReparentContext): boolean
+}
+
+/** What a container's `reparent` hook is told when a view moves into (or out of) a container. */
+export interface ReparentContext {
+  readonly builder: OperationBuilder
+  readonly diagram: Diagram
+  /** The node view that moved. */
+  readonly child: View
+  /** The new container view; null when the child was dropped out onto the diagram. */
+  readonly container: View | null
+  /** The previous container view, if any. */
+  readonly previous: View | null
 }
 
 export interface NodeNotation<D = unknown> {
@@ -33,6 +52,8 @@ export interface NodeNotation<D = unknown> {
   /** Draws the view from its layout only. Should be pure (no hooks needed); it is also used for export. */
   readonly Render: ComponentType<NodeRendererProps<D>>
   readonly container?: ContainerBehavior
+  /** Element to open when the view is double-clicked (a diagram is opened, another element is selected). */
+  openTarget?(view: View): Elem | null
 }
 
 export interface EdgeNotation<D = unknown> {

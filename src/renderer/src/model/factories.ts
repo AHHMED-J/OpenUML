@@ -3,7 +3,32 @@
  * list of places to insert them. Plans do not touch any repository; `commands/` applies a plan
  * as one undoable operation.
  */
-import { fieldOf, isKindOf } from './metamodel'
+import { fieldOf, isKindOf, isSubtype } from './metamodel'
+import {
+  STATEMACHINE_EDGE_KINDS,
+  STATEMACHINE_NODE_KINDS,
+  buildStateMachineNodeView,
+  canConnectStateMachine,
+  isStateMachineNodeKind,
+  planStatechartDiagram,
+  planTransition,
+  stateMachineNodeOwner,
+  type StateMachineEdgeKind,
+  type StateMachineNodeKind
+} from './factories-statemachine'
+import {
+  TIMING_EDGE_KINDS,
+  TIMING_NODE_KINDS,
+  buildTimingNodeView,
+  canConnectTiming,
+  initTimingModel,
+  isTimingNodeKind,
+  planTimingDiagram,
+  planTimingMessage,
+  timingNodeOwner,
+  type TimingEdgeKind,
+  type TimingNodeKind
+} from './factories-timing'
 import type {
   Bounds,
   Diagram,
@@ -31,6 +56,21 @@ import {
   defaultName,
   nextName
 } from './view-builders'
+import {
+  STRUCTURE_DIAGRAM_TYPES,
+  STRUCTURE_EDGE_KINDS,
+  STRUCTURE_NODE_KINDS,
+  canConnectStructure,
+  isStructureDiagramKind,
+  isStructureEdgeKind,
+  isStructureNodeKind,
+  planStructureDiagram,
+  planStructureEdge,
+  planStructureNode,
+  type StructureDiagramKind,
+  type StructureEdgeKind,
+  type StructureNodeKind
+} from './structure-factories'
 
 /** Insert `element` into `owner[field]` (at `index`, default: end; `obj` fields are assigned). */
 export interface Insertion {
@@ -47,6 +87,13 @@ export interface RefAddition {
   readonly target: Elem
 }
 
+/** Moves `element` into `owner[field]` (applied after the insertions). */
+export interface ModelMove {
+  readonly element: Elem
+  readonly owner: Elem
+  readonly field: string
+}
+
 export interface CreationPlan {
   /** The main model element created (null for view-only kinds such as notes). */
   readonly model: Elem | null
@@ -54,6 +101,8 @@ export interface CreationPlan {
   readonly view: View | null
   readonly insertions: readonly Insertion[]
   readonly refAdditions: readonly RefAddition[]
+  /** Model elements relocated into another owner as part of the creation (package containment). */
+  readonly moves?: readonly ModelMove[]
 }
 
 // =============================================================================================
@@ -69,14 +118,35 @@ export function createDefaultProject(): Project {
   return project
 }
 
-export type DiagramKind = 'ClassDiagram' | 'UseCaseDiagram' | 'SequenceDiagram' | 'ActivityDiagram'
+export type DiagramKind =
+  | 'StatechartDiagram'
+  | 'TimingDiagram'
+  | 'ClassDiagram'
+  | 'UseCaseDiagram'
+  | 'SequenceDiagram'
+  | 'ActivityDiagram'
+  | 'ComponentDiagram'
+  | 'DeploymentDiagram'
+  | 'PackageDiagram'
+  | 'ProfileDiagram'
+  | StructureDiagramKind
 
 export const DIAGRAM_TYPES: Record<DiagramKind, string> = {
+  StatechartDiagram: 'UMLStatechartDiagram',
+  TimingDiagram: 'UMLTimingDiagram',
+  ...STRUCTURE_DIAGRAM_TYPES,
   ClassDiagram: 'UMLClassDiagram',
   UseCaseDiagram: 'UMLUseCaseDiagram',
   SequenceDiagram: 'UMLSequenceDiagram',
-  ActivityDiagram: 'UMLActivityDiagram'
+  ActivityDiagram: 'UMLActivityDiagram',
+  ComponentDiagram: 'UMLComponentDiagram',
+  DeploymentDiagram: 'UMLDeploymentDiagram',
+  PackageDiagram: 'UMLPackageDiagram',
+  ProfileDiagram: 'UMLProfileDiagram'
 }
+
+/** Diagram kinds that, added to the Project, are wrapped in a new `UMLModel`. */
+const WRAPPED_IN_MODEL: ReadonlySet<DiagramKind> = new Set<DiagramKind>(['ComponentDiagram', 'DeploymentDiagram', 'PackageDiagram'])
 
 export interface DiagramPlan extends CreationPlan {
   readonly diagram: Diagram
@@ -102,6 +172,9 @@ function nest<T extends Elem>(parent: Elem, child: T): T {
  * - activity diagram: package → Activity → diagram; activity → diagram.
  */
 export function planDiagram(kind: DiagramKind, owner: Elem, name?: string): DiagramPlan {
+  if (kind === 'StatechartDiagram') return planStatechartDiagram(owner, name)
+  if (kind === 'TimingDiagram') return planTimingDiagram(owner, name)
+  if (isStructureDiagramKind(kind)) return planStructureDiagram(kind, owner, name)
   const type = DIAGRAM_TYPES[kind]
   const diagram = createElement<Diagram>(type)
   let top: Elem = diagram
@@ -126,6 +199,12 @@ export function planDiagram(kind: DiagramKind, owner: Elem, name?: string): Diag
     parent = interaction
   } else if (kind === 'ActivityDiagram' && !isKindOf(owner, 'UMLActivity')) {
     top = createElement('UMLActivity', { name: defaultName('UMLActivity', ownedElementsOf(owner)) })
+    parent = top
+  } else if (WRAPPED_IN_MODEL.has(kind) && isKindOf(owner, 'Project')) {
+    top = createElement('UMLModel', { name: defaultName('UMLModel', ownedElementsOf(owner)) })
+    parent = top
+  } else if (kind === 'ProfileDiagram' && !isKindOf(owner, 'UMLProfile')) {
+    top = createElement('UMLProfile', { name: defaultName('UMLProfile', ownedElementsOf(owner)) })
     parent = top
   }
 
@@ -153,6 +232,8 @@ export function planDiagram(kind: DiagramKind, owner: Elem, name?: string): Diag
 // Nodes
 
 export type NodeKind =
+  | StateMachineNodeKind
+  | TimingNodeKind
   // class diagram
   | 'Class'
   | 'Interface'
@@ -191,6 +272,16 @@ export type NodeKind =
   | 'HorizontalPartition'
   | 'InputPin'
   | 'OutputPin'
+  // component / deployment / package / profile diagrams
+  | 'Component'
+  | 'Artifact'
+  | 'Subsystem'
+  | 'Node'
+  | 'Profile'
+  | 'MetaClass'
+  | 'Stereotype'
+  // object / composite structure / communication / interaction overview / information flow diagrams
+  | StructureNodeKind
   // annotations (any diagram)
   | 'Note'
   | 'Text'
@@ -211,6 +302,9 @@ const CLASSIFIER_SIZE = [120, 70] as const
 const CONTROL_FIELD = 'nodes'
 
 export const NODE_KINDS: Readonly<Record<NodeKind, NodeKindSpec>> = {
+  ...STATEMACHINE_NODE_KINDS,
+  ...TIMING_NODE_KINDS,
+  ...STRUCTURE_NODE_KINDS,
   Class: { modelType: 'UMLClass', viewType: 'UMLClassView', size: CLASSIFIER_SIZE },
   Interface: { modelType: 'UMLInterface', viewType: 'UMLInterfaceView', size: [30, 30] },
   Enumeration: { modelType: 'UMLEnumeration', viewType: 'UMLEnumerationView', size: CLASSIFIER_SIZE },
@@ -286,6 +380,13 @@ export const NODE_KINDS: Readonly<Record<NodeKind, NodeKindSpec>> = {
   },
   InputPin: { modelType: 'UMLInputPin', viewType: 'UMLInputPinView', field: 'inputs', size: [18, 18] },
   OutputPin: { modelType: 'UMLOutputPin', viewType: 'UMLOutputPinView', field: 'outputs', size: [18, 18] },
+  Component: { modelType: 'UMLComponent', viewType: 'UMLComponentView', size: [120, 70] },
+  Artifact: { modelType: 'UMLArtifact', viewType: 'UMLArtifactView', size: [60, 80] },
+  Subsystem: { modelType: 'UMLSubsystem', viewType: 'UMLSubsystemView', size: [120, 80] },
+  Node: { modelType: 'UMLNode', viewType: 'UMLNodeView', size: [120, 80] },
+  Profile: { modelType: 'UMLProfile', viewType: 'UMLProfileView', size: [120, 80] },
+  MetaClass: { modelType: 'UMLMetaClass', modelInit: { name: 'UMLClass' }, viewType: 'UMLMetaClassView', size: [120, 50] },
+  Stereotype: { modelType: 'UMLStereotype', viewType: 'UMLStereotypeView', size: [120, 70] },
   Note: { viewType: 'UMLNoteView', size: [120, 50] },
   Text: { viewType: 'UMLTextView', size: [80, 25] }
 }
@@ -319,6 +420,8 @@ export function ownerFieldFor(owner: Elem, kind: NodeKind): string {
 
 /** Plans a new node: model element (if any) + its view with all required sub-views. */
 export function planNode(req: NodeRequest): CreationPlan {
+  const structure = planStructureNode(req)
+  if (structure) return structure
   const spec = NODE_KINDS[req.kind]
   const bounds: Bounds = {
     left: Math.round(req.left),
@@ -339,11 +442,12 @@ export function planNode(req: NodeRequest): CreationPlan {
       ...spec.modelInit
     })
     if (req.covered && fieldOf(model, 'covered')) model['covered'] = req.covered
+    if (isTimingNodeKind(req.kind)) initTimingModel(req, model, owner, field)
     insertions.push({ owner, field, element: model })
   }
 
   const view = buildNodeView(req, spec, model, bounds, insertions)
-  if (req.container) {
+  if (req.container && req.kind !== 'TimeConstraint') {
     view.containerView = req.container
     refAdditions.push({ owner: req.container, field: 'containedViews', target: view })
   }
@@ -352,6 +456,11 @@ export function planNode(req: NodeRequest): CreationPlan {
 }
 
 function defaultNodeOwner(req: NodeRequest): Elem {
+  if (isStateMachineNodeKind(req.kind)) return stateMachineNodeOwner(req) as Elem
+  if (isTimingNodeKind(req.kind)) {
+    const timingOwner = timingNodeOwner(req)
+    if (timingOwner) return timingOwner
+  }
   if (req.kind === 'InputPin' || req.kind === 'OutputPin') {
     const action = req.container?.model
     if (!isKindOf(action, 'UMLAction')) throw new Error('Pins must be created on an action view')
@@ -369,6 +478,7 @@ function buildNodeView(
   bounds: Bounds,
   insertions: Insertion[]
 ): View {
+  if (isStructureNodeKind(req.kind)) throw new Error(`${req.kind} is planned by planStructureNode`)
   switch (req.kind) {
     case 'Class':
     case 'DataType':
@@ -388,6 +498,20 @@ function buildNodeView(
         suppressAttributes: true,
         suppressOperations: true
       })
+    case 'Component':
+    case 'Node':
+      return buildClassifierView(spec.viewType, model as Elem, bounds, { suppressAttributes: true, suppressOperations: true })
+    case 'Artifact':
+      return buildClassifierView(spec.viewType, model as Elem, bounds, {
+        stereotypeDisplay: 'icon',
+        suppressAttributes: true,
+        suppressOperations: true
+      })
+    case 'Stereotype':
+      return buildClassifierView(spec.viewType, model as Elem, bounds)
+    case 'Subsystem':
+    case 'Profile':
+    case 'MetaClass':
     case 'Package':
     case 'Model':
     case 'Subject':
@@ -436,6 +560,30 @@ function buildNodeView(
       addFloatingLabels(view, model)
       return view
     }
+    case 'State':
+    case 'CompositeState':
+    case 'OrthogonalState':
+    case 'SubmachineState':
+    case 'InitialState':
+    case 'Choice':
+    case 'Join':
+    case 'Fork':
+    case 'Junction':
+    case 'ShallowHistory':
+    case 'DeepHistory':
+    case 'EntryPoint':
+    case 'ExitPoint':
+    case 'Terminate':
+    case 'FinalState':
+    case 'ConnectionPointReference':
+      return buildStateMachineNodeView(req, model as Elem, bounds, insertions)
+    case 'TimingLifeline':
+    case 'TimingState':
+    case 'TimeSegment':
+    case 'TimeTick':
+    case 'TimeConstraint':
+    case 'DurationConstraint':
+      return buildTimingNodeView(req, model, bounds, insertions)
     case 'Note':
     case 'Text':
       return createElement<NodeView>(spec.viewType, { ...bounds })
@@ -490,6 +638,7 @@ export type FeatureKind =
   | 'EnumerationLiteral'
   | 'ExtensionPoint'
   | 'Operand'
+  | 'Slot'
 
 const FEATURES: Record<FeatureKind, { type: string; field: string; ownerType: string }> = {
   Attribute: { type: 'UMLAttribute', field: 'attributes', ownerType: 'UMLClassifier' },
@@ -498,7 +647,8 @@ const FEATURES: Record<FeatureKind, { type: string; field: string; ownerType: st
   Parameter: { type: 'UMLParameter', field: 'parameters', ownerType: 'UMLBehavioralFeature' },
   EnumerationLiteral: { type: 'UMLEnumerationLiteral', field: 'literals', ownerType: 'UMLEnumeration' },
   ExtensionPoint: { type: 'UMLExtensionPoint', field: 'extensionPoints', ownerType: 'UMLUseCase' },
-  Operand: { type: 'UMLInteractionOperand', field: 'operands', ownerType: 'UMLCombinedFragment' }
+  Operand: { type: 'UMLInteractionOperand', field: 'operands', ownerType: 'UMLCombinedFragment' },
+  Slot: { type: 'UMLSlot', field: 'slots', ownerType: 'UMLInstance' }
 }
 
 export function canAddFeature(owner: Elem, kind: FeatureKind): boolean {
@@ -529,7 +679,8 @@ export const ITEM_BINDINGS: readonly ItemBinding[] = [
   binding('receptions', 'UMLReception', 'receptionCompartment', 'UMLReceptionView'),
   binding('literals', 'UMLEnumerationLiteral', 'enumerationLiteralCompartment', 'UMLEnumerationLiteralView'),
   binding('extensionPoints', 'UMLExtensionPoint', 'extensionPointCompartment', 'UMLExtensionPointView'),
-  binding('operands', 'UMLInteractionOperand', 'operandCompartment', 'UMLInteractionOperandView')
+  binding('operands', 'UMLInteractionOperand', 'operandCompartment', 'UMLInteractionOperandView'),
+  binding('slots', 'UMLSlot', 'slotCompartment', 'UMLSlotView')
 ]
 
 function binding(modelField: string, itemType: string, compartmentField: string, itemViewType: string): ItemBinding {
@@ -582,6 +733,8 @@ export function planItemViews(item: Elem, modelField: string, viewsOfOwner: read
 // Edges
 
 export type EdgeKind =
+  | StateMachineEdgeKind
+  | TimingEdgeKind
   | 'Association'
   | 'DirectedAssociation'
   | 'Aggregation'
@@ -595,6 +748,12 @@ export type EdgeKind =
   | 'Message'
   | 'ControlFlow'
   | 'ObjectFlow'
+  | 'ComponentRealization'
+  | 'Deployment'
+  | 'CommunicationPath'
+  | 'Containment'
+  | 'Extension'
+  | StructureEdgeKind
   | 'NoteLink'
 
 interface EdgeKindSpec {
@@ -607,6 +766,9 @@ interface EdgeKindSpec {
 }
 
 export const EDGE_KINDS: Readonly<Record<EdgeKind, EdgeKindSpec>> = {
+  ...STATEMACHINE_EDGE_KINDS,
+  ...TIMING_EDGE_KINDS,
+  ...STRUCTURE_EDGE_KINDS,
   Association: { modelType: 'UMLAssociation', viewType: 'UMLAssociationView' },
   DirectedAssociation: {
     modelType: 'UMLAssociation',
@@ -625,6 +787,11 @@ export const EDGE_KINDS: Readonly<Record<EdgeKind, EdgeKindSpec>> = {
   Message: { modelType: 'UMLMessage', viewType: 'UMLSeqMessageView', ownedBy: { field: 'messages' } },
   ControlFlow: { modelType: 'UMLControlFlow', viewType: 'UMLControlFlowView', ownedBy: { field: 'edges' } },
   ObjectFlow: { modelType: 'UMLObjectFlow', viewType: 'UMLObjectFlowView', ownedBy: { field: 'edges' } },
+  ComponentRealization: { modelType: 'UMLComponentRealization', viewType: 'UMLComponentRealizationView' },
+  Deployment: { modelType: 'UMLDeployment', viewType: 'UMLDeploymentView' },
+  CommunicationPath: { modelType: 'UMLCommunicationPath', viewType: 'UMLCommunicationPathView' },
+  Containment: { viewType: 'UMLContainmentView' },
+  Extension: { modelType: 'UMLExtension', viewType: 'UMLExtensionView' },
   NoteLink: { viewType: 'UMLNoteLinkView' }
 }
 
@@ -656,8 +823,19 @@ function isEndpointView(view: View): boolean {
   return isKindOf(view, 'UMLMessageEndpointView')
 }
 
+/** Containment link: `child` is moved into `container`, which must not lie inside `child`. */
+function canContain(child: Elem | null, container: Elem | null): boolean {
+  if (!child || !container || child === container) return false
+  if (isKindOf(child, 'Project') || !isKindOf(child, 'UMLModelElement') || !isKindOf(container, 'UMLModelElement')) return false
+  for (let p = container._parent; p; p = p._parent) if (p === child) return false
+  const siblings = child._parent?.['ownedElements']
+  if (!Array.isArray(siblings) || !siblings.includes(child)) return false
+  return fieldOf(container, 'ownedElements')?.kind === 'objs'
+}
+
 /** Whether an edge of `kind` may connect `tail` to `head` (model types must fit). */
 export function canConnect(kind: EdgeKind, tail: View, head: View): boolean {
+  if (isStructureEdgeKind(kind)) return canConnectStructure(kind, tail, head)
   const a = tail.model
   const b = head.model
   switch (kind) {
@@ -685,6 +863,23 @@ export function canConnect(kind: EdgeKind, tail: View, head: View): boolean {
     case 'ControlFlow':
     case 'ObjectFlow':
       return ACTIVITY_NODE_TYPES.some((t) => isKindOf(a, t)) && ACTIVITY_NODE_TYPES.some((t) => isKindOf(b, t))
+    case 'ComponentRealization':
+      return isKindOf(a, 'UMLClassifier') && isKindOf(b, 'UMLComponent')
+    case 'Deployment':
+      return (
+        (isKindOf(a, 'UMLClassifier') && isKindOf(b, 'UMLNode')) ||
+        (isKindOf(a, 'UMLInstance') && isKindOf(b, 'UMLNodeInstance'))
+      )
+    case 'CommunicationPath':
+      return isKindOf(a, 'UMLNode') && isKindOf(b, 'UMLNode')
+    case 'Containment':
+      return canContain(a, b)
+    case 'Extension':
+      return isKindOf(a, 'UMLStereotype') && isKindOf(b, 'UMLMetaClass')
+    case 'Transition':
+      return canConnectStateMachine(tail, head)
+    case 'TimingMessage':
+      return canConnectTiming(tail, head)
     case 'NoteLink':
       return tail !== head && (tail._type === 'UMLNoteView' || head._type === 'UMLNoteView')
   }
@@ -695,7 +890,11 @@ export function planEdge(req: EdgeRequest): CreationPlan {
   if (!canConnect(req.kind, req.tail, req.head)) {
     throw new Error(`Cannot connect ${req.tail._type} to ${req.head._type} with ${req.kind}`)
   }
+  const structure = planStructureEdge(req)
+  if (structure) return structure
   if (req.kind === 'Message') return planMessage(req)
+  if (req.kind === 'Transition') return planTransition(req)
+  if (req.kind === 'TimingMessage') return planTimingMessage(req)
   const spec = EDGE_KINDS[req.kind]
   const points = req.points ? [...req.points] : defaultPoints(req.tail, req.head)
   const insertions: Insertion[] = []
@@ -705,7 +904,11 @@ export function planEdge(req: EdgeRequest): CreationPlan {
   if (!spec.modelType) {
     const view = createElement<View>(spec.viewType, { tail: req.tail, head: req.head, points })
     insertions.push({ owner: req.diagram, field: 'ownedViews', element: view })
-    return { model: null, view, insertions, refAdditions: [] }
+    const moves: ModelMove[] = []
+    if (req.kind === 'Containment' && source && target && source._parent !== target) {
+      moves.push({ element: source, owner: target, field: 'ownedElements' })
+    }
+    return { model: null, view, insertions, refAdditions: [], ...(moves.length > 0 ? { moves } : {}) }
   }
 
   const owner = spec.ownedBy ? (req.diagram._parent as Elem) : (source as Elem)
@@ -715,7 +918,7 @@ export function planEdge(req: EdgeRequest): CreationPlan {
 
   const init = { model, tail: req.tail, head: req.head, points }
   let view: View
-  if (spec.modelType === 'UMLAssociation') {
+  if (isSubtype(spec.modelType, 'UMLAssociation')) {
     const end1 = createElement('UMLAssociationEnd', { _parent: model, reference: source, ...spec.end1 })
     const end2 = createElement('UMLAssociationEnd', { _parent: model, reference: target, ...spec.end2 })
     model['end1'] = end1

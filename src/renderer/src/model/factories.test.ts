@@ -18,6 +18,8 @@ import {
   type EdgeKind,
   type NodeKind,
   type NodeView,
+  type StateMachineNodeKind,
+  type TimingNodeKind,
   type UMLClassifierView,
   type UMLNameCompartmentView,
   type UMLSeqLifelineView,
@@ -58,10 +60,31 @@ function setup() {
   const useCase = apply(planDiagram('UseCaseDiagram', model)).diagram
   const sequence = apply(planDiagram('SequenceDiagram', model)).diagram
   const activity = apply(planDiagram('ActivityDiagram', model)).diagram
-  return { project, model, classDiagram, useCase, sequence, activity }
+  const object = apply(planDiagram('ObjectDiagram', model)).diagram
+  const composite = apply(planDiagram('CompositeStructureDiagram', model)).diagram
+  const communication = apply(planDiagram('CommunicationDiagram', model)).diagram
+  const overview = apply(planDiagram('InteractionOverviewDiagram', model)).diagram
+  return { project, model, classDiagram, useCase, sequence, activity, object, composite, communication, overview }
 }
 
-const DIAGRAM_OF: Record<NodeKind, 'classDiagram' | 'useCase' | 'sequence' | 'activity'> = {
+type DiagramBucket = 'classDiagram' | 'useCase' | 'sequence' | 'activity' | 'object' | 'composite' | 'communication' | 'overview'
+
+/** State machine and timing kinds are covered by their own tests (they need containers and own regions). */
+type GenericKind = Exclude<NodeKind, StateMachineNodeKind | TimingNodeKind>
+
+const DIAGRAM_OF: Record<GenericKind, DiagramBucket> = {
+  Object: 'object',
+  ArtifactInstance: 'object',
+  ComponentInstance: 'object',
+  NodeInstance: 'object',
+  Port: 'composite',
+  Part: 'composite',
+  Collaboration: 'composite',
+  CollaborationUse: 'composite',
+  CommLifeline: 'communication',
+  InteractionUseInOverview: 'overview',
+  InteractionInOverview: 'overview',
+  InformationItem: 'classDiagram',
   Class: 'classDiagram',
   Interface: 'classDiagram',
   Enumeration: 'classDiagram',
@@ -72,6 +95,13 @@ const DIAGRAM_OF: Record<NodeKind, 'classDiagram' | 'useCase' | 'sequence' | 'ac
   Model: 'classDiagram',
   Note: 'classDiagram',
   Text: 'classDiagram',
+  Component: 'classDiagram',
+  Artifact: 'classDiagram',
+  Subsystem: 'classDiagram',
+  Node: 'classDiagram',
+  Profile: 'classDiagram',
+  MetaClass: 'classDiagram',
+  Stereotype: 'classDiagram',
   Actor: 'useCase',
   UseCase: 'useCase',
   Subject: 'useCase',
@@ -98,6 +128,15 @@ const DIAGRAM_OF: Record<NodeKind, 'classDiagram' | 'useCase' | 'sequence' | 'ac
   HorizontalPartition: 'activity',
   InputPin: 'activity',
   OutputPin: 'activity'
+}
+
+/** A host view for kinds created on another view (pins on an action, ports on a classifier). */
+const GENERIC_KINDS = (Object.keys(NODE_KINDS) as NodeKind[]).filter((k): k is GenericKind => k in DIAGRAM_OF)
+
+function hostFor(kind: NodeKind, diagram: Diagram): View | undefined {
+  if (kind === 'InputPin' || kind === 'OutputPin') return apply(planNode({ kind: 'Action', diagram, left: 100, top: 100 })).view as View
+  if (kind === 'Port') return apply(planNode({ kind: 'Collaboration', diagram, left: 100, top: 100 })).view as View
+  return undefined
 }
 
 describe('diagram factories', () => {
@@ -135,13 +174,10 @@ describe('diagram factories', () => {
 })
 
 describe('node factories', () => {
-  it.each(Object.keys(NODE_KINDS) as NodeKind[])('%s', (kind) => {
+  it.each(GENERIC_KINDS)('%s', (kind) => {
     const ctx = setup()
     const diagram = ctx[DIAGRAM_OF[kind]]
-    let container: View | undefined
-    if (kind === 'InputPin' || kind === 'OutputPin') {
-      container = apply(planNode({ kind: 'Action', diagram, left: 100, top: 100 })).view as View
-    }
+    const container = hostFor(kind, diagram)
     const plan = apply(planNode({ kind, diagram, left: 50, top: 60, container }))
     const spec = NODE_KINDS[kind]
     const view = plan.view as NodeView
@@ -159,7 +195,7 @@ describe('node factories', () => {
     }
     expect(plan.model?._type).toBe(spec.modelType)
     expect(view.model).toBe(plan.model)
-    expect(plan.model?.['name']).toMatch(/^[A-Za-z]+1$/)
+    expect(plan.model?.['name']).toMatch(kind === 'MetaClass' ? /^UMLClass$/ : /^[A-Za-z]+1$/)
     const owner = plan.model?._parent as Elem
     expect(owner[plan.insertions[0]?.field ?? '']).toContain(plan.model)
     if (spec.field && kind !== 'InputPin' && kind !== 'OutputPin') {
@@ -407,12 +443,9 @@ describe('features', () => {
 describe('everything together', () => {
   it('a project with every kind validates and survives a save/load round-trip', () => {
     const ctx = setup()
-    for (const kind of Object.keys(NODE_KINDS) as NodeKind[]) {
+    for (const kind of GENERIC_KINDS) {
       const diagram = ctx[DIAGRAM_OF[kind]]
-      const container =
-        kind === 'InputPin' || kind === 'OutputPin'
-          ? (apply(planNode({ kind: 'Action', diagram, left: 0, top: 0 })).view as View)
-          : undefined
+      const container = hostFor(kind, diagram)
       apply(planNode({ kind, diagram, left: 10, top: 10, container }))
     }
     const views = (d: Diagram, type: string) => d.ownedViews.filter((v) => isKindOf(v, type))

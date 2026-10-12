@@ -26,6 +26,17 @@ const CLASS = 'UMLClassDiagram'
 const USECASE = 'UMLUseCaseDiagram'
 const SEQUENCE = 'UMLSequenceDiagram'
 const ACTIVITY = 'UMLActivityDiagram'
+const STATECHART = 'UMLStatechartDiagram'
+const TIMING = 'UMLTimingDiagram'
+const COMPONENT = 'UMLComponentDiagram'
+const DEPLOYMENT = 'UMLDeploymentDiagram'
+const PACKAGE = 'UMLPackageDiagram'
+const PROFILE = 'UMLProfileDiagram'
+const OBJECT = 'UMLObjectDiagram'
+const COMPOSITE = 'UMLCompositeStructureDiagram'
+const COMMUNICATION = 'UMLCommunicationDiagram'
+const OVERVIEW = 'UMLInteractionOverviewDiagram'
+const INFOFLOW = 'UMLInformationFlowDiagram'
 
 const node = (id: string, label: string, kind: NodeKind, gesture: 'rect' | 'point' = 'rect'): PaletteItem => ({
   id,
@@ -50,8 +61,8 @@ export const PALETTES: readonly PaletteGroup[] = [
   {
     id: 'classes-basic',
     title: 'Classes (Basic)',
-    diagramTypes: [CLASS],
-    autoExpand: [CLASS],
+    diagramTypes: [CLASS, COMPOSITE, INFOFLOW],
+    autoExpand: [CLASS, COMPOSITE],
     items: [
       node('class', 'Class', 'Class'),
       node('interface', 'Interface', 'Interface'),
@@ -79,13 +90,58 @@ export const PALETTES: readonly PaletteGroup[] = [
   {
     id: 'packages',
     title: 'Packages',
-    diagramTypes: [CLASS],
-    items: [node('package', 'Package', 'Package'), node('model', 'Model', 'Model'), edge('pkg-dependency', 'Dependency', 'Dependency')]
+    diagramTypes: [CLASS, PACKAGE],
+    autoExpand: [PACKAGE],
+    items: [
+      node('package', 'Package', 'Package'),
+      node('model', 'Model', 'Model'),
+      node('subsystem', 'Subsystem', 'Subsystem'),
+      edge('containment', 'Containment', 'Containment'),
+      edge('pkg-dependency', 'Dependency', 'Dependency')
+    ]
+  },
+  {
+    id: 'components',
+    title: 'Components',
+    diagramTypes: [COMPONENT, DEPLOYMENT],
+    autoExpand: [COMPONENT],
+    items: [
+      node('component', 'Component', 'Component'),
+      node('artifact', 'Artifact', 'Artifact'),
+      node('comp-interface', 'Interface', 'Interface'),
+      edge('comp-dependency', 'Dependency', 'Dependency'),
+      edge('comp-interface-realization', 'Interface Realization', 'InterfaceRealization'),
+      edge('component-realization', 'Component Realization', 'ComponentRealization')
+    ]
+  },
+  {
+    id: 'deployment',
+    title: 'Deployment',
+    diagramTypes: [COMPONENT, DEPLOYMENT],
+    autoExpand: [COMPONENT, DEPLOYMENT],
+    items: [
+      node('node', 'Node', 'Node'),
+      edge('deployment', 'Deployment', 'Deployment'),
+      edge('communication-path', 'Communication Path', 'CommunicationPath')
+    ]
+  },
+  {
+    id: 'profiles',
+    title: 'Profiles',
+    diagramTypes: [PROFILE],
+    autoExpand: [PROFILE],
+    items: [
+      node('metaclass', 'MetaClass', 'MetaClass'),
+      node('stereotype', 'Stereotype', 'Stereotype'),
+      node('profile-enumeration', 'Enumeration', 'Enumeration'),
+      edge('extension', 'Extension', 'Extension'),
+      edge('profile-generalization', 'Generalization', 'Generalization')
+    ]
   },
   {
     id: 'use-cases',
     title: 'Use Cases',
-    diagramTypes: [USECASE],
+    diagramTypes: [USECASE, INFOFLOW],
     autoExpand: [USECASE],
     items: [
       node('uc-package', 'Package', 'Package'),
@@ -165,9 +221,124 @@ export const PALETTES: readonly PaletteGroup[] = [
     ]
   },
   {
+    id: 'statechart-basic',
+    title: 'Statechart (Basic)',
+    diagramTypes: [STATECHART],
+    autoExpand: [STATECHART],
+    items: [
+      node('simple-state', 'Simple State', 'State'),
+      node('initial-state', 'Initial State', 'InitialState', 'point'),
+      node('choice', 'Choice', 'Choice', 'point'),
+      node('state-join', 'Join', 'Join'),
+      node('state-fork', 'Fork', 'Fork'),
+      node('final-state', 'Final State', 'FinalState', 'point'),
+      edge('transition', 'Transition', 'Transition'),
+      { ...edge('self-transition', 'Self Transition', 'Transition', { selfConnection: true }), gesture: 'point' }
+    ]
+  },
+  {
+    id: 'statechart-advanced',
+    title: 'Statechart (Advanced)',
+    diagramTypes: [STATECHART],
+    items: [
+      node('composite-state', 'Composite State', 'CompositeState'),
+      node('submachine-state', 'Submachine State', 'SubmachineState'),
+      node('orthogonal-state', 'Orthogonal State', 'OrthogonalState'),
+      node('junction', 'Junction', 'Junction', 'point'),
+      node('shallow-history', 'Shallow History', 'ShallowHistory', 'point'),
+      node('deep-history', 'Deep History', 'DeepHistory', 'point'),
+      node('entry-point', 'Entry Point', 'EntryPoint', 'point'),
+      node('exit-point', 'Exit Point', 'ExitPoint', 'point'),
+      node('terminate', 'Terminate', 'Terminate', 'point'),
+      node('connection-point-reference', 'Connection Point Reference', 'ConnectionPointReference', 'point')
+    ]
+  },
+  {
+    id: 'timing',
+    title: 'Timing',
+    diagramTypes: [TIMING],
+    autoExpand: [TIMING],
+    items: [
+      node('timing-lifeline', 'Lifeline', 'TimingLifeline', 'point'),
+      node('timing-state', 'State/Condition', 'TimingState', 'point'),
+      node('time-segment', 'Time Segment', 'TimeSegment'),
+      node('time-tick', 'Time Tick', 'TimeTick', 'point'),
+      node('time-constraint', 'Time Constraint', 'TimeConstraint', 'point'),
+      node('duration-constraint', 'Duration Constraint', 'DurationConstraint'),
+      edge('timing-message', 'Message', 'TimingMessage')
+    ]
+  },
+  {
+    id: 'instances',
+    title: 'Instances',
+    diagramTypes: [OBJECT, CLASS, COMPONENT, DEPLOYMENT],
+    autoExpand: [OBJECT],
+    items: [
+      node('object', 'Object', 'Object'),
+      node('artifact-instance', 'Artifact Instance', 'ArtifactInstance'),
+      node('component-instance', 'Component Instance', 'ComponentInstance'),
+      node('node-instance', 'Node Instance', 'NodeInstance'),
+      edge('link', 'Link', 'Link'),
+      edge('directed-link', 'Directed Link', 'DirectedLink'),
+      edge('link-object', 'Link Object', 'LinkObject')
+    ]
+  },
+  {
+    id: 'composite-structure',
+    title: 'Composite Structure',
+    diagramTypes: [COMPOSITE, CLASS, COMPONENT],
+    autoExpand: [COMPOSITE],
+    items: [
+      node('collaboration', 'Collaboration', 'Collaboration'),
+      node('port', 'Port', 'Port', 'point'),
+      node('part', 'Part', 'Part'),
+      edge('connector', 'Connector', 'Connector'),
+      node('collaboration-use', 'Collaboration Use', 'CollaborationUse'),
+      edge('role-binding', 'Role Binding', 'RoleBinding'),
+      edge('cs-realization', 'Realization', 'Realization')
+    ]
+  },
+  {
+    id: 'communication',
+    title: 'Communication',
+    diagramTypes: [COMMUNICATION],
+    autoExpand: [COMMUNICATION],
+    items: [
+      node('comm-lifeline', 'Lifeline', 'CommLifeline'),
+      edge('comm-connector', 'Connector', 'Connector'),
+      { ...edge('comm-self-connector', 'Self Connector', 'Connector', { selfConnection: true }), gesture: 'point' },
+      edge('forward-message', 'Forward Message', 'CommForwardMessage', { messageSort: 'synchCall' }),
+      edge('reverse-message', 'Reverse Message', 'CommReverseMessage', { messageSort: 'synchCall' })
+    ]
+  },
+  {
+    id: 'interaction-overview',
+    title: 'Interaction Overview',
+    diagramTypes: [OVERVIEW],
+    autoExpand: [OVERVIEW],
+    items: [
+      node('ov-interaction-use', 'Interaction Use', 'InteractionUseInOverview'),
+      node('ov-interaction', 'Interaction (Inline)', 'InteractionInOverview'),
+      node('ov-initial', 'Initial', 'InitialNode', 'point'),
+      node('ov-final', 'Final', 'ActivityFinalNode', 'point'),
+      node('ov-fork', 'Fork', 'ForkNode'),
+      node('ov-join', 'Join', 'JoinNode'),
+      node('ov-merge', 'Merge', 'MergeNode', 'point'),
+      node('ov-decision', 'Decision', 'DecisionNode', 'point'),
+      edge('ov-control-flow', 'Control Flow', 'ControlFlow')
+    ]
+  },
+  {
+    id: 'information-flows',
+    title: 'Information Flows',
+    diagramTypes: [INFOFLOW],
+    autoExpand: [INFOFLOW],
+    items: [node('information-item', 'Information Item', 'InformationItem'), edge('information-flow', 'Information Flow', 'InformationFlow')]
+  },
+  {
     id: 'annotations',
     title: 'Annotations',
-    autoExpand: [CLASS, USECASE, SEQUENCE, ACTIVITY],
+    autoExpand: [CLASS, USECASE, SEQUENCE, ACTIVITY, STATECHART, TIMING, COMPONENT, DEPLOYMENT, PACKAGE, PROFILE, OBJECT, COMPOSITE, COMMUNICATION, OVERVIEW, INFOFLOW],
     items: [node('text', 'Text', 'Text'), node('note', 'Note', 'Note'), edge('note-link', 'Note Link', 'NoteLink')]
   }
 ]

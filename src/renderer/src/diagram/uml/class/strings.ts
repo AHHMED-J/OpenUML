@@ -197,5 +197,10 @@ export function classifierKeyword(model: Elem | null | undefined): string {
   if (isKindOf(model, 'UMLDataType')) return 'dataType'
   if (isKindOf(model, 'UMLInterface')) return 'interface'
   if (isKindOf(model, 'UMLSignal')) return 'signal'
+  if (isKindOf(model, 'UMLInformationItem')) return 'information'
+  if (isKindOf(model, 'UMLArtifact')) return 'artifact'
+  if (isKindOf(model, 'UMLStereotype')) return 'stereotype'
+  if (isKindOf(model, 'UMLMetaClass')) return 'metaClass'
+  if (isKindOf(model, 'UMLProfile')) return 'profile'
   return ''
 }

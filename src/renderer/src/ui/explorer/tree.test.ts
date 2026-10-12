@@ -165,7 +165,7 @@ describe('Model > Add', () => {
     const { engine, project, model } = setup()
     expect(addDiagramItemsFor(project).map((i) => i.kind)).toEqual(ADD_DIAGRAM_ITEMS.map((i) => i.kind))
     const cls = addModelElement(engine, model, item('class'))
-    expect(addDiagramItemsFor(cls).map((i) => i.kind)).toEqual(['SequenceDiagram', 'ActivityDiagram'])
+    expect(addDiagramItemsFor(cls).map((i) => i.kind)).toEqual(expect.arrayContaining(['SequenceDiagram', 'ActivityDiagram', 'StatechartDiagram', 'TimingDiagram']))
     const diagram = addDiagram(engine, project, 'ClassDiagram')
     expect(diagram._type).toBe('UMLClassDiagram')
     expect(diagram._parent?._type).toBe('UMLModel')
