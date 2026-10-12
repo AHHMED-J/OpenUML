@@ -23,23 +23,39 @@ class, use case, sequence and activity diagrams and reads and writes `.mdj` proj
 - **Themes** – light and dark, following the system setting by default; preferences for grid, snap and default
   font size.
 
-## Installing a build
+## Download
 
-Installers are not stored in the repository (each is over 100 MB); build them with
-`npm run dist` ([Packaging](#packaging)) or take them from the project's GitHub releases once
-published. The builds are **not code-signed** (that needs paid Apple and Microsoft certificates),
-so each system warns on first launch:
+Installers for Windows (64-bit), macOS (Apple Silicon and Intel) and Linux (64-bit AppImage) are
+published on the [Releases page](https://github.com/AHHMED-J/OpenUML/releases): pick the latest
+release and download the file for your system. Each release lists SHA-256 checksums
+(`SHA256SUMS.txt`) to verify the downloads.
+
+The builds are **not code-signed** (that needs paid Apple and Microsoft certificates), so each
+system warns on first launch:
 
 - **Windows:** SmartScreen shows "Windows protected your PC": click *More info*, then *Run anyway*.
   The installer lets you choose the folder and registers OpenUML as the editor of `.mdj` files.
-- **macOS:** unzip, drag `OpenUML.app` to *Applications*, then right-click it and choose *Open*
-  (or *System Settings > Privacy & Security > Open Anyway*). Builds made off macOS are signed ad
-  hoc, which Apple Silicon requires to run them at all.
-- **Linux:** `chmod +x OpenUML-<version>.AppImage && ./OpenUML-<version>.AppImage`. Without FUSE 2,
-  add `--appimage-extract-and-run`; on Ubuntu 24.04 and later you may also need `--no-sandbox`.
+- **macOS:** open the `.dmg` (or unzip), drag `OpenUML.app` to *Applications*, then right-click it
+  and choose *Open* (or *System Settings > Privacy & Security > Open Anyway*). The app is signed
+  ad hoc, which Apple Silicon requires to run it at all.
+- **Linux:** `chmod +x OpenUML-<version>-linux-x86_64.AppImage` and run it. Without FUSE 2, add
+  `--appimage-extract-and-run`; on Ubuntu 24.04 and later you may also need `--no-sandbox`.
 
-Builds made on Linux have been run only there; the Windows and macOS ones need testing on their
-own systems.
+### Publishing a release (maintainers)
+
+Releases are built by the [Release workflow](.github/workflows/release.yml) on real Windows, macOS
+and Linux runners. After typecheck and tests pass, it publishes the installers and their checksums:
+
+```sh
+# 1. set "version" in package.json (e.g. 0.1.1), commit and push
+# 2. tag that commit with the same version and push the tag
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+The workflow fails early if the tag and `package.json` disagree. Tags with a suffix (`v0.2.0-beta.1`)
+are published as pre-releases. To only build the installers without publishing, run the workflow
+from *Actions > Release > Run workflow*: they are attached to the run for 14 days.
 
 ## Getting started
 
@@ -57,7 +73,8 @@ npm run build    # production build into out/
 ## Packaging
 
 `npm run dist` builds the installers for the current operating system into `release/` with
-electron-builder (macOS: `.dmg` and `.zip`; Windows: NSIS installer; Linux: AppImage). Installed
+electron-builder (macOS: `.dmg` and `.zip`; Windows: NSIS installer; Linux: AppImage), named
+`OpenUML-<version>-<os>-<arch>.<ext>`. Installed
 builds register OpenUML as the editor of `.mdj` files, with their own document icon; opening a
 `.mdj` file while OpenUML runs opens it in the running window. The builds are not code-signed, so
 macOS Gatekeeper and Windows SmartScreen warn on first launch.

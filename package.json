@@ -41,6 +41,7 @@
   "build": {
     "appId": "io.github.ahhmed-j.openuml",
     "productName": "OpenUML",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "buildResources": "build",
       "output": "release"
@@ -69,7 +70,9 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "identity": "-",
+      "hardenedRuntime": false
     },
     "win": {
       "icon": "build/icon.ico",
