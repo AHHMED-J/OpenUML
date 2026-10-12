@@ -2,11 +2,51 @@ import { describe, expect, it } from 'vitest'
 import { addOperation, addParameter, setFields } from '../../commands'
 import { createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
 import { testDiagram } from '../testUtils'
-import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
+import { writeMdj } from '../../format'
+import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, previewLayout, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
 import { alignBoxes } from './alignment'
 import { hitTestDiagram, viewsInBand } from './hitTest'
 import { applyQuickEdit } from './quickEditApply'
 import { parseAttribute, parseName, parseOperation } from './quickEditSyntax'
+
+describe('live drag preview', () => {
+  it('shows exactly the layout the gesture commits, without touching the model', () => {
+    const t = testDiagram()
+    const pkg = t.node('Package', 400, 0, 300, 300)
+    const a = t.node('Class', 0, 0, 100, 60)
+    const b = t.node('Class', 0, 200, 100, 60)
+    const e = t.edge('Dependency', a, b)
+    const project = t.repository.project as Elem
+    const gestures: Array<() => void> = [
+      () => moveSelection(t, [a._id], 37, 11),
+      () => moveSelection(t, [a._id], 420, 40, { container: pkg }),
+      () => resizeNode(t, b._id, { left: 0, top: 200, width: 180, height: 90 }),
+      () => setEdgeVertices(t, e._id, [{ x: 50, y: 60 }, { x: 250, y: 130 }, { x: 50, y: 200 }])
+    ]
+    for (const gesture of gestures) {
+      const saved = writeMdj(project)
+      const depth = t.engine.undoDepth
+      const preview = previewLayout(t, gesture, t.layout())
+      expect(preview).not.toBeNull()
+      expect(writeMdj(project)).toBe(saved)
+      expect(t.engine.undoDepth).toBe(depth)
+      gesture()
+      const committed = t.layout()
+      expect(JSON.stringify([...preview!.nodes])).toBe(JSON.stringify([...committed.nodes]))
+      expect(JSON.stringify([...preview!.edges])).toBe(JSON.stringify([...committed.edges]))
+      t.engine.undo()
+    }
+  })
+
+  it('returns null when the edit fails', () => {
+    const t = testDiagram()
+    expect(
+      previewLayout(t, () => {
+        throw new Error('not allowed')
+      })
+    ).toBeNull()
+  })
+})
 
 describe('editor actions', () => {
   it('creates nodes inside packages (model owned by the package) and connects with canConnect', () => {

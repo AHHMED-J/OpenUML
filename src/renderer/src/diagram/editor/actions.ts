@@ -121,6 +121,22 @@ export function syncGeometry(env: DiagramEnv, b: OperationBuilder): void {
   }
 }
 
+/**
+ * The layout the diagram would have after `change` (an editor action such as `moveSelection`),
+ * without changing the model: the change runs as a dry run and is reverted. Null when it fails.
+ * `previous` lets unchanged views keep their layout objects (memoized rendering).
+ */
+export function previewLayout(env: DiagramEnv, change: () => void, previous?: DiagramLayout | null): DiagramLayout | null {
+  try {
+    return env.engine.simulate(() => {
+      change()
+      return computeDiagramLayout(env.diagram, env.engine.repository, env.measurer, { previous: previous ?? null })
+    })
+  } catch {
+    return null
+  }
+}
+
 /** Runs `change` and the geometry write-back as one operation. */
 export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: OperationBuilder) => T): T {
   return env.engine.transact(name, (b) => {
