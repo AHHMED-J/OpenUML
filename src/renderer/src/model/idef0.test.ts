@@ -143,7 +143,7 @@ describe('IDEF0 numbering', () => {
   })
 
   it('spreads slots evenly and keeps them away from corners', () => {
-    expect(slotOffsets(88, 1)).toEqual([48])
+    expect(slotOffsets(88, 1)).toEqual([44])
     expect(slotOffsets(168, 2)).toEqual([56, 112])
     expect(slotOffsets(64, 5).every((o) => o >= 12 && o <= 52)).toBe(true)
     expect(slotOffsets(100, 0)).toEqual([])

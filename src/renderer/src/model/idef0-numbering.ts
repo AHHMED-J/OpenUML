@@ -259,12 +259,13 @@ export function round8(value: number): number {
 
 /**
  * Offsets from the start of a side of length `length` for `count` evenly spread attachments:
- * `round8((i + 1) * length / (count + 1))`, kept at least 12 away from either corner.
+ * `round((i + 1) * length / (count + 1))`, kept at least 12 away from either corner. A single
+ * attachment is exactly centered, so straight arrows between aligned boxes stay straight.
  */
 export function slotOffsets(length: number, count: number): number[] {
   const out: number[] = []
   for (let i = 0; i < count; i++) {
-    const raw = round8(((i + 1) * length) / (count + 1))
+    const raw = Math.round(((i + 1) * length) / (count + 1))
     out.push(Math.max(12, Math.min(length - 12, raw)))
   }
   return out
