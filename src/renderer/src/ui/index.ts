@@ -1,14 +1,18 @@
 /**
  * UI module — the application shell (React).
  *
- * Layout (`Shell.tsx`): toolbar; left sidebar with the Model Explorer (`explorer/`) and Working
- * Diagrams; center diagram area with tabs hosting the diagram module's `DiagramEditor`
- * (`diagramArea/`); right navigator with the Toolbox (`toolbox/`) and the Styles / Properties /
- * Documentation editors (`properties/`); status bar. Panels resize with `components/Splitter`.
+ * Layout (`Shell.tsx`): toolbar; left and right dock areas around the center diagram area with
+ * tabs hosting the diagram module's `DiagramEditor` (`diagramArea/`); status bar. Dockable panels
+ * — Model Explorer (`explorer/`), Working Diagrams, Toolbox (`toolbox/`), Styles, Properties and
+ * Documentation (`properties/`) — stack vertically in either area (default: explorer + working
+ * diagrams left, toolbox + editors right). `dock/`: the pure docking model (`dockModel.ts`) and
+ * drop-target geometry (`dropTarget.ts`), the unified panel chrome and stacks (`DockArea.tsx`),
+ * and the long-press drag controller (`dragController.ts`, live state outside React). Areas
+ * resize with `components/Splitter`, stacked panels with the dock's own splitters.
  *
  * State: `uiStore.ts` (Zustand) holds UI-only state — active tool and lock, zoom per diagram,
- * panel visibility/sizes, preferences (theme, grid, snap, default font size), explorer options,
- * recent files, dialogs, context menu and toasts. Per-viewer persistence via `persist.ts`
+ * area visibility/widths and the dock layout, preferences (theme, grid, snap, default font
+ * size), explorer options, recent files, dialogs, context menu and toasts. Per-viewer persistence via `persist.ts`
  * (localStorage, failure-tolerant). The project itself lives in `store/`.
  *
  * Commands (`app/`): `commands.ts` owns the `CommandRegistry`, the `Keymap` and `runCommand`
@@ -23,7 +27,7 @@
  *
  * Pure, unit-tested helpers: `keymap.ts`, `recentFiles.ts`, `menus/menuModel.ts`,
  * `properties/propertyRows.ts`, `explorer/tree.ts`, `modelActions.ts`, `toolbox/palettes.ts`,
- * `dialogs/paletteSearch.ts`.
+ * `dialogs/paletteSearch.ts`, `dock/dockModel.ts`, `dock/dropTarget.ts`.
  *
  * Drag and drop: explorer rows carry the element id as `application/x-openuml-element`.
  */

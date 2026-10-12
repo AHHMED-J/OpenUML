@@ -231,7 +231,20 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       { id: 'view.toolbar', label: 'Toolbar', command: Cmd.viewToolbar, checkbox: true },
       { id: 'view.statusbar', label: 'Status Bar', command: Cmd.viewStatusbar, checkbox: true },
       { id: 'view.toolbox', label: 'Toolbox', command: Cmd.viewToolbox, checkbox: true },
-      { id: 'view.editors', label: 'Editors', command: Cmd.viewEditors, checkbox: true }
+      { id: 'view.editors', label: 'Editors', command: Cmd.viewEditors, checkbox: true },
+      {
+        id: 'view.panels',
+        label: 'Panels',
+        submenu: [
+          { id: 'view.model-explorer', label: 'Model Explorer', command: Cmd.viewModelExplorer, checkbox: true },
+          { id: 'view.working-diagrams', label: 'Working Diagrams', command: Cmd.viewWorkingDiagrams, checkbox: true },
+          { id: 'view.styles', label: 'Styles', command: Cmd.viewStyles, checkbox: true },
+          { id: 'view.properties', label: 'Properties', command: Cmd.viewProperties, checkbox: true },
+          { id: 'view.documentation', label: 'Documentation', command: Cmd.viewDocumentation, checkbox: true }
+        ]
+      },
+      SEP,
+      { id: 'view.reset-layout', label: 'Reset Layout', command: Cmd.viewResetLayout }
     ]
   }
   const windowMenu: MenuNode = {

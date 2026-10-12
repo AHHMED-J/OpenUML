@@ -78,6 +78,12 @@ export const Cmd = {
   viewStatusbar: 'view.statusbar',
   viewToolbox: 'view.toolbox',
   viewEditors: 'view.editors',
+  viewModelExplorer: 'view.model-explorer',
+  viewWorkingDiagrams: 'view.working-diagrams',
+  viewStyles: 'view.styles',
+  viewProperties: 'view.properties',
+  viewDocumentation: 'view.documentation',
+  viewResetLayout: 'view.reset-layout',
   // Explorer
   explorerSortByAdded: 'explorer.sort-by-added',
   explorerSortByName: 'explorer.sort-by-name',
