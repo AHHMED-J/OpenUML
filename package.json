@@ -36,5 +36,58 @@
     "esbuild@0.25.12": true,
     "esbuild@0.28.2": true,
     "electron-winstaller@5.4.0": true
+  },
+  "build": {
+    "appId": "io.github.ahhmed-j.openuml",
+    "productName": "OpenUML",
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "resources/**"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "mdj",
+        "name": "OpenUML Model",
+        "description": "OpenUML model",
+        "mimeType": "application/x-openuml-model",
+        "role": "Editor",
+        "icon": "document"
+      }
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "linux": {
+      "icon": "build/icons",
+      "category": "Development",
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }

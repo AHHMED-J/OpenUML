@@ -34,7 +34,22 @@ npm test         # run the unit tests
 npm run build    # production build into out/
 ```
 
-`npm run typecheck` runs the TypeScript compiler, and `npm run dist` packages the application with electron-builder.
+`npm run typecheck` runs the TypeScript compiler.
+
+## Packaging
+
+`npm run dist` builds the installers for the current operating system into `release/` with
+electron-builder (macOS: `.dmg` and `.zip`; Windows: NSIS installer; Linux: AppImage). Installed
+builds register OpenUML as the editor of `.mdj` files, with their own document icon; opening a
+`.mdj` file while OpenUML runs opens it in the running window. The builds are not code-signed, so
+macOS Gatekeeper and Windows SmartScreen warn on first launch.
+
+The icons in `build/` and `resources/icon.png` are generated from the logo artwork in
+`build/icon-src/` (Python 3 with Pillow and NumPy):
+
+```sh
+python3 build/icon-src/make_icons.py
+```
 
 ## Project layout
 
