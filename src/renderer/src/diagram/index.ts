@@ -66,6 +66,10 @@
  *    inline-edit targets (`name`, `attribute`, `operation`, `literal`, `text`, `field`, or
  *    `custom` with a syntax registered via `registerQuickEditSyntax`).
  *    Add `container: { accepts, ownerFor }` to make a view a drop container (subject, swimlane).
+ *    Add `outerHitAreas` (labels drawn beside a small symbol) so the view is also hit, and its
+ *    `regions` opened by double-click, outside its box. The role activity diagram (`diagram/rad/`)
+ *    uses this together with `container.reparent`, grows its role boxes at layout time to fit their
+ *    contained views, and registers from `ensureNotations()` like the UML families.
  * 3. For each edge view type, register a layout (usually `buildEdgeLayout`, which routes via
  *    diagram/core and places labels) and optionally a custom `Render` (default `EdgeShape`):
  *
