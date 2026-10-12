@@ -14,6 +14,8 @@ import { useProjectStore } from '../../store'
 import {
   COLORS,
   GRID,
+  CANVAS_FIT_PADDING,
+  canvasExtent,
   clampZoom,
   edgeAnchor,
   edgeHitCursor,
@@ -88,7 +90,6 @@ type Gesture =
   | { type: 'label'; start: Point; edgeId: string; labelViewId: string | null; box: Rect; current: Rect; moved: boolean }
   | { type: 'pan'; startClient: Point; scroll: Point }
 
-const CANVAS_MARGIN = 400
 const DRAG_THRESHOLD = 3
 
 function isTextInput(el: EventTarget | null): boolean {
@@ -167,8 +168,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   }, [])
 
   const bounds = layout?.bounds
-  const canvasWidth = Math.max((bounds ? bounds.left + bounds.width : 0) + CANVAS_MARGIN, viewport.width / zoom)
-  const canvasHeight = Math.max((bounds ? bounds.top + bounds.height : 0) + CANVAS_MARGIN, viewport.height / zoom)
+  const canvasWidth = canvasExtent(bounds ? bounds.left + bounds.width : 0, viewport.width, zoom)
+  const canvasHeight = canvasExtent(bounds ? bounds.top + bounds.height : 0, viewport.height, zoom)
 
   // ---- Coordinates.
   const toDiagram = useCallback((clientX: number, clientY: number): Point => {
@@ -327,7 +328,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const el = scrollRef.current
         const b = live.current.layout?.bounds
         if (!el || !b) return
-        const z = clampZoom(Math.min(1, (el.clientWidth - 20) / (b.left + b.width + 10), (el.clientHeight - 20) / (b.top + b.height + 10)))
+        const z = clampZoom(Math.min(1, (el.clientWidth - 20) / (b.left + b.width + CANVAS_FIT_PADDING), (el.clientHeight - 20) / (b.top + b.height + CANVAS_FIT_PADDING)))
         pendingScroll.current = { anchor: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
         if (z === live.current.zoom) {
           el.scrollLeft = 0

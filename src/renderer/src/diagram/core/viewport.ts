@@ -129,3 +129,19 @@ export function exportBounds(boxes: readonly Rect[], margin: number = EXPORT.mar
   const u = unionRects(boxes)
   return u ? inflateRect(u, margin) : null
 }
+
+/** Padding kept around the content when deciding whether it fits the viewport. */
+export const CANVAS_FIT_PADDING = 10
+/** Extra scroll room beyond the content once it does not fit the viewport. */
+export const CANVAS_SCROLL_MARGIN = 400
+
+/**
+ * Canvas extent (diagram units) along one axis for content ending at `contentEnd`: exactly the
+ * viewport when the content fits it at `zoom` (so no scrollbar appears, e.g. after "Fit to
+ * window"), else the content plus a scroll margin to work beyond its edge.
+ */
+export function canvasExtent(contentEnd: number, viewportPx: number, zoom: number): number {
+  const visible = viewportPx / zoom
+  if (viewportPx > 0 && contentEnd + CANVAS_FIT_PADDING <= visible) return visible
+  return Math.max(contentEnd + CANVAS_SCROLL_MARGIN, visible)
+}

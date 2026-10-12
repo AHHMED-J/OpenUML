@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { createDiagram, createEdge, createNode, moveViews, setFields } from '../../../commands'
 import type { Diagram, EdgeKind, Elem, NodeKind, NodeView, View } from '../../../model'
-import { EDGE_LABEL_DEFAULTS, NODE_LABEL_DEFAULTS, placeNodeLabel } from '../../core'
-import { findDropContainer } from '../../editor/actions'
+import { EDGE_LABEL_DEFAULTS, placeNodeLabel, type Rect } from '../../core'
+import { createNodeAt, creationContainer, findDropContainer } from '../../editor/actions'
 import { computeDiagramLayout } from '../../layout/layoutDiagram'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
 import { nodeNotationFor } from '../../render/registry'
 import { testDiagram } from '../../testUtils'
 import { flowLabelText } from './edges'
 import type { ActionData, ControlNodeData, ObjectNodeData, PinData, SwimlaneData } from './layout'
-import { acceptEventPolygon, nearestBorderPoint, sendSignalPolygon } from './layout'
+import { acceptEventPolygon, nearestBorderPoint, pinLabelBox, sendSignalPolygon } from './layout'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
 const BOLD_CHAR = 13 * 0.6 * 1.1
@@ -226,7 +226,7 @@ describe('pin layout', () => {
     expect(o.data.arrow?.shaft[1]).toEqual({ x: 169, y: 167 })
   })
 
-  it('floats the name label up-left and includes it in the export bounds', () => {
+  it('places the name label outside the action, beside the pin, and includes it in the export bounds', () => {
     const a = activityDiagram()
     const action = a.node('Action', 100, 100, 100, 60)
     const pin = a.node('InputPin', 191, 120, undefined, undefined, action)
@@ -235,12 +235,48 @@ describe('pin layout', () => {
     const label = l.data.labels[0]
     expect(label?.text).toBe('qty: Integer[1]')
     const size = { width: Math.ceil(15 * CHAR), height: 13 }
-    expect(label?.box).toEqual(placeNodeLabel(l.box, NODE_LABEL_DEFAULTS.name, size))
-    expect(label?.box.top).toBeLessThan(l.box.top)
+    // Right-border pin: the label sits to the right of the pin, vertically centered on it.
+    expect(l.data.side).toBe('right')
+    expect(label?.box).toEqual(pinLabelBox(l.box, 'right', size))
+    expect(label?.box.left).toBeGreaterThanOrEqual(l.box.left + l.box.width)
     expect(l.extraBounds).toEqual([label?.box])
     // Regression: the label shows `name: Type[mult]`, so that is what the quick edit accepts.
     expect(l.regions[0]?.target).toEqual({ kind: 'typedName', elementId: pin.model?._id })
     expect(l.regions[0]?.text).toBe('qty: Integer[1]')
+  })
+
+  it('keeps an output pin label clear of the action (and so of its name) on every side', () => {
+    const a = activityDiagram()
+    const action = a.node('Action', 100, 100, 100, 60)
+    const spots = [
+      { x: 150, y: 101 },
+      { x: 150, y: 159 },
+      { x: 101, y: 130 },
+      { x: 199, y: 130 }
+    ]
+    const pins = spots.map((p) => a.node('OutputPin', p.x - 9, p.y - 9, undefined, undefined, action))
+    pins.forEach((p) => setFields(a.engine, p.model as Elem, { name: 'result', type: 'String' }))
+    const layout = a.layout()
+    const actionBox = nodeOf<ActionData>(layout, action).box
+    const sides: string[] = []
+    for (const p of pins) {
+      const l = nodeOf<PinData>(layout, p)
+      sides.push(l.data.side as string)
+      const box = l.data.labels[0]?.box as Rect
+      const overlaps = box.left < actionBox.left + actionBox.width && box.left + box.width > actionBox.left && box.top < actionBox.top + actionBox.height && box.top + box.height > actionBox.top
+      expect(overlaps, `label of ${l.data.side} pin overlaps the action`).toBe(false)
+    }
+    expect(sides).toEqual(['top', 'bottom', 'left', 'right'])
+  })
+
+  it('keeps a label the user moved', () => {
+    const a = activityDiagram()
+    const action = a.node('Action', 100, 100, 100, 60)
+    const pin = a.node('OutputPin', 191, 120, undefined, undefined, action)
+    setFields(a.engine, pin.model as Elem, { name: 'r' })
+    setFields(a.engine, pin['nameLabel'] as Elem, { alpha: 0.5, distance: 40 })
+    const l = nodeOf<PinData>(a.layout(), pin)
+    expect(l.data.labels[0]?.box).toEqual(placeNodeLabel(l.box, { alpha: 0.5, distance: 40 }, { width: Math.ceil(1 * CHAR), height: 13 }))
   })
 
   it('follows its action when the action moves and stays contained when dropped on it', () => {
@@ -254,6 +290,20 @@ describe('pin layout', () => {
     const drop = findDropContainer(a.env, a.layout(), { x: 240, y: 130 }, [pin])
     expect(drop).toBe(action)
     expect(nodeNotationFor(action).container?.accepts(action, a.node('Action', 400, 0).model ?? null)).toBe(false)
+  })
+
+  it('accepts pin creation clicks within a small tolerance of the action border', () => {
+    const a = activityDiagram()
+    const action = a.node('Action', 100, 100, 100, 60)
+    const layout = a.layout()
+    // Exactly on the border, a few px outside, and a few px inside all hit the action.
+    for (const p of [{ x: 100, y: 130 }, { x: 96, y: 130 }, { x: 150, y: 164 }, { x: 203, y: 100 }, { x: 150, y: 103 }]) {
+      expect(creationContainer(a.env, layout, 'InputPin', p), `${p.x},${p.y}`).toBe(action)
+    }
+    expect(creationContainer(a.env, layout, 'OutputPin', { x: 150, y: 180 })).toBeNull()
+    const id = createNodeAt(a.env, layout, 'OutputPin', { left: 200, top: 130, width: 0, height: 0 })
+    expect(id).not.toBeNull()
+    expect(createNodeAt(a.env, a.layout(), 'OutputPin', { left: 400, top: 400, width: 0, height: 0 })).toBeNull()
   })
 
   it('snaps points to the nearest border point', () => {

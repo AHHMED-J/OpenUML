@@ -422,10 +422,40 @@ function labelVisible(label: unknown, fallback: boolean): boolean {
   return l ? l.visible !== false : fallback
 }
 
+/** Gap between a pin and its outward-placed label. */
+const PIN_LABEL_GAP = 3
+
+const isDefaultLabel = (label: unknown, defaults: { alpha: number; distance: number }): boolean => {
+  const p = labelParams(label, defaults)
+  return Math.abs(p.alpha - defaults.alpha) < 1e-6 && Math.abs(p.distance - defaults.distance) < 1e-6
+}
+
+/**
+ * Label box beside a pin, on the outer side of the owning action (away from the action's name):
+ * above a top pin, below a bottom pin, left/right of a side pin. `offset` stacks further labels.
+ */
+export function pinLabelBox(pin: Rect, side: PinSide, size: { width: number; height: number }, offset = 0): Rect {
+  const cx = pin.left + pin.width / 2
+  const cy = pin.top + pin.height / 2
+  const gap = PIN_LABEL_GAP + offset
+  switch (side) {
+    case 'top':
+      return { left: cx - size.width / 2, top: pin.top - gap - size.height, width: size.width, height: size.height }
+    case 'bottom':
+      return { left: cx - size.width / 2, top: pin.top + pin.height + gap, width: size.width, height: size.height }
+    case 'left':
+      return { left: pin.left - gap - size.width, top: cy - size.height / 2, width: size.width, height: size.height }
+    case 'right':
+      return { left: pin.left + pin.width + gap, top: cy - size.height / 2, width: size.width, height: size.height }
+  }
+}
+
 /**
  * Pin layout: an 18 × 18 fixed square pushed to straddle the nearest point of the owning
  * action's border; the arrow inside shows the flow direction; the floating name label
- * (`name: Type[mult]`) sits up-left by default and the stereotype label above it.
+ * (`name: Type[mult]`) sits outside the action next to the pin by default (it never covers the
+ * action's name; a label dragged elsewhere keeps its stored position) and the stereotype label
+ * beyond it.
  */
 export function layoutPin(view: NodeView, ctx: LayoutContext): NodeLayout<PinData> {
   const model = view.model
@@ -448,7 +478,11 @@ export function layoutPin(view: NodeView, ctx: LayoutContext): NodeLayout<PinDat
   const nameText = typedNameText(model, true)
   if (nameText && labelVisible(view['nameLabel'], true)) {
     const s = ctx.measurer.measure(nameText, style.font)
-    const lb = placeNodeLabel(box, labelParams(view['nameLabel'], NODE_LABEL_DEFAULTS.name), { width: Math.ceil(s.width), height: s.height })
+    const dims = { width: Math.ceil(s.width), height: s.height }
+    const lb =
+      side && isDefaultLabel(view['nameLabel'], NODE_LABEL_DEFAULTS.name)
+        ? pinLabelBox(box, side, dims)
+        : placeNodeLabel(box, labelParams(view['nameLabel'], NODE_LABEL_DEFAULTS.name), dims)
     labels.push({ text: nameText, font: style.font, align: 'center', box: lb })
     regions.push(...typedNameRegion(model ?? null, lb, style.font))
   }
@@ -456,7 +490,16 @@ export function layoutPin(view: NodeView, ctx: LayoutContext): NodeLayout<PinDat
   if (st && labelVisible(view['stereotypeLabel'], false)) {
     const text = `«${st}»`
     const s = ctx.measurer.measure(text, style.font)
-    labels.push({ text, font: style.font, align: 'center', box: placeNodeLabel(box, labelParams(view['stereotypeLabel'], NODE_LABEL_DEFAULTS.stereotype), { width: Math.ceil(s.width), height: s.height }) })
+    const dims = { width: Math.ceil(s.width), height: s.height }
+    const nameBox = labels[0]?.box
+    const stacked = side !== null && isDefaultLabel(view['stereotypeLabel'], NODE_LABEL_DEFAULTS.stereotype)
+    // Beyond the name label on a top/bottom pin; side pins stack the stereotype above the name.
+    const sbox = !stacked || side === null
+      ? placeNodeLabel(box, labelParams(view['stereotypeLabel'], NODE_LABEL_DEFAULTS.stereotype), dims)
+      : side === 'left' || side === 'right'
+        ? { ...pinLabelBox(box, side, dims), top: (nameBox?.top ?? box.top) - dims.height - 1 }
+        : pinLabelBox(box, side, dims, nameBox ? nameBox.height + 1 : 0)
+    labels.push({ text, font: style.font, align: 'center', box: sbox })
   }
   // The box itself is also a name target (double-click on the pin).
   regions.push(...typedNameRegion(model ?? null, box, style.font))
