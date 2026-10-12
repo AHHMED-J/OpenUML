@@ -1,5 +1,5 @@
 /** Structural checks that every written project should pass. */
-import { fieldsOf, findContainment, isElem, isKindOf, referenceFields, walk, type Elem } from '../model'
+import { fieldsOf, findContainment, isElem, isKindOf, referenceFields, walk, type Elem, type View } from '../model'
 
 /**
  * Returns a list of problems (empty when valid):
@@ -45,7 +45,9 @@ export function validateModel(root: Elem): string[] {
     }
 
     if (isKindOf(el, 'EdgeView') && !isKindOf(el, 'FreelineEdgeView')) {
-      if (!el.head || !el.tail) problems.push(`${at}: edge without head or tail`)
+      // An IDEF0 call arrow leaves a function box and has no head view.
+      const headless = el._type === 'IDEF0ArrowView' && el.model?.['role'] === 'call'
+      if ((!el.head && !headless) || !el.tail) problems.push(`${at}: edge without head or tail`)
       const model = el.model
       if (el.head && el.tail && model) {
         const [src, dst] = isKindOf(model, 'UndirectedRelationship')
@@ -53,7 +55,13 @@ export function validateModel(root: Elem): string[] {
           : isKindOf(model, 'DirectedRelationship')
             ? [model.source, model.target]
             : [undefined, undefined]
-        if (src !== undefined && (el.tail.model !== src || el.head.model !== dst)) {
+        // A timing message joins time segments (state invariants) whose `covered` lifelines are its ends.
+        const endIs = (view: View, expected: unknown): boolean =>
+          view.model === expected ||
+          (isKindOf(view.model, 'UMLStateInvariant') && view.model?.['covered'] === expected) ||
+          // A communication connector joins lifelines; its ends reference the roles they represent.
+          (isKindOf(view.model, 'UMLLifeline') && view.model['represent'] === expected)
+        if (src !== undefined && (!endIs(el.tail, src) || !endIs(el.head, dst))) {
           problems.push(`${at}: edge ends do not match the relationship`)
         }
       }

@@ -3,7 +3,7 @@
  * Everything returned is detached: not yet in any repository.
  */
 import { generateId } from './id'
-import { instantiate, typeDisplayName } from './metamodel'
+import { instantiate, isSubtype, typeDisplayName } from './metamodel'
 import type {
   Bounds,
   EdgeLabelView,
@@ -248,7 +248,7 @@ export function buildUndirectedEdgeView(
   edge.headRoleNameLabel = edgeLabel(edge, end2, 0, -S, 30, head)
   edge.headPropertyLabel = edgeLabel(edge, end2, 0, -Q, 40, head)
   edge.headMultiplicityLabel = edgeLabel(edge, end2, 0, S, 25, head)
-  if (type === 'UMLAssociationView') {
+  if (isSubtype(type, 'UMLAssociationView')) {
     for (const [field, end] of [
       ['tailQualifiersCompartment', end1],
       ['headQualifiersCompartment', end2]

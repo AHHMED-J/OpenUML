@@ -9,6 +9,7 @@ import { addDiagramItemsFor, addItemsFor } from '../modelActions'
 import { baseName } from '../recentFiles'
 import { uiStore } from '../uiStore'
 import { Cmd } from './commandIds'
+import { idef0FormatMenu, idef0Menu } from './idef0Menu'
 import type { MenuNode } from './menuModel'
 
 const SEP: MenuNode = { separator: true }
@@ -131,6 +132,7 @@ export function formatItems(): MenuNode[] {
     { label: 'Suppress Operations', command: Cmd.formatSuppressOperations, checkbox: true },
     { label: 'Suppress Literals', command: Cmd.formatSuppressLiterals, checkbox: true },
     SEP,
+    idef0FormatMenu(),
     alignmentMenu()
   ]
 }
@@ -204,7 +206,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
     ]
   }
   const format: MenuNode = { id: 'format', label: 'Format', submenu: formatItems }
-  const model: MenuNode = { id: 'model', label: 'Model', submenu: () => [addDiagramMenu(), addElementMenu()] }
+  const model: MenuNode = { id: 'model', label: 'Model', submenu: () => [addDiagramMenu(), addElementMenu(), idef0Menu()] }
   const view: MenuNode = {
     id: 'view',
     label: 'View',
@@ -325,6 +327,7 @@ export function canvasContextMenu(): MenuNode[] {
   return [
     addElementMenu(),
     addDiagramMenu(),
+    idef0Menu(),
     SEP,
     { label: 'Format', submenu: formatItems },
     SEP,

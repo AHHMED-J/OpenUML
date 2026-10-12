@@ -78,10 +78,19 @@ export interface NodeLayout<D = unknown> {
   readonly regions: readonly EditRegion[]
   /** Drawn areas outside `box` (floating labels, decorations) for export bounds. */
   readonly extraBounds?: readonly Rect[]
+  /**
+   * Views nested inside this node that accept dropped children (a state's regions), topmost
+   * last. Drops and creations inside such a box use that view as the container.
+   */
+  readonly subContainers?: ReadonlyArray<{ readonly viewId: string; readonly box: Rect }>
+  /** The arranged left/top are derived from the model; geometry write-back stores them too. */
+  readonly derivedPosition?: boolean
   /** Restricts moving the view to one axis (sequence lifelines move only horizontally). */
   readonly moveAxis?: 'horz' | 'vert'
   /** Areas where the view is hit (default: the whole box), e.g. a frame's border and label. */
   readonly hitAreas?: readonly Rect[]
+  /** Areas outside `box` that also hit the view (labels drawn beside a symbol). */
+  readonly outerHitAreas?: readonly Rect[]
   /** Draggable horizontal dividers that resize sub-views (combined-fragment operands). */
   readonly dividers?: readonly NodeDivider[]
   readonly zIndex: number
@@ -139,6 +148,8 @@ export interface EdgeLayout<D = unknown> {
   readonly extraBounds?: readonly Rect[]
   /** Polyline the labels are placed on (and dragged against); default `points`. */
   readonly labelPoints?: readonly Point[]
+  /** Inline edit opened by double-clicking the edge when it has no editable label (e.g. an empty transition). */
+  readonly fallbackEdit?: { readonly target: EditTarget; readonly text: string }
   /** Dragging the edge shifts it along this axis instead of editing bends (sequence messages). */
   readonly dragAxis?: 'vert'
   readonly data: D

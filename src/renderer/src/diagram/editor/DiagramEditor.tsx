@@ -14,6 +14,8 @@ import { useProjectStore } from '../../store'
 import {
   COLORS,
   GRID,
+  CANVAS_FIT_PADDING,
+  canvasExtent,
   clampZoom,
   edgeAnchor,
   edgeHitCursor,
@@ -33,13 +35,16 @@ import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { getTextMeasurer } from '../layout/measurer'
 import type { DiagramLayout, EditRegion, EditTarget, NodeDivider } from '../layout/types'
 import { DiagramContent } from '../render/DiagramContent'
+import { nodeNotationFor } from '../render/registry'
 import { copySelection, pasteClipboard } from '../commands'
 import {
   createEdgeBetween,
+  createEndpointMessage,
   createNodeAt,
   createTextAt,
   deleteViews,
   findDropContainer,
+  hooksFor,
   isContainmentChange,
   isNodeKind,
   moveAxisOf,
@@ -87,7 +92,6 @@ type Gesture =
   | { type: 'label'; start: Point; edgeId: string; labelViewId: string | null; box: Rect; current: Rect; moved: boolean }
   | { type: 'pan'; startClient: Point; scroll: Point }
 
-const CANVAS_MARGIN = 400
 const DRAG_THRESHOLD = 3
 
 function isTextInput(el: EventTarget | null): boolean {
@@ -107,6 +111,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const version = useProjectStore((s) => s.version)
   const selectedViewIds = useProjectStore((s) => s.selectedViewIds)
   const select = useProjectStore((s) => s.select)
+  const openDiagram = useProjectStore((s) => s.openDiagram)
   const measurer = getTextMeasurer()
   const gridId = useId().replace(/:/g, '')
 
@@ -166,8 +171,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   }, [])
 
   const bounds = layout?.bounds
-  const canvasWidth = Math.max((bounds ? bounds.left + bounds.width : 0) + CANVAS_MARGIN, viewport.width / zoom)
-  const canvasHeight = Math.max((bounds ? bounds.top + bounds.height : 0) + CANVAS_MARGIN, viewport.height / zoom)
+  const canvasWidth = canvasExtent(bounds ? bounds.left + bounds.width : 0, viewport.width, zoom)
+  const canvasHeight = canvasExtent(bounds ? bounds.top + bounds.height : 0, viewport.height, zoom)
 
   // ---- Coordinates.
   const toDiagram = useCallback((clientX: number, clientY: number): Point => {
@@ -240,6 +245,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       const label = edge.labels.find((lb) => lb.edit && (!elementId || ('elementId' in lb.edit && lb.edit.elementId === elementId)))
       if (label?.edit) {
         openRegion(viewId, { box: label.box, target: label.edit, text: label.editText ?? label.text, font: label.font })
+        return true
+      }
+      if (edge.fallbackEdit) {
+        openRegion(viewId, { box: edgeMidBox(edge.points), target: edge.fallbackEdit.target, text: edge.fallbackEdit.text, font: edge.style.font })
         return true
       }
       if (view.model && edge.points.length > 0) {
@@ -326,7 +335,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const el = scrollRef.current
         const b = live.current.layout?.bounds
         if (!el || !b) return
-        const z = clampZoom(Math.min(1, (el.clientWidth - 20) / (b.left + b.width + 10), (el.clientHeight - 20) / (b.top + b.height + 10)))
+        const z = clampZoom(Math.min(1, (el.clientWidth - 20) / (b.left + b.width + CANVAS_FIT_PADDING), (el.clientHeight - 20) / (b.top + b.height + CANVAS_FIT_PADDING)))
         pendingScroll.current = { anchor: { x: 0, y: 0 }, screen: { x: 0, y: 0 } }
         if (z === live.current.zoom) {
           el.scrollLeft = 0
@@ -383,8 +392,19 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       if (isNodeKind(t.kind)) {
         const start = { x: snapValue(p.x), y: snapValue(p.y) }
         gesture.current = { type: 'create-node', start, kind: t.kind, rect: { left: start.x, top: start.y, width: 0, height: 0 } }
+      } else if (t.freeEnd === 'tail') {
+        // Found message: starts on empty canvas, ends on a lifeline.
+        gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p }
+        setPreview({ kind: 'line', from: p, to: p })
       } else {
-        const target = hitTestDiagram(l, p, { selected: new Set(), zoom: z, nodesOnly: true })
+        const hooks = hooksFor(en.diagram)
+        const pickedId = hooks?.pickEnd ? hooks.pickEnd(l, p, t) : null
+        const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: z, nodesOnly: true })
+        if (!target && hooks?.freeEnds?.(t)) {
+          // Line tools that may start on empty canvas (IDEF0 boundary arrows).
+          gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p }
+          setPreview({ kind: 'line', from: p, to: p })
+        }
         if (target) {
           const box = l.nodes.get(target.viewId)?.box
           const from = box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : p
@@ -698,7 +718,35 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return
       }
       case 'create-edge': {
-        const target = hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
+        const hooks = hooksFor(en.diagram)
+        const pickedId = hooks?.pickEnd ? hooks.pickEnd(l, p, g.tool) : null
+        const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
+        const hooked = hooks?.createEdge?.(en, l, g.tool, g.tailId || null, target?.viewId ?? null, g.start, p)
+        if (hooked !== undefined) {
+          if (hooked) {
+            setSelection([hooked])
+            onToolUsed()
+            requestEdit(hooked)
+          } else console.warn(`Invalid connection (${g.tool.kind})`)
+          return
+        }
+        if (g.tool.freeEnd) {
+          // Found message (free tail, lifeline at the release point) or lost message (free head).
+          const id =
+            g.tool.freeEnd === 'tail'
+              ? target
+                ? createEndpointMessage(en, l, g.tool, target.viewId, g.start, g.start.y)
+                : null
+              : target
+                ? null
+                : createEndpointMessage(en, l, g.tool, g.tailId, p, g.start.y)
+          if (id) {
+            setSelection([id])
+            onToolUsed()
+            requestEdit(id)
+          } else console.warn(`Invalid connection (${g.tool.kind})`)
+          return
+        }
         const id = target ? createEdgeBetween(en, l, g.tool, g.tailId, target.viewId, g.start) : null
         if (id) {
           setSelection([id])
@@ -712,7 +760,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!g.moved) return
         if (g.end) {
           const target = hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
-          if (target) reconnectEnd(en, g.edgeId, g.end, target.viewId)
+          if (target) reconnectEnd(en, g.edgeId, g.end, target.viewId, p)
           return
         }
         setEdgeVertices(en, g.edgeId, g.points)
@@ -743,6 +791,14 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       return
     }
     if (hit.kind === 'node') {
+      // Nodes that refer to something (interaction overview nodes) open their target instead.
+      const nodeView = repository.get(hit.viewId) as View | undefined
+      const target = nodeView ? nodeNotationFor(nodeView).openTarget?.(nodeView) : null
+      if (target && !hit.region) {
+        if (isKindOf(target, 'Diagram')) openDiagram(target._id)
+        else select({ elements: [target._id] })
+        return
+      }
       if (hit.region) openRegion(hit.viewId, hit.region)
       else openQuickEdit(hit.viewId)
     } else if (hit.kind === 'edge-label') {

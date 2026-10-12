@@ -1,8 +1,11 @@
 /** Status bar: breadcrumb of the selected element, selection info, zoom (click for presets). */
 import type React from 'react'
+import { Idef0CommandIds } from '../diagram'
 import { typeDisplayName, type Elem } from '../model'
 import { useProjectStore } from '../store'
 import { selectInExplorer } from './app/appCommands'
+import { runCommand } from './app/commands'
+import { idef0WarningCount } from './app/idef0'
 import { explorerLabel, pathTo } from './explorer/tree'
 import { TypeIcon } from './icons'
 import { useSelectedModels } from './properties/useSelection'
@@ -15,6 +18,8 @@ export function StatusBar(): React.JSX.Element {
   const dirty = useProjectStore((s) => s.dirty)
   const zoom = useUiStore((s) => (activeId ? (s.zoomByDiagram[activeId] ?? 1) : null))
   const tool = useUiStore((s) => s.tool)
+  // IDEF0 consistency warnings of the active diagram (recomputed on every model change).
+  const warnings = useProjectStore((s) => (s.version >= 0 ? idef0WarningCount() : 0))
   const locked = useUiStore((s) => s.toolLocked)
   const single = models.length === 1 ? (models[0] as Elem) : null
 
@@ -42,6 +47,16 @@ export function StatusBar(): React.JSX.Element {
           Tool: {tool.kind}
           {locked ? ' (locked)' : ''}
         </span>
+      ) : null}
+      {warnings > 0 ? (
+        <button
+          className="status-item status-button"
+          title="IDEF0 warnings: click to list them"
+          aria-label={`${warnings} IDEF0 warnings`}
+          onClick={() => runCommand(Idef0CommandIds.validate)}
+        >
+          {warnings} warning{warnings === 1 ? '' : 's'}
+        </button>
       ) : null}
       {viewCount > 0 ? <span className="status-item">{viewCount} view{viewCount === 1 ? '' : 's'}</span> : null}
       <span className="status-item">{dirty ? 'Modified' : 'Saved'}</span>

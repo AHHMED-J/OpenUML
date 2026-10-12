@@ -30,6 +30,8 @@ export interface PaletteTool {
   readonly messageSort?: string
   /** Self message: tail = head. */
   readonly selfConnection?: boolean
+  /** Found/lost message: the end (`tail` = found, `head` = lost) that is drawn on empty canvas and gets a new endpoint. */
+  readonly freeEnd?: 'tail' | 'head'
 }
 
 export type ThemePreference = 'system' | 'dark' | 'light'
@@ -55,6 +57,8 @@ export interface Preferences {
   readonly gridSize: number
   /** Default font size for new views. */
   readonly defaultFontSize: number
+  /** RAD: a new element placed below an open-ended element gets a state line from it. */
+  readonly radAutoThread: boolean
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -62,7 +66,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   showGrid: true,
   snapToGrid: true,
   gridSize: 8,
-  defaultFontSize: 13
+  defaultFontSize: 13,
+  radAutoThread: true
 }
 
 export const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
@@ -78,9 +83,17 @@ export interface Toast {
   readonly kind: 'info' | 'error'
 }
 
+/** One row of a read-only result list: clicking it closes the dialog and runs `onSelect`. */
+export interface ListRow {
+  readonly text: string
+  readonly indent?: number
+  readonly onSelect?: () => void
+}
+
 /** Modal dialogs; promise-based ones carry their resolver. */
 export type ModalState =
   | { readonly kind: 'palette' }
+  | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
   | { readonly kind: 'prompt'; readonly title: string; readonly initial: string; readonly resolve: (v: string | null) => void }
   | {
@@ -215,7 +228,8 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
     defaultFontSize:
       typeof v.defaultFontSize === 'number' && v.defaultFontSize >= 6 && v.defaultFontSize <= 72
         ? Math.round(v.defaultFontSize)
-        : DEFAULT_PREFERENCES.defaultFontSize
+        : DEFAULT_PREFERENCES.defaultFontSize,
+    radAutoThread: typeof v.radAutoThread === 'boolean' ? v.radAutoThread : DEFAULT_PREFERENCES.radAutoThread
   }
 }
 
@@ -450,7 +464,7 @@ export function createUiStore() {
 }
 
 export function sameTool(a: PaletteTool, b: PaletteTool): boolean {
-  return a.kind === b.kind && a.messageSort === b.messageSort && (a.selfConnection ?? false) === (b.selfConnection ?? false)
+  return a.kind === b.kind && a.messageSort === b.messageSort && (a.selfConnection ?? false) === (b.selfConnection ?? false) && a.freeEnd === b.freeEnd
 }
 
 export const uiStore = createUiStore()

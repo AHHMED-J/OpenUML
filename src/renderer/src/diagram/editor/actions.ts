@@ -29,6 +29,7 @@ import {
 } from '../../model'
 import {
   LineStyle,
+  distancePointToPolyline,
   edgeLabelParamsFromBox,
   routeEdge,
   simplifyOblique,
@@ -37,8 +38,8 @@ import {
   type TextMeasurer
 } from '../core'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
-import type { DiagramLayout } from '../layout/types'
-import { edgeNotationFor, nodeNotationFor } from '../render/registry'
+import type { DiagramLayout, NodeLayout } from '../layout/types'
+import { edgeNotationFor, nodeNotationFor, type ContainerBehavior } from '../render/registry'
 
 export interface DiagramEnv {
   readonly engine: ModelEngine
@@ -51,6 +52,38 @@ export interface ToolSpec {
   readonly kind: string
   readonly messageSort?: string
   readonly selfConnection?: boolean
+  readonly freeEnd?: 'tail' | 'head'
+}
+
+/**
+ * Per-diagram-type extension points of the editor. A notation family registers them for its
+ * diagram type with `registerDiagramHooks`; every hook is optional and the default behavior applies
+ * where a hook is missing (or, for `createEdge`/`reconnect`, returns `undefined`).
+ */
+export interface DiagramHooks {
+  /** Runs inside every geometry operation of the diagram before the geometry write-back (e.g. auto-numbering). */
+  normalize?(b: OperationBuilder, diagram: Diagram): void
+  /** Handles the delete gesture; returns the views it left to the default deletion. */
+  deleteViews?(env: DiagramEnv, views: readonly View[]): View[]
+  /** Reconnects an edge end (`at`: where it was released); `undefined` = use the default. */
+  reconnect?(env: DiagramEnv, edge: EdgeView, end: 'tail' | 'head', view: View, at: Point | undefined): boolean | undefined
+  /** Creates an edge from a line gesture whose ends may be null (empty canvas); `undefined` = use the default. */
+  createEdge?(env: DiagramEnv, layout: DiagramLayout, tool: ToolSpec, tailId: string | null, headId: string | null, press: Point, release: Point): string | null | undefined
+  /** The view a line gesture picks at `p` as an end (nodes by default); null = none. */
+  pickEnd?(layout: DiagramLayout, p: Point, tool: ToolSpec): string | null
+  /** Whether the line tool may start on empty canvas. */
+  freeEnds?(tool: ToolSpec): boolean
+}
+
+const diagramHooks = new Map<string, DiagramHooks>()
+
+/** Registers the editor hooks of a diagram type (e.g. `'IDEF0Diagram'`). */
+export function registerDiagramHooks(diagramType: string, hooks: DiagramHooks): void {
+  diagramHooks.set(diagramType, hooks)
+}
+
+export function hooksFor(diagram: Diagram): DiagramHooks | undefined {
+  return diagramHooks.get(diagram._type)
 }
 
 export function isNodeKind(kind: string): kind is NodeKind {
@@ -76,6 +109,9 @@ export function syncGeometry(env: DiagramEnv, b: OperationBuilder): void {
     if (view.width !== node.box.width || view.height !== node.box.height) {
       b.setAll(view, { width: node.box.width, height: node.box.height })
     }
+    if (node.derivedPosition && (view.left !== node.box.left || view.top !== node.box.top)) {
+      b.setAll(view, { left: node.box.left, top: node.box.top })
+    }
   }
   for (const [id, edge] of layout.edges) {
     const view = repo.get(id) as EdgeView | undefined
@@ -89,6 +125,7 @@ export function syncGeometry(env: DiagramEnv, b: OperationBuilder): void {
 export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: OperationBuilder) => T): T {
   return env.engine.transact(name, (b) => {
     const result = change(b)
+    hooksFor(env.diagram)?.normalize?.(b, env.diagram)
     syncGeometry(env, b)
     return result
   })
@@ -127,10 +164,37 @@ export function findDropContainer(env: DiagramEnv, layout: DiagramLayout, p: Poi
     if (!node || !rectHas(node.box, p)) continue
     const view = repo.get(node.viewId) as View | undefined
     if (!view || excluded.has(view)) continue
+    const nested = subContainerAt(env, node, p, (behavior, host) => moving.every((m) => behavior.accepts(host, m.model ?? null)))
+    if (nested) return nested
     const behavior = nodeNotationFor(view).container
     if (behavior && moving.every((m) => behavior.accepts(view, m.model ?? null))) return view
   }
   return null
+}
+
+/** The nested container view (e.g. a state's region) of `node` under `p` that satisfies `accepts`. */
+function subContainerAt(
+  env: DiagramEnv,
+  node: NodeLayout,
+  p: Point,
+  accepts: (behavior: ContainerBehavior, host: View) => boolean
+): View | null {
+  const subs = node.subContainers ?? []
+  for (let j = subs.length - 1; j >= 0; j--) {
+    const sub = subs[j]
+    if (!sub || !rectHas(sub.box, p)) continue
+    const host = env.engine.repository.get(sub.viewId) as View | undefined
+    const behavior = host ? nodeNotationFor(host).container : undefined
+    if (host && behavior && accepts(behavior, host)) return host
+  }
+  return null
+}
+
+/** How far outside an action's border a click still creates a pin on it. */
+export const PIN_BORDER_TOLERANCE = 12
+
+function inflate(r: Rect, by: number): Rect {
+  return { left: r.left - by, top: r.top - by, width: r.width + 2 * by, height: r.height + 2 * by }
 }
 
 function rectHas(r: Rect, p: Point): boolean {
@@ -162,6 +226,8 @@ function recontain(b: OperationBuilder, env: DiagramEnv, nodes: readonly View[],
     if (old) b.removeRef(old, 'containedViews', v)
     b.set(v, 'containerView', container)
     if (container) b.addRef(container, 'containedViews', v)
+    const handler = container ?? old
+    if (handler && nodeNotationFor(handler).container?.reparent?.({ builder: b, diagram: env.diagram, child: v, container, previous: old })) continue
     const model = v.model
     if (!model) continue
     if (container) {
@@ -193,7 +259,10 @@ export function moveSelection(env: DiagramEnv, ids: readonly string[], dx: numbe
     // Views inside another moved view move with it.
     const moved = new Set<View>(views)
     const roots = views.filter((v) => {
-      for (let c = v.containerView; c; c = c.containerView) if (moved.has(c)) return false
+      for (let c = v.containerView; c; c = c.containerView) {
+        // A region is a sub-view of its state: the state moving takes its contents along.
+        for (let a: Elem | null = c; a && isKindOf(a, 'View'); a = a._parent) if (moved.has(a)) return false
+      }
       return true
     })
     moveViews(env.engine, roots, dx, dy)
@@ -233,7 +302,7 @@ export function setEdgeVertices(env: DiagramEnv, id: string, points: readonly Po
  * Reconnects one end of an edge to another view; the relationship's source/target (or
  * association end) is updated too. Returns false when the connection is not allowed.
  */
-export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'head', viewId: string): boolean {
+export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'head', viewId: string, at?: Point): boolean {
   const repo = env.engine.repository
   const edge = repo.get(edgeId)
   const view = repo.get(viewId)
@@ -243,6 +312,8 @@ export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'hea
   const tail = end === 'tail' ? view : edge.tail
   const head = end === 'head' ? view : edge.head
   if (!tail || !head || !canConnect(kind, tail, head)) return false
+  const hooked = hooksFor(env.diagram)?.reconnect?.(env, edge, end, view, at)
+  if (hooked !== undefined) return hooked
   if ((end === 'tail' ? edge.tail : edge.head) === view) return false
   withGeometry(env, 'Reconnect', (b) => {
     b.set(edge, end, view)
@@ -275,7 +346,9 @@ export function moveEdgeLabel(env: DiagramEnv, layout: DiagramLayout, edgeId: st
 
 /** Delete (views only). */
 export function deleteViews(env: DiagramEnv, ids: readonly string[]): void {
-  const views = viewsById(env, ids)
+  let views = viewsById(env, ids)
+  const hook = hooksFor(env.diagram)?.deleteViews
+  if (hook) views = hook(env, views)
   if (views.length > 0) deleteFromView(env.engine, views)
 }
 
@@ -289,15 +362,34 @@ export function creationContainer(env: DiagramEnv, layout: DiagramLayout, kind: 
   const repo = env.engine.repository
   for (let i = layout.order.length - 1; i >= 0; i--) {
     const node = layout.nodes.get(layout.order[i] as string)
-    if (!node || !rectHas(node.box, p)) continue
+    const pin = kind === 'InputPin' || kind === 'OutputPin' || kind === 'ConnectionPointReference'
+    // Pins straddle the action's border, so clicks within a small tolerance outside it count too.
+    if (!node || !rectHas(pin ? inflate(node.box, PIN_BORDER_TOLERANCE) : node.box, p)) continue
     const view = repo.get(node.viewId) as View | undefined
     if (!view) continue
-    if (kind === 'InputPin' || kind === 'OutputPin') {
-      if (isKindOf(view.model, 'UMLAction')) return view
+    if (pin) {
+      if (isKindOf(view.model, kind === 'ConnectionPointReference' ? 'UMLState' : 'UMLAction')) return view
       continue
     }
+    const nested = subContainerAt(env, node, p, (b, host) => b.accepts(host, probe))
+    if (nested) return nested
     const behavior = nodeNotationFor(view).container
     if (behavior?.accepts(view, probe)) return view
+  }
+  return null
+}
+
+/** The message or time segment under `p` that a new time constraint attaches to. */
+function timeConstraintHost(env: DiagramEnv, layout: DiagramLayout, p: Point): View | null {
+  const repo = env.engine.repository
+  for (const edge of layout.edges.values()) {
+    if ((edge.viewType === 'UMLTimingMessageView' || edge.viewType === 'UMLSeqMessageView') && distancePointToPolyline(p, edge.points) <= 6) {
+      return (repo.get(edge.viewId) as View | undefined) ?? null
+    }
+  }
+  for (let i = layout.order.length - 1; i >= 0; i--) {
+    const node = layout.nodes.get(layout.order[i] as string)
+    if (node && node.viewType === 'UMLTimeSegmentView' && rectHas(node.box, p)) return (repo.get(node.viewId) as View | undefined) ?? null
   }
   return null
 }
@@ -309,19 +401,35 @@ export function creationContainer(env: DiagramEnv, layout: DiagramLayout, kind: 
 export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeKind, rect: Rect): string | null {
   const click = rect.width < 4 && rect.height < 4
   const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-  const container = creationContainer(env, layout, kind, click ? { x: rect.left, y: rect.top } : center)
-  if ((kind === 'InputPin' || kind === 'OutputPin') && !container) return null
+  const at = click ? { x: rect.left, y: rect.top } : center
+  // A time constraint annotates a message or a time segment: that view is its host.
+  const host = kind === 'TimeConstraint' ? timeConstraintHost(env, layout, at) : null
+  if (kind === 'TimeConstraint' && !host) return null
+  const container = host ?? creationContainer(env, layout, kind, at)
+  if ((kind === 'InputPin' || kind === 'OutputPin' || kind === 'ConnectionPointReference') && !container) return null
   const spec = NODE_KINDS[kind]
   const probe: Elem | null = spec.modelType ? { _type: spec.modelType, _id: '', _parent: null } : null
+  // A state invariant constrains the lifeline it is dropped on, and is centered on its line.
+  let covered: Elem | undefined
+  let left = rect.left
+  if (kind === 'StateInvariant') {
+    const hit = [...layout.order].reverse().map((id) => layout.nodes.get(id)).find((n) => n && n.viewType === 'UMLSeqLifelineView' && rectHas(n.box, at))
+    const model = hit ? (env.engine.repository.get(hit.viewId) as View | undefined)?.model : null
+    if (hit && model) {
+      covered = model
+      left = (hit.data as { lineX: number }).lineX - (click ? NODE_KINDS.StateInvariant.size[0] : rect.width) / 2
+    }
+  }
   const ownerTarget = container && kind !== 'InputPin' && kind !== 'OutputPin' ? nodeNotationFor(container).container?.ownerFor?.(container, probe) : null
   try {
     const plan = withGeometry(env, `Create ${kind}`, () =>
       createNode(env.engine, {
         kind,
         diagram: env.diagram,
-        left: rect.left,
+        left,
         top: rect.top,
         ...(click ? {} : { width: rect.width, height: rect.height }),
+        ...(covered ? { covered } : {}),
         ...(container ? { container } : {}),
         ...(ownerTarget ? { owner: ownerTarget.owner } : {})
       })
@@ -344,7 +452,8 @@ export function createEdgeBetween(env: DiagramEnv, layout: DiagramLayout, tool: 
   const kind = tool.kind as EdgeKind
   if (!tail || !head || !canConnect(kind, tail, head)) return null
   let points: Point[] | undefined
-  if (kind !== 'Message') {
+  // Messages route themselves (sequence: horizontal at the press y; timing: between the segments).
+  if (kind !== 'Message' && kind !== 'TimingMessage') {
     const t = layout.nodes.get(tailId)
     const h = layout.nodes.get(headId)
     if (t && h) {
@@ -373,6 +482,47 @@ export function createEdgeBetween(env: DiagramEnv, layout: DiagramLayout, tool: 
     return plan.view?._id ?? null
   } catch (err) {
     console.warn(`Cannot create ${kind}`, err)
+    return null
+  }
+}
+
+/**
+ * Found/lost message: creates a message endpoint at `free` and a message between it and the
+ * lifeline `lifelineId` (the endpoint is the tail for a found message, the head for a lost one),
+ * as one operation. Returns the message view's ID or null when `lifelineId` is not a lifeline.
+ */
+export function createEndpointMessage(
+  env: DiagramEnv,
+  layout: DiagramLayout,
+  tool: ToolSpec,
+  lifelineId: string,
+  free: Point,
+  y: number
+): string | null {
+  const lifeline = env.engine.repository.get(lifelineId) as View | undefined
+  if (!lifeline || !isKindOf(lifeline, 'UMLSeqLifelineView') || !tool.freeEnd) return null
+  const size = NODE_KINDS.Endpoint.size
+  try {
+    const plan = withGeometry(env, tool.freeEnd === 'tail' ? 'Create Found Message' : 'Create Lost Message', () => {
+      const end = createNode(env.engine, {
+        kind: 'Endpoint',
+        diagram: env.diagram,
+        left: Math.round(free.x - size[0] / 2),
+        top: Math.round(y - size[1] / 2)
+      }).view as View
+      return createEdge(env.engine, {
+        kind: 'Message',
+        diagram: env.diagram,
+        tail: tool.freeEnd === 'tail' ? end : lifeline,
+        head: tool.freeEnd === 'tail' ? lifeline : end,
+        y: Math.round(y),
+        ...(tool.messageSort ? { messageSort: tool.messageSort } : {})
+      })
+    })
+    void layout
+    return plan.view?._id ?? null
+  } catch (err) {
+    console.warn(`Cannot create ${tool.kind}`, err)
     return null
   }
 }

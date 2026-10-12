@@ -20,10 +20,12 @@ describe('palettes', () => {
 
   it('shows diagram-specific groups plus annotations', () => {
     const titles = (type: string | null) => palettesFor(type).map((g) => g.id)
-    expect(titles('UMLClassDiagram')).toEqual(['classes-basic', 'classes-advanced', 'packages', 'annotations'])
+    expect(titles('UMLClassDiagram')).toEqual(['classes-basic', 'classes-advanced', 'packages', 'instances', 'composite-structure', 'annotations'])
     expect(titles('UMLUseCaseDiagram')).toEqual(['use-cases', 'annotations'])
     expect(titles('UMLSequenceDiagram')).toEqual(['interactions-basic', 'interactions-advanced', 'annotations'])
     expect(titles('UMLActivityDiagram')).toEqual(['activities-basic', 'activities-advanced', 'annotations'])
+    expect(titles('UMLStatechartDiagram')).toEqual(['statechart-basic', 'statechart-advanced', 'annotations'])
+    expect(titles('UMLTimingDiagram')).toEqual(['timing', 'annotations'])
     expect(titles(null)).toEqual([])
   })
 
