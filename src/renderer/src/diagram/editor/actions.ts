@@ -51,6 +51,7 @@ export interface ToolSpec {
   readonly kind: string
   readonly messageSort?: string
   readonly selfConnection?: boolean
+  readonly freeEnd?: 'tail' | 'head'
 }
 
 export function isNodeKind(kind: string): kind is NodeKind {
@@ -313,15 +314,28 @@ export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeK
   if ((kind === 'InputPin' || kind === 'OutputPin') && !container) return null
   const spec = NODE_KINDS[kind]
   const probe: Elem | null = spec.modelType ? { _type: spec.modelType, _id: '', _parent: null } : null
+  // A state invariant constrains the lifeline it is dropped on, and is centered on its line.
+  let covered: Elem | undefined
+  let left = rect.left
+  if (kind === 'StateInvariant') {
+    const at = click ? { x: rect.left, y: rect.top } : center
+    const hit = [...layout.order].reverse().map((id) => layout.nodes.get(id)).find((n) => n && n.viewType === 'UMLSeqLifelineView' && rectHas(n.box, at))
+    const model = hit ? (env.engine.repository.get(hit.viewId) as View | undefined)?.model : null
+    if (hit && model) {
+      covered = model
+      left = (hit.data as { lineX: number }).lineX - (click ? NODE_KINDS.StateInvariant.size[0] : rect.width) / 2
+    }
+  }
   const ownerTarget = container && kind !== 'InputPin' && kind !== 'OutputPin' ? nodeNotationFor(container).container?.ownerFor?.(container, probe) : null
   try {
     const plan = withGeometry(env, `Create ${kind}`, () =>
       createNode(env.engine, {
         kind,
         diagram: env.diagram,
-        left: rect.left,
+        left,
         top: rect.top,
         ...(click ? {} : { width: rect.width, height: rect.height }),
+        ...(covered ? { covered } : {}),
         ...(container ? { container } : {}),
         ...(ownerTarget ? { owner: ownerTarget.owner } : {})
       })
@@ -373,6 +387,47 @@ export function createEdgeBetween(env: DiagramEnv, layout: DiagramLayout, tool: 
     return plan.view?._id ?? null
   } catch (err) {
     console.warn(`Cannot create ${kind}`, err)
+    return null
+  }
+}
+
+/**
+ * Found/lost message: creates a message endpoint at `free` and a message between it and the
+ * lifeline `lifelineId` (the endpoint is the tail for a found message, the head for a lost one),
+ * as one operation. Returns the message view's ID or null when `lifelineId` is not a lifeline.
+ */
+export function createEndpointMessage(
+  env: DiagramEnv,
+  layout: DiagramLayout,
+  tool: ToolSpec,
+  lifelineId: string,
+  free: Point,
+  y: number
+): string | null {
+  const lifeline = env.engine.repository.get(lifelineId) as View | undefined
+  if (!lifeline || !isKindOf(lifeline, 'UMLSeqLifelineView') || !tool.freeEnd) return null
+  const size = NODE_KINDS.Endpoint.size
+  try {
+    const plan = withGeometry(env, tool.freeEnd === 'tail' ? 'Create Found Message' : 'Create Lost Message', () => {
+      const end = createNode(env.engine, {
+        kind: 'Endpoint',
+        diagram: env.diagram,
+        left: Math.round(free.x - size[0] / 2),
+        top: Math.round(y - size[1] / 2)
+      }).view as View
+      return createEdge(env.engine, {
+        kind: 'Message',
+        diagram: env.diagram,
+        tail: tool.freeEnd === 'tail' ? end : lifeline,
+        head: tool.freeEnd === 'tail' ? lifeline : end,
+        y: Math.round(y),
+        ...(tool.messageSort ? { messageSort: tool.messageSort } : {})
+      })
+    })
+    void layout
+    return plan.view?._id ?? null
+  } catch (err) {
+    console.warn(`Cannot create ${tool.kind}`, err)
     return null
   }
 }

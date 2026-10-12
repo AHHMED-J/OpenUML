@@ -37,7 +37,7 @@ const edge = (
   id: string,
   label: string,
   kind: EdgeKind,
-  extra: Pick<PaletteTool, 'messageSort' | 'selfConnection'> = {}
+  extra: Pick<PaletteTool, 'messageSort' | 'selfConnection' | 'freeEnd'> = {}
 ): PaletteItem => ({
   id,
   label,
@@ -120,7 +120,16 @@ export const PALETTES: readonly PaletteGroup[] = [
     id: 'interactions-advanced',
     title: 'Interactions (Advanced)',
     diagramTypes: [SEQUENCE],
-    items: [node('combined-fragment', 'Combined Fragment', 'CombinedFragment')]
+    items: [
+      edge('found-message', 'Found Message', 'Message', { messageSort: 'asynchCall', freeEnd: 'tail' }),
+      edge('lost-message', 'Lost Message', 'Message', { messageSort: 'asynchCall', freeEnd: 'head' }),
+      node('endpoint', 'Endpoint', 'Endpoint', 'point'),
+      node('gate', 'Gate', 'Gate', 'point'),
+      node('state-invariant', 'State Invariant', 'StateInvariant', 'point'),
+      node('continuation', 'Continuation', 'Continuation'),
+      node('combined-fragment', 'Combined Fragment', 'CombinedFragment'),
+      node('interaction-use', 'Interaction Use', 'InteractionUse')
+    ]
   },
   {
     id: 'activities-basic',

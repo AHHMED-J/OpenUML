@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { addFeature, createDiagram, createEdge, createNode, ModelEngine, setFields } from '../../../commands'
 import { createDefaultProject, createElement, Repository, type Diagram, type Elem, type NodeView, type View } from '../../../model'
 import { FixedWidthTextMeasurer, type Point } from '../../core'
-import { moveSelection, resizeSubView, syncGeometry, type DiagramEnv } from '../../editor/actions'
+import { createEndpointMessage, createNodeAt, moveSelection, resizeSubView, syncGeometry, type DiagramEnv } from '../../editor/actions'
 import { hitTestDiagram } from '../../editor/hitTest'
 import { applyQuickEdit } from '../../editor/quickEditApply'
 import { computeDiagramLayout } from '../../layout/layoutDiagram'
@@ -64,6 +64,30 @@ function seq(): SeqTest {
 
 const xs = (points: readonly Point[]): number[] => points.map((p) => p.x)
 
+describe('found/lost messages and advanced fragments (editor creation)', () => {
+  it('creates found and lost messages with a new endpoint, and a state invariant on a lifeline', () => {
+    const t = seq()
+    const a = t.lifeline(200)
+    const la = t.lifelineLayout(a)
+    const found = createEndpointMessage(t, t.layout(), { kind: 'Message', messageSort: 'asynchCall', freeEnd: 'tail' }, a._id, { x: 60, y: 150 }, 150)
+    expect(found).not.toBeNull()
+    const lost = createEndpointMessage(t, t.layout(), { kind: 'Message', messageSort: 'asynchCall', freeEnd: 'head' }, a._id, { x: 420, y: 200 }, 200)
+    expect(lost).not.toBeNull()
+    const interaction = t.diagram._parent as Elem
+    expect((interaction['participants'] as Elem[]).filter((p) => p._type === 'UMLEndpoint')).toHaveLength(2)
+    const nonLifeline = createEndpointMessage(t, t.layout(), { kind: 'Message', freeEnd: 'head' }, 'nope', { x: 1, y: 1 }, 1)
+    expect(nonLifeline).toBeNull()
+    const layout = t.layout()
+    expect(layout.edges.get(found as string)?.points[0]?.y).toBe(150)
+
+    const inv = createNodeAt(t, layout, 'StateInvariant', { left: la.data.lineX + 5, top: 300, width: 0, height: 0 })
+    const model = t.repository.get(inv as string) as View
+    expect(model.model?.['covered']).toBe(a.model)
+    const box = t.layout().nodes.get(inv as string)?.box
+    expect((box?.left ?? 0) + (box?.width ?? 0) / 2).toBe(la.data.lineX)
+  })
+})
+
 describe('lifeline layout', () => {
   it('draws a 40-tall header at y = 40, at least name + 20 wide, with the line at its center', () => {
     const t = seq()
@@ -76,8 +100,8 @@ describe('lifeline layout', () => {
     expect(l.data.header).toEqual({ left: 50, top: 40, width: nameWidth + 20, height: 40 })
     expect(l.data.lineX).toBe(Math.round(50 + (nameWidth + 20) / 2))
     expect(l.data.lineTop).toBe(80)
-    // The stored 200 height is kept: the line ends at 240.
-    expect(l.data.lineBottom).toBe(240)
+    // The line reaches 15 above the diagram frame's bottom (8 + 600).
+    expect(l.data.lineBottom).toBe(593)
     // The name is centered vertically in the header.
     const line = l.data.nameLines[0]
     expect(line?.text).toBe('Lifeline1')
@@ -96,17 +120,35 @@ describe('lifeline layout', () => {
     expect(l.minWidth).toBe(Math.ceil('c[1]: CustomerAccount'.length * BOLD_CHAR) + 20)
   })
 
-  it('extends the line 15 below the lowest message of the diagram', () => {
+  it('extends the line to the frame bottom, and 55 below the lowest message when that is lower', () => {
     const t = seq()
     const a = t.lifeline(50)
     const b = t.lifeline(250)
     const c = t.lifeline(450)
     t.message(a, b, 400, 'asynchSignal')
+    for (const v of [a, b, c]) expect(t.lifelineLayout(v).data.lineBottom).toBe(593)
+    t.message(a, b, 580, 'asynchSignal')
     for (const v of [a, b, c]) {
       const l = t.lifelineLayout(v)
-      expect(l.data.lineBottom).toBe(415)
-      expect(l.minHeight).toBe(415 - 40)
+      expect(l.data.lineBottom).toBe(635)
+      expect(l.minHeight).toBe(635 - 40)
     }
+  })
+
+  it('lets a message be attached below the current lowest one by clicking lower on the lines', () => {
+    const t = seq()
+    const a = t.lifeline(50)
+    const b = t.lifeline(250)
+    t.message(a, b, 560, 'asynchSignal')
+    const la = t.lifelineLayout(a)
+    const lb = t.lifelineLayout(b)
+    const y = 600
+    for (const [l, v] of [[la, a], [lb, b]] as const) {
+      const hit = hitTestDiagram(t.layout(), { x: l.data.lineX, y }, { selected: new Set(), zoom: 1, nodesOnly: true })
+      expect(hit?.viewId).toBe(v._id)
+    }
+    const m = t.message(a, b, y, 'asynchSignal')
+    expect(t.edgeLayout(m).points[0]?.y).toBe(y)
   })
 
   it('cuts a destroyed lifeline at its delete message and draws the X there', () => {

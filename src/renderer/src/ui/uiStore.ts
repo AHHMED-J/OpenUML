@@ -30,6 +30,8 @@ export interface PaletteTool {
   readonly messageSort?: string
   /** Self message: tail = head. */
   readonly selfConnection?: boolean
+  /** Found/lost message: the end (`tail` = found, `head` = lost) that is drawn on empty canvas and gets a new endpoint. */
+  readonly freeEnd?: 'tail' | 'head'
 }
 
 export type ThemePreference = 'system' | 'dark' | 'light'
@@ -450,7 +452,7 @@ export function createUiStore() {
 }
 
 export function sameTool(a: PaletteTool, b: PaletteTool): boolean {
-  return a.kind === b.kind && a.messageSort === b.messageSort && (a.selfConnection ?? false) === (b.selfConnection ?? false)
+  return a.kind === b.kind && a.messageSort === b.messageSort && (a.selfConnection ?? false) === (b.selfConnection ?? false) && a.freeEnd === b.freeEnd
 }
 
 export const uiStore = createUiStore()
