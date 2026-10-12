@@ -41,6 +41,18 @@ import {
   type Idef0EdgeKind,
   type Idef0NodeKind
 } from './factories-idef0'
+import {
+  RAD_EDGE_KINDS,
+  RAD_NODE_KINDS,
+  canConnectRad,
+  isRadEdgeKind,
+  isRadNodeKind,
+  planRadDiagram,
+  planRadEdge,
+  planRadNode,
+  type RadEdgeKind,
+  type RadNodeKind
+} from './factories-rad'
 import type {
   Bounds,
   Diagram,
@@ -150,6 +162,7 @@ export type DiagramKind =
   | 'DeploymentDiagram'
   | 'PackageDiagram'
   | 'ProfileDiagram'
+  | 'RADDiagram'
   | 'IDEF0Diagram'
   | StructureDiagramKind
 
@@ -165,6 +178,7 @@ export const DIAGRAM_TYPES: Record<DiagramKind, string> = {
   DeploymentDiagram: 'UMLDeploymentDiagram',
   PackageDiagram: 'UMLPackageDiagram',
   ProfileDiagram: 'UMLProfileDiagram',
+  RADDiagram: 'RADDiagram',
   IDEF0Diagram: 'IDEF0Diagram'
 }
 
@@ -197,6 +211,7 @@ function nest<T extends Elem>(parent: Elem, child: T): T {
 export function planDiagram(kind: DiagramKind, owner: Elem, name?: string): DiagramPlan {
   if (kind === 'StatechartDiagram') return planStatechartDiagram(owner, name)
   if (kind === 'TimingDiagram') return planTimingDiagram(owner, name)
+  if (kind === 'RADDiagram') return planRadDiagram(owner, name)
   if (kind === 'IDEF0Diagram') return planIdef0Diagram(owner, name)
   if (isStructureDiagramKind(kind)) return planStructureDiagram(kind, owner, name)
   const type = DIAGRAM_TYPES[kind]
@@ -258,6 +273,7 @@ export function planDiagram(kind: DiagramKind, owner: Elem, name?: string): Diag
 export type NodeKind =
   | StateMachineNodeKind
   | TimingNodeKind
+  | RadNodeKind
   | Idef0NodeKind
   // class diagram
   | 'Class'
@@ -329,6 +345,7 @@ const CONTROL_FIELD = 'nodes'
 export const NODE_KINDS: Readonly<Record<NodeKind, NodeKindSpec>> = {
   ...STATEMACHINE_NODE_KINDS,
   ...TIMING_NODE_KINDS,
+  ...RAD_NODE_KINDS,
   ...IDEF0_NODE_KINDS,
   ...STRUCTURE_NODE_KINDS,
   Class: { modelType: 'UMLClass', viewType: 'UMLClassView', size: CLASSIFIER_SIZE },
@@ -446,6 +463,7 @@ export function ownerFieldFor(owner: Elem, kind: NodeKind): string {
 
 /** Plans a new node: model element (if any) + its view with all required sub-views. */
 export function planNode(req: NodeRequest): CreationPlan {
+  if (isRadNodeKind(req.kind)) return planRadNode(req) as CreationPlan
   if (isIdef0NodeKind(req.kind)) return planIdef0Node(req)
   const structure = planStructureNode(req)
   if (structure) return structure
@@ -506,6 +524,7 @@ function buildNodeView(
   insertions: Insertion[]
 ): View {
   if (isStructureNodeKind(req.kind)) throw new Error(`${req.kind} is planned by planStructureNode`)
+  if (isRadNodeKind(req.kind)) throw new Error(`${req.kind} is planned by planRadNode`)
   if (isIdef0NodeKind(req.kind)) throw new Error(`${req.kind} is planned by planIdef0Node`)
   switch (req.kind) {
     case 'Class':
@@ -763,6 +782,7 @@ export function planItemViews(item: Elem, modelField: string, viewsOfOwner: read
 export type EdgeKind =
   | StateMachineEdgeKind
   | TimingEdgeKind
+  | RadEdgeKind
   | Idef0EdgeKind
   | 'Association'
   | 'DirectedAssociation'
@@ -797,6 +817,7 @@ interface EdgeKindSpec {
 export const EDGE_KINDS: Readonly<Record<EdgeKind, EdgeKindSpec>> = {
   ...STATEMACHINE_EDGE_KINDS,
   ...TIMING_EDGE_KINDS,
+  ...RAD_EDGE_KINDS,
   ...IDEF0_EDGE_KINDS,
   ...STRUCTURE_EDGE_KINDS,
   Association: { modelType: 'UMLAssociation', viewType: 'UMLAssociationView' },
@@ -868,6 +889,7 @@ function canContain(child: Elem | null, container: Elem | null): boolean {
 /** Whether an edge of `kind` may connect `tail` to `head` (model types must fit). */
 export function canConnect(kind: EdgeKind, tail: View, head: View): boolean {
   if (isStructureEdgeKind(kind)) return canConnectStructure(kind, tail, head)
+  if (isRadEdgeKind(kind)) return canConnectRad(kind, tail, head)
   if (isIdef0EdgeKind(kind)) return canConnectIdef0(kind, tail, head)
   const a = tail.model
   const b = head.model
@@ -925,6 +947,7 @@ export function planEdge(req: EdgeRequest): CreationPlan {
   }
   const structure = planStructureEdge(req)
   if (structure) return structure
+  if (isRadEdgeKind(req.kind)) return planRadEdge(req) as CreationPlan
   if (isIdef0EdgeKind(req.kind)) return planIdef0Edge(req)
   if (req.kind === 'Message') return planMessage(req)
   if (req.kind === 'Transition') return planTransition(req)
