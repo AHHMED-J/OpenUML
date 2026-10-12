@@ -29,6 +29,18 @@ import {
   type TimingEdgeKind,
   type TimingNodeKind
 } from './factories-timing'
+import {
+  IDEF0_EDGE_KINDS,
+  IDEF0_NODE_KINDS,
+  canConnectIdef0,
+  isIdef0EdgeKind,
+  isIdef0NodeKind,
+  planIdef0Diagram,
+  planIdef0Edge,
+  planIdef0Node,
+  type Idef0EdgeKind,
+  type Idef0NodeKind
+} from './factories-idef0'
 import type {
   Bounds,
   Diagram,
@@ -103,6 +115,15 @@ export interface CreationPlan {
   readonly refAdditions: readonly RefAddition[]
   /** Model elements relocated into another owner as part of the creation (package containment). */
   readonly moves?: readonly ModelMove[]
+  /** Reference/field assignments on existing elements applied after the insertions (e.g. `childDiagram`). */
+  readonly sets?: readonly FieldSet[]
+}
+
+/** Assigns `value` to the non-containment field `owner[field]` as part of a creation. */
+export interface FieldSet {
+  readonly owner: Elem
+  readonly field: string
+  readonly value: unknown
 }
 
 // =============================================================================================
@@ -129,6 +150,7 @@ export type DiagramKind =
   | 'DeploymentDiagram'
   | 'PackageDiagram'
   | 'ProfileDiagram'
+  | 'IDEF0Diagram'
   | StructureDiagramKind
 
 export const DIAGRAM_TYPES: Record<DiagramKind, string> = {
@@ -142,7 +164,8 @@ export const DIAGRAM_TYPES: Record<DiagramKind, string> = {
   ComponentDiagram: 'UMLComponentDiagram',
   DeploymentDiagram: 'UMLDeploymentDiagram',
   PackageDiagram: 'UMLPackageDiagram',
-  ProfileDiagram: 'UMLProfileDiagram'
+  ProfileDiagram: 'UMLProfileDiagram',
+  IDEF0Diagram: 'IDEF0Diagram'
 }
 
 /** Diagram kinds that, added to the Project, are wrapped in a new `UMLModel`. */
@@ -174,6 +197,7 @@ function nest<T extends Elem>(parent: Elem, child: T): T {
 export function planDiagram(kind: DiagramKind, owner: Elem, name?: string): DiagramPlan {
   if (kind === 'StatechartDiagram') return planStatechartDiagram(owner, name)
   if (kind === 'TimingDiagram') return planTimingDiagram(owner, name)
+  if (kind === 'IDEF0Diagram') return planIdef0Diagram(owner, name)
   if (isStructureDiagramKind(kind)) return planStructureDiagram(kind, owner, name)
   const type = DIAGRAM_TYPES[kind]
   const diagram = createElement<Diagram>(type)
@@ -234,6 +258,7 @@ export function planDiagram(kind: DiagramKind, owner: Elem, name?: string): Diag
 export type NodeKind =
   | StateMachineNodeKind
   | TimingNodeKind
+  | Idef0NodeKind
   // class diagram
   | 'Class'
   | 'Interface'
@@ -304,6 +329,7 @@ const CONTROL_FIELD = 'nodes'
 export const NODE_KINDS: Readonly<Record<NodeKind, NodeKindSpec>> = {
   ...STATEMACHINE_NODE_KINDS,
   ...TIMING_NODE_KINDS,
+  ...IDEF0_NODE_KINDS,
   ...STRUCTURE_NODE_KINDS,
   Class: { modelType: 'UMLClass', viewType: 'UMLClassView', size: CLASSIFIER_SIZE },
   Interface: { modelType: 'UMLInterface', viewType: 'UMLInterfaceView', size: [30, 30] },
@@ -420,6 +446,7 @@ export function ownerFieldFor(owner: Elem, kind: NodeKind): string {
 
 /** Plans a new node: model element (if any) + its view with all required sub-views. */
 export function planNode(req: NodeRequest): CreationPlan {
+  if (isIdef0NodeKind(req.kind)) return planIdef0Node(req)
   const structure = planStructureNode(req)
   if (structure) return structure
   const spec = NODE_KINDS[req.kind]
@@ -479,6 +506,7 @@ function buildNodeView(
   insertions: Insertion[]
 ): View {
   if (isStructureNodeKind(req.kind)) throw new Error(`${req.kind} is planned by planStructureNode`)
+  if (isIdef0NodeKind(req.kind)) throw new Error(`${req.kind} is planned by planIdef0Node`)
   switch (req.kind) {
     case 'Class':
     case 'DataType':
@@ -735,6 +763,7 @@ export function planItemViews(item: Elem, modelField: string, viewsOfOwner: read
 export type EdgeKind =
   | StateMachineEdgeKind
   | TimingEdgeKind
+  | Idef0EdgeKind
   | 'Association'
   | 'DirectedAssociation'
   | 'Aggregation'
@@ -768,6 +797,7 @@ interface EdgeKindSpec {
 export const EDGE_KINDS: Readonly<Record<EdgeKind, EdgeKindSpec>> = {
   ...STATEMACHINE_EDGE_KINDS,
   ...TIMING_EDGE_KINDS,
+  ...IDEF0_EDGE_KINDS,
   ...STRUCTURE_EDGE_KINDS,
   Association: { modelType: 'UMLAssociation', viewType: 'UMLAssociationView' },
   DirectedAssociation: {
@@ -809,6 +839,8 @@ export interface EdgeRequest {
   /** Messages only: y coordinate of the message (default: 40 below the top of the tail's line). */
   readonly y?: number
   readonly name?: string
+  /** IDEF0 arrows only: the ICOM role at the function end (default: derived from the ends). */
+  readonly role?: string
 }
 
 const ACTIVITY_NODE_TYPES = ['UMLActivityNode', 'UMLPin']
@@ -836,6 +868,7 @@ function canContain(child: Elem | null, container: Elem | null): boolean {
 /** Whether an edge of `kind` may connect `tail` to `head` (model types must fit). */
 export function canConnect(kind: EdgeKind, tail: View, head: View): boolean {
   if (isStructureEdgeKind(kind)) return canConnectStructure(kind, tail, head)
+  if (isIdef0EdgeKind(kind)) return canConnectIdef0(kind, tail, head)
   const a = tail.model
   const b = head.model
   switch (kind) {
@@ -892,6 +925,7 @@ export function planEdge(req: EdgeRequest): CreationPlan {
   }
   const structure = planStructureEdge(req)
   if (structure) return structure
+  if (isIdef0EdgeKind(req.kind)) return planIdef0Edge(req)
   if (req.kind === 'Message') return planMessage(req)
   if (req.kind === 'Transition') return planTransition(req)
   if (req.kind === 'TimingMessage') return planTimingMessage(req)
