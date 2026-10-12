@@ -240,6 +240,24 @@ export function layoutFrameLabel(box: Rect, keyword: string, name: string, font:
   }
 }
 
+/**
+ * Hit areas of a frame-like view whose inside stays clickable (diagram frames, combined
+ * fragments): its border (± `tolerance`) and its pentagon label.
+ */
+export function frameHitAreas(box: Rect, label: FrameLabelLayout, tolerance = 4): Rect[] {
+  const t = tolerance
+  const right = box.left + box.width
+  const bottom = box.top + box.height
+  const labelRight = Math.max(...label.polygon.map((p) => p.x))
+  return [
+    { left: box.left - t, top: box.top - t, width: box.width + 2 * t, height: 2 * t },
+    { left: box.left - t, top: bottom - t, width: box.width + 2 * t, height: 2 * t },
+    { left: box.left - t, top: box.top - t, width: 2 * t, height: box.height + 2 * t },
+    { left: right - t, top: box.top - t, width: 2 * t, height: box.height + 2 * t },
+    { left: box.left, top: box.top, width: labelRight - box.left, height: label.bandHeight }
+  ]
+}
+
 /** Draws the pentagon label of a frame. */
 export function FrameLabel({ label, fill, line, color }: { label: FrameLabelLayout; fill: string; line: string; color: string }): React.JSX.Element {
   return (
@@ -269,7 +287,7 @@ function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<FrameData> 
   const owner = diagram._type === 'UMLSequenceDiagram' ? diagram._parent : diagram
   const name = nameOf(owner)
   const probe = layoutFrameLabel({ left: 0, top: 0, width: 0, height: 0 }, keyword, name, style.font, ctx.measurer)
-  return nodeLayout(view, {
+  const layout = nodeLayout(view, {
     minWidth: probe.minWidth,
     minHeight: Math.max(30, probe.bandHeight + 30),
     zIndex: -1,
@@ -280,6 +298,8 @@ function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<FrameData> 
         ? [{ box: layoutFrameLabel(box, keyword, name, style.font, ctx.measurer).name?.box ?? box, target: { kind: 'name', elementId: owner._id }, text: name, font: style.font }]
         : []
   })
+  // Only the border and the label hit, so the views drawn inside the frame stay selectable.
+  return { ...layout, hitAreas: frameHitAreas(layout.box, layout.data.label) }
 }
 
 function Frame({ layout }: { layout: NodeLayout<FrameData> }): React.JSX.Element {

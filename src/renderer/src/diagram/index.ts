@@ -60,8 +60,11 @@
  *    minimum with auto-resize). Optional layout fields: `sizable` ('none' | 'horz' | 'vert' |
  *    'ratio' | 'free'), `movable`, `zIndex` (frame −1, messages 1, fragments 2), `endpoint`
  *    (edge attachment override), `subEndpoints` (sub-views such as a lifeline's line part that
- *    edges attach to), `extraBounds` (floating labels, for export bounds). `regions` are the
- *    double-click inline-edit targets (`name`, `attribute`, `operation`, `literal`, `text`, `field`).
+ *    edges attach to), `extraBounds` (floating labels, for export bounds), `moveAxis` (move along
+ *    one axis only), `hitAreas` (hit only there, e.g. a frame's border and label), `dividers`
+ *    (draggable lines resizing sub-views such as operands). `regions` are the double-click
+ *    inline-edit targets (`name`, `attribute`, `operation`, `literal`, `text`, `field`, or
+ *    `custom` with a syntax registered via `registerQuickEditSyntax`).
  *    Add `container: { accepts, ownerFor }` to make a view a drop container (subject, swimlane).
  * 3. For each edge view type, register a layout (usually `buildEdgeLayout`, which routes via
  *    diagram/core and places labels) and optionally a custom `Render` (default `EdgeShape`):
@@ -78,6 +81,8 @@
  *    ```
  *
  *    `connectKind` (an `EDGE_KINDS` key) enables reconnecting ends, validated with `canConnect`.
+ *    Optional edge layout fields: `labelPoints` (polyline labels are placed and dragged on) and
+ *    `dragAxis: 'vert'` (dragging shifts the edge vertically, as for sequence messages).
  * Notations registered for a supertype (e.g. `UMLClassifierView`) apply to its subtypes that
  * have no notation of their own; unknown types get a generic box / line.
  */
@@ -103,7 +108,7 @@ export {
 } from './editor/actions'
 export { alignBoxes, alignViews, reorderViews, ALIGN_OPS, type AlignOp } from './editor/alignment'
 export { hitTestDiagram, viewsInBand, type DiagramHit } from './editor/hitTest'
-export { applyQuickEdit, resolveByName } from './editor/quickEditApply'
+export { applyQuickEdit, resolveByName, registerQuickEditSyntax, quickEditSyntaxHint, type QuickEditSyntax } from './editor/quickEditApply'
 export * from './editor/quickEditSyntax'
 
 // Clipboard
@@ -122,6 +127,7 @@ export * from './render/primitives'
 export { DiagramContent, NodeItem, EdgeItem } from './render/DiagramContent'
 export {
   FrameLabel,
+  frameHitAreas,
   layoutFrameLabel,
   notePolygon,
   relationshipEdgeNotation,

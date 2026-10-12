@@ -40,6 +40,28 @@ function applyName(b: OperationBuilder, repo: Repository, el: Elem, parsed: Pars
   if (fieldOf(el, 'stereotype')) b.set(el, 'stereotype', stereotypeValue(repo, el, parsed.stereotype))
 }
 
+/** A notation-specific quick-edit syntax (target kind `custom`). */
+export interface QuickEditSyntax<P = unknown> {
+  /** Placeholder text of the editor. */
+  readonly hint: string
+  /** Parses the text; null rejects the edit. */
+  parse(text: string): P | null
+  /** Applies a parsed value to the element (inside the edit's operation). */
+  apply(b: OperationBuilder, repo: Repository, el: Elem, parsed: P): void
+}
+
+const customSyntaxes = new Map<string, QuickEditSyntax>()
+
+/** Registers (or replaces) a quick-edit syntax for `{ kind: 'custom', syntax }` edit targets. */
+export function registerQuickEditSyntax<P>(syntax: string, handler: QuickEditSyntax<P>): void {
+  customSyntaxes.set(syntax, handler as QuickEditSyntax)
+}
+
+/** Placeholder text for a custom syntax ('' when unknown). */
+export function quickEditSyntaxHint(syntax: string): string {
+  return customSyntaxes.get(syntax)?.hint ?? ''
+}
+
 /**
  * Applies `text` to the edit target. Returns false (and changes nothing) when the text does not
  * parse or the target no longer exists.
@@ -55,6 +77,13 @@ export function applyQuickEdit(engine: ModelEngine, target: EditTarget, text: st
   const el = repo.get(target.elementId)
   if (!el) return false
   switch (target.kind) {
+    case 'custom': {
+      const handler = customSyntaxes.get(target.syntax)
+      const parsed = handler?.parse(text)
+      if (!handler || parsed === null || parsed === undefined) return false
+      engine.transact('Change Properties', (b) => handler.apply(b, repo, el, parsed))
+      return true
+    }
     case 'field': {
       engine.transact('Change Properties', (b) => b.set(el, target.field, text.trim()))
       return true

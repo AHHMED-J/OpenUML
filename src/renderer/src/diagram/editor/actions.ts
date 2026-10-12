@@ -182,6 +182,12 @@ export function moveSelection(env: DiagramEnv, ids: readonly string[], dx: numbe
   if (views.length === 0) return
   const nodes = views.filter((v) => isKindOf(v, 'NodeView'))
   const recontaining = drop !== undefined && isContainmentChange(nodes, drop.container)
+  // Axis-restricted views (sequence lifelines) constrain the whole group.
+  if (nodes.length > 0 && (dx !== 0 || dy !== 0)) {
+    const axis = moveAxisOf(layoutOf(env), nodes.map((v) => v._id))
+    if (axis === 'horz') dy = 0
+    else if (axis === 'vert') dx = 0
+  }
   if (dx === 0 && dy === 0 && !recontaining) return
   withGeometry(env, 'Move', (b) => {
     // Views inside another moved view move with it.
@@ -193,6 +199,19 @@ export function moveSelection(env: DiagramEnv, ids: readonly string[], dx: numbe
     moveViews(env.engine, roots, dx, dy)
     if (recontaining && drop) recontain(b, env, nodes, drop.container)
   })
+}
+
+/** The axis a group of nodes may move along: restricted when any of them is (horizontal wins). */
+export function moveAxisOf(layout: DiagramLayout, ids: readonly string[]): 'horz' | 'vert' | null {
+  const axes = new Set(ids.map((id) => layout.nodes.get(id)?.moveAxis))
+  return axes.has('horz') ? 'horz' : axes.has('vert') ? 'vert' : null
+}
+
+/** Sets the height of a node's sub-view from a dragged divider (e.g. a combined-fragment operand). */
+export function resizeSubView(env: DiagramEnv, viewId: string, height: number): void {
+  const view = env.engine.repository.get(viewId)
+  if (!isKindOf(view, 'NodeView') || view.height === Math.round(height)) return
+  withGeometry(env, 'Resize', (b) => b.set(view, 'height', Math.round(height)))
 }
 
 /** Sets a node's bounds (handles enforce the minimum size before calling). */
@@ -241,8 +260,9 @@ export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'hea
 export function moveEdgeLabel(env: DiagramEnv, layout: DiagramLayout, edgeId: string, labelViewId: string, box: Rect): void {
   const label = env.engine.repository.get(labelViewId)
   const edge = layout.edges.get(edgeId)
-  if (!isKindOf(label, 'EdgeParasiticView') || !edge || edge.points.length === 0) return
-  const params = edgeLabelParamsFromBox(edge.points, label.edgePosition as EdgePosition, box)
+  const points = edge?.labelPoints ?? edge?.points
+  if (!isKindOf(label, 'EdgeParasiticView') || !points || points.length === 0) return
+  const params = edgeLabelParamsFromBox(points, label.edgePosition as EdgePosition, box)
   env.engine.transact('Move Label', (b) =>
     b.setAll(label, {
       alpha: Math.round(params.alpha * 1e6) / 1e6,

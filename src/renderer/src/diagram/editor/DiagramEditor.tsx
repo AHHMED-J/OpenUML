@@ -31,7 +31,7 @@ import {
 } from '../core'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { getTextMeasurer } from '../layout/measurer'
-import type { DiagramLayout, EditRegion, EditTarget } from '../layout/types'
+import type { DiagramLayout, EditRegion, EditTarget, NodeDivider } from '../layout/types'
 import { DiagramContent } from '../render/DiagramContent'
 import { copySelection, pasteClipboard } from '../commands'
 import {
@@ -42,10 +42,12 @@ import {
   findDropContainer,
   isContainmentChange,
   isNodeKind,
+  moveAxisOf,
   moveEdgeLabel,
   moveSelection,
   reconnectEnd,
   resizeNode,
+  resizeSubView,
   setEdgeVertices,
   type DiagramEnv,
   type ToolSpec
@@ -73,7 +75,9 @@ export interface DiagramEditorProps {
 
 type Gesture =
   | { type: 'click'; start: Point }
-  | { type: 'move'; start: Point; ids: string[]; nodes: View[]; boxes: Rect[]; primary: Rect; moved: boolean; clickedId: string; reselect: boolean; dx: number; dy: number; container: View | null; recontain: boolean }
+  | { type: 'move'; start: Point; ids: string[]; nodes: View[]; boxes: Rect[]; primary: Rect; moved: boolean; clickedId: string; reselect: boolean; dx: number; dy: number; container: View | null; recontain: boolean; axis: 'horz' | 'vert' | null }
+  | { type: 'divider'; start: Point; viewId: string; divider: NodeDivider; y: number; moved: boolean }
+  | { type: 'edge-shift'; start: Point; edgeId: string; points: Point[]; dy: number; moved: boolean }
   | { type: 'resize'; start: Point; id: string; handle: HandlePosition; box: Rect; minWidth: number; minHeight: number; keepRatio: boolean; rect: Rect }
   | { type: 'band'; start: Point; additive: boolean; rect: Rect | null }
   | { type: 'create-node'; start: Point; kind: string; rect: Rect }
@@ -403,7 +407,19 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       gesture.current = { type: 'band', start: p, additive: e.shiftKey || mod, rect: null }
       return
     }
+    // Edges that move along one axis (sequence messages): dragging shifts the whole edge.
+    const shiftEdge = hit.kind === 'edge' || hit.kind === 'edge-segment' || (hit.kind === 'edge-vertex' && !hit.isEnd) ? l.edges.get(hit.viewId) : undefined
+    if (shiftEdge?.dragAxis === 'vert' && !e.shiftKey && !mod) {
+      if (!sel.has(hit.viewId)) setSelection([hit.viewId])
+      gesture.current = { type: 'edge-shift', start: p, edgeId: hit.viewId, points: shiftEdge.points.map((q) => ({ ...q })), dy: 0, moved: false }
+      return
+    }
     switch (hit.kind) {
+      case 'divider': {
+        const divider = l.nodes.get(hit.viewId)?.dividers?.[hit.index]
+        if (divider) gesture.current = { type: 'divider', start: p, viewId: hit.viewId, divider, y: divider.y, moved: false }
+        return
+      }
       case 'handle': {
         const node = l.nodes.get(hit.viewId)
         if (!node) return
@@ -497,7 +513,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           dx: 0,
           dy: 0,
           container: null,
-          recontain: false
+          recontain: false,
+          axis: moveAxisOf(l, movable.map((v) => v._id))
         }
         return
       }
@@ -512,6 +529,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     const hit = hitTestDiagram(l, p, { selected: sel, zoom: z })
     let c = 'default'
     if (hit?.kind === 'handle') c = handleCursor(hit.handle)
+    else if (hit?.kind === 'divider' || ((hit?.kind === 'edge' || hit?.kind === 'edge-segment') && sel.has(hit.viewId) && l.edges.get(hit.viewId)?.dragAxis === 'vert')) c = 'ns-resize'
     else if (hit?.kind === 'edge-vertex') c = edgeHitCursor({ kind: 'vertex', index: hit.index, isEnd: hit.isEnd })
     else if (hit?.kind === 'edge-segment') {
       const edge = l.edges.get(hit.viewId)
@@ -547,8 +565,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!g.moved && Math.hypot(rawDx, rawDy) * live.current.zoom < DRAG_THRESHOLD) return
         g.moved = true
         const grid = snapOn ? GRID.size : 1
-        g.dx = snapWithDeadZone(g.primary.left, g.primary.left + rawDx, grid) - g.primary.left
-        g.dy = snapWithDeadZone(g.primary.top, g.primary.top + rawDy, grid) - g.primary.top
+        g.dx = g.axis === 'vert' ? 0 : snapWithDeadZone(g.primary.left, g.primary.left + rawDx, grid) - g.primary.left
+        g.dy = g.axis === 'horz' ? 0 : snapWithDeadZone(g.primary.top, g.primary.top + rawDy, grid) - g.primary.top
         const container = findDropContainer(en, l, p, g.nodes)
         g.container = container
         g.recontain = isContainmentChange(g.nodes, container)
@@ -557,6 +575,22 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           rects: g.boxes.map((b) => ({ ...b, left: b.left + g.dx, top: b.top + g.dy })),
           container: g.recontain && container ? (l.nodes.get(container._id)?.box ?? null) : null
         })
+        return
+      }
+      case 'divider': {
+        if (!g.moved && Math.abs(p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD) return
+        g.moved = true
+        const raw = g.divider.y + p.y - g.start.y
+        g.y = Math.min(g.divider.maxY, Math.max(g.divider.minY, snapOn ? snap(raw, GRID.size) : Math.round(raw)))
+        setPreview({ kind: 'polyline', points: [{ x: g.divider.left, y: g.y }, { x: g.divider.left + g.divider.width, y: g.y }] })
+        return
+      }
+      case 'edge-shift': {
+        if (!g.moved && Math.abs(p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD) return
+        g.moved = true
+        const y0 = g.points[0]?.y ?? 0
+        g.dy = (snapOn ? snap(y0 + p.y - g.start.y, GRID.size) : Math.round(y0 + p.y - g.start.y)) - y0
+        setPreview({ kind: 'polyline', points: g.points.map((q) => ({ x: q.x, y: q.y + g.dy })) })
         return
       }
       case 'resize': {
@@ -637,6 +671,12 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return
       case 'resize':
         if (g.rect !== g.box) resizeNode(en, g.id, g.rect)
+        return
+      case 'divider':
+        if (g.moved) resizeSubView(en, g.divider.viewId, g.y - g.divider.top)
+        return
+      case 'edge-shift':
+        if (g.moved && g.dy !== 0) moveSelection(en, [g.edgeId], 0, g.dy)
         return
       case 'band': {
         if (!g.rect) {
