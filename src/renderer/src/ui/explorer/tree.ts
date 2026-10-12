@@ -14,13 +14,14 @@ import {
 import type { SortMode } from '../uiStore'
 
 /** Containment fields never shown as tree children (views, tags, association ends). */
-const HIDDEN_FIELDS = new Set(['ownedViews', 'subViews', 'tags', 'end1', 'end2'])
+const HIDDEN_FIELDS = new Set(['ownedViews', 'subViews', 'tags', 'end1', 'end2', 'ports'])
 
 const TYPE_ORDER: Readonly<Record<string, number>> = {
   UMLModel: 1000,
   UMLPackage: 1001,
   UMLSubsystem: 1002,
   UMLUseCaseSubject: 1003,
+  IDEF0Model: 1004,
   UMLTemplateParameter: 1100,
   UMLParameter: 1101,
   UMLEnumerationLiteral: 1102,
@@ -41,6 +42,7 @@ const TYPE_ORDER: Readonly<Record<string, number>> = {
   UMLNode: 1208,
   UMLUseCase: 1209,
   UMLActor: 1210,
+  IDEF0Function: 1211,
   UMLCollaboration: 1400,
   UMLStateMachine: 1401,
   UMLInteraction: 1402,
