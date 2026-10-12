@@ -31,6 +31,11 @@ export type EditTarget =
   | { readonly kind: 'text'; readonly viewId: string }
   /** Any string field of an element (association end multiplicity, guard, ...). */
   | { readonly kind: 'field'; readonly elementId: string; readonly field: string }
+  /**
+   * Text of an element in a notation-specific syntax (e.g. sequence lifelines and messages),
+   * parsed and applied by the handler registered with `registerQuickEditSyntax(syntax, ...)`.
+   */
+  | { readonly kind: 'custom'; readonly elementId: string; readonly syntax: string }
 
 /** A region of a view that can be double-clicked to edit some text inline. */
 export interface EditRegion {
@@ -71,10 +76,32 @@ export interface NodeLayout<D = unknown> {
   readonly regions: readonly EditRegion[]
   /** Drawn areas outside `box` (floating labels, decorations) for export bounds. */
   readonly extraBounds?: readonly Rect[]
+  /** Restricts moving the view to one axis (sequence lifelines move only horizontally). */
+  readonly moveAxis?: 'horz' | 'vert'
+  /** Areas where the view is hit (default: the whole box), e.g. a frame's border and label. */
+  readonly hitAreas?: readonly Rect[]
+  /** Draggable horizontal dividers that resize sub-views (combined-fragment operands). */
+  readonly dividers?: readonly NodeDivider[]
   readonly zIndex: number
   readonly style: ViewStyle
   /** Notation-specific data for the renderer. */
   readonly data: D
+}
+
+/**
+ * A horizontal divider inside a node, dragged vertically to change the height of a sub-view
+ * (whose top stays at `top`): the new height is `y - top`, with `y` kept in `[minY, maxY]`.
+ */
+export interface NodeDivider {
+  /** Sub-view whose `height` the divider sets. */
+  readonly viewId: string
+  readonly top: number
+  /** Current divider position. */
+  readonly y: number
+  readonly left: number
+  readonly width: number
+  readonly minY: number
+  readonly maxY: number
 }
 
 export interface EdgeLabelLayout {
@@ -108,6 +135,10 @@ export interface EdgeLayout<D = unknown> {
   readonly style: ViewStyle
   /** Extra drawn areas (e.g. socket arcs) for export bounds. */
   readonly extraBounds?: readonly Rect[]
+  /** Polyline the labels are placed on (and dragged against); default `points`. */
+  readonly labelPoints?: readonly Point[]
+  /** Dragging the edge shifts it along this axis instead of editing bends (sequence messages). */
+  readonly dragAxis?: 'vert'
   readonly data: D
 }
 

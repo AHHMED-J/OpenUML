@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { cssFontFamily, isBold, isItalic, type Font, type Rect } from '../core'
 import type { EditTarget } from '../layout/types'
+import { quickEditSyntaxHint } from './quickEditApply'
 import { QUICK_EDIT_HINTS } from './quickEditSyntax'
 
 export interface QuickEditState {
@@ -37,6 +38,8 @@ function hintFor(target: EditTarget): string {
     case 'name':
     case 'literal':
       return QUICK_EDIT_HINTS.name
+    case 'custom':
+      return quickEditSyntaxHint(target.syntax)
     default:
       return ''
   }

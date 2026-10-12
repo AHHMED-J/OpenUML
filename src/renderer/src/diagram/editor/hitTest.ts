@@ -15,10 +15,11 @@ import {
   type Rect,
   type SegmentOrientation
 } from '../core'
-import type { DiagramLayout, EditRegion, EdgeLabelLayout } from '../layout/types'
+import type { DiagramLayout, EditRegion, EdgeLabelLayout, NodeDivider } from '../layout/types'
 
 export type DiagramHit =
   | { readonly kind: 'handle'; readonly viewId: string; readonly handle: HandlePosition }
+  | { readonly kind: 'divider'; readonly viewId: string; readonly index: number }
   | { readonly kind: 'edge-vertex'; readonly viewId: string; readonly index: number; readonly isEnd: boolean }
   | { readonly kind: 'edge-segment'; readonly viewId: string; readonly index: number; readonly orientation: SegmentOrientation }
   | { readonly kind: 'edge-label'; readonly viewId: string; readonly label: EdgeLabelLayout }
@@ -59,6 +60,11 @@ export function hitTestDiagram(layout: DiagramLayout, p: Point, options: HitOpti
         const h = handleAt(node.box, p, node.sizable, zoom, SELECTION.handleSize)
         if (h) return { kind: 'handle', viewId: id, handle: h }
       }
+      const dividers = node?.dividers ?? []
+      for (let i = 0; i < dividers.length; i++) {
+        const d = dividers[i] as NodeDivider
+        if (Math.abs(p.y - d.y) <= tol && p.x >= d.left && p.x <= d.left + d.width) return { kind: 'divider', viewId: id, index: i }
+      }
       const edge = layout.edges.get(id)
       if (edge) {
         const hit = hitTestEdge(edge.points, p, Math.max(tol, SELECTION.handleSize / 2 / zoom))
@@ -72,7 +78,8 @@ export function hitTestDiagram(layout: DiagramLayout, p: Point, options: HitOpti
     if (options.exclude?.has(id)) continue
     const node = layout.nodes.get(id)
     if (node) {
-      if (rectContainsPoint(node.box, p)) return { kind: 'node', viewId: id, region: regionAt(node.regions, p) }
+      const inside = rectContainsPoint(node.box, p) && (!node.hitAreas || node.hitAreas.some((r) => rectContainsPoint(r, p)))
+      if (inside) return { kind: 'node', viewId: id, region: regionAt(node.regions, p) }
       continue
     }
     if (options.nodesOnly) continue
