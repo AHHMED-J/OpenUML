@@ -32,6 +32,7 @@ import { OperationError } from './operation'
 export function applyPlan(b: OperationBuilder, plan: CreationPlan): void {
   for (const ins of plan.insertions) b.insert(ins.owner, ins.field, ins.element, ins.index)
   for (const add of plan.refAdditions) b.addRef(add.owner, add.field, add.target)
+  for (const m of plan.moves ?? []) b.move(m.element, m.owner, m.field)
 }
 
 function kindLabel(kind: string): string {
