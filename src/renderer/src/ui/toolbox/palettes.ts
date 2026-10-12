@@ -37,6 +37,7 @@ const COMPOSITE = 'UMLCompositeStructureDiagram'
 const COMMUNICATION = 'UMLCommunicationDiagram'
 const OVERVIEW = 'UMLInteractionOverviewDiagram'
 const INFOFLOW = 'UMLInformationFlowDiagram'
+const RAD = 'RADDiagram'
 
 const node = (id: string, label: string, kind: NodeKind, gesture: 'rect' | 'point' = 'rect'): PaletteItem => ({
   id,
@@ -336,9 +337,40 @@ export const PALETTES: readonly PaletteGroup[] = [
     items: [node('information-item', 'Information Item', 'InformationItem'), edge('information-flow', 'Information Flow', 'InformationFlow')]
   },
   {
+    id: 'rad-basic',
+    title: 'RAD (Basic)',
+    diagramTypes: [RAD],
+    autoExpand: [RAD],
+    items: [
+      node('rad-role', 'Role', 'RADRole'),
+      node('rad-activity', 'Activity', 'RADActivity', 'point'),
+      node('rad-interaction', 'Interaction', 'RADInteraction', 'point'),
+      edge('rad-state-line', 'State Line', 'RADStateLine'),
+      edge('rad-interaction-link', 'Interaction Link', 'RADInteractionLink'),
+      node('rad-case-refinement', 'Case Refinement', 'RADCaseRefinement', 'point'),
+      node('rad-part-refinement', 'Part Refinement', 'RADPartRefinement', 'point'),
+      node('rad-start', 'Start', 'RADStartMarker', 'point'),
+      node('rad-end', 'End', 'RADEndMarker', 'point')
+    ]
+  },
+  {
+    id: 'rad-advanced',
+    title: 'RAD (Advanced)',
+    diagramTypes: [RAD],
+    items: [
+      node('rad-case-branch', 'Add Alternative', 'RADCaseBranch', 'point'),
+      node('rad-part-branch', 'Add Parallel Path', 'RADPartBranch', 'point'),
+      node('rad-undefined-process', 'Undefined Process', 'RADUndefinedProcess', 'point'),
+      node('rad-state-marker', 'State Marker', 'RADStateMarker', 'point'),
+      node('rad-wait', 'Wait (Event)', 'RADWait', 'point'),
+      node('rad-role-start', 'Role Start', 'RADRoleStart', 'point'),
+      node('rad-external-role-start', 'External Role Start', 'RADExternalRoleStart', 'point')
+    ]
+  },
+  {
     id: 'annotations',
     title: 'Annotations',
-    autoExpand: [CLASS, USECASE, SEQUENCE, ACTIVITY, STATECHART, TIMING, COMPONENT, DEPLOYMENT, PACKAGE, PROFILE, OBJECT, COMPOSITE, COMMUNICATION, OVERVIEW, INFOFLOW],
+    autoExpand: [CLASS, USECASE, SEQUENCE, ACTIVITY, STATECHART, TIMING, COMPONENT, DEPLOYMENT, PACKAGE, PROFILE, OBJECT, COMPOSITE, COMMUNICATION, OVERVIEW, INFOFLOW, RAD],
     items: [node('text', 'Text', 'Text'), node('note', 'Note', 'Note'), edge('note-link', 'Note Link', 'NoteLink')]
   }
 ]
