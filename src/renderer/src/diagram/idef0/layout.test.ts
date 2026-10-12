@@ -29,6 +29,13 @@ describe('function box layout', () => {
     expect(a1.data.numberLine.text).toBe('1')
   })
 
+  it('offers the inline name edit only while the box has no child diagram (double-click then opens the child)', () => {
+    const k = exampleKit()
+    const layout = k.layoutOf(k.context)
+    expect(nodeLayoutOf<FunctionData>(layout, k.boxes(k.context)[0] as NodeView).regions).toEqual([])
+    expect(nodeLayoutOf<FunctionData>(k.layoutOf(k.child), k.boxes(k.child)[0] as NodeView).regions).toHaveLength(1)
+  })
+
   it('hides the DRE when showDre is off', () => {
     const k = exampleKit()
     const top = k.boxes(k.context)[0] as NodeView
