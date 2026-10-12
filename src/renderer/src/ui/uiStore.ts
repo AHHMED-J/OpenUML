@@ -83,9 +83,17 @@ export interface Toast {
   readonly kind: 'info' | 'error'
 }
 
+/** One row of a read-only result list: clicking it closes the dialog and runs `onSelect`. */
+export interface ListRow {
+  readonly text: string
+  readonly indent?: number
+  readonly onSelect?: () => void
+}
+
 /** Modal dialogs; promise-based ones carry their resolver. */
 export type ModalState =
   | { readonly kind: 'palette' }
+  | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
   | { readonly kind: 'prompt'; readonly title: string; readonly initial: string; readonly resolve: (v: string | null) => void }
   | {
