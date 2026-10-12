@@ -52,7 +52,7 @@ function layoutFallbackNode(view: NodeView, ctx: LayoutContext): NodeLayout<BoxD
     data: (box) => ({ lines: name ? arrangeNameCompartment(m, box) : [] }),
     regions: (box) =>
       view.model && name !== undefined
-        ? [{ box: { ...box, height: m.height }, target: { kind: 'name', elementId: view.model._id }, text: name, font: style.font }]
+        ? [{ box: { ...box, height: m.height }, target: { kind: 'name', elementId: view.model._id }, text: nameEditText(view.model), font: style.font }]
         : []
   })
 }
@@ -300,7 +300,7 @@ function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<FrameData> 
     data: (box) => ({ label: layoutFrameLabel(box, keyword, name, style.font, ctx.measurer) }),
     regions: (box) =>
       owner && isKindOf(owner, 'Model')
-        ? [{ box: layoutFrameLabel(box, keyword, name, style.font, ctx.measurer).name?.box ?? box, target: { kind: 'name', elementId: owner._id }, text: name, font: style.font }]
+        ? [{ box: layoutFrameLabel(box, keyword, name, style.font, ctx.measurer).name?.box ?? box, target: { kind: 'name', elementId: owner._id }, text: nameEditText(owner), font: style.font }]
         : []
   })
   // Only the border and the label hit, so the views drawn inside the frame stay selectable.

@@ -31,6 +31,7 @@ import {
   type Rect,
   type SegmentOrientation
 } from '../core'
+import { nameEditText } from '../layout/helpers'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { getTextMeasurer } from '../layout/measurer'
 import type { DiagramLayout, EditRegion, EditTarget, NodeDivider } from '../layout/types'
@@ -252,7 +253,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return true
       }
       if (view.model && edge.points.length > 0) {
-        openRegion(viewId, { box: edgeMidBox(edge.points), target: { kind: 'name', elementId: view.model._id }, text: String(view.model['name'] ?? ''), font: edge.style.font })
+        openRegion(viewId, { box: edgeMidBox(edge.points), target: { kind: 'name', elementId: view.model._id }, text: nameEditText(view.model), font: edge.style.font })
         return true
       }
       return false
