@@ -84,8 +84,9 @@ export function layoutFunction(view: NodeView, ctx: LayoutContext): NodeLayout<F
     minHeight,
     style,
     data: arrange,
+    // A decomposed box opens its child diagram on double-click, so it offers no inline name edit.
     regions: (box): EditRegion[] =>
-      fn
+      fn && !fn['childDiagram']
         ? [
             {
               box: { left: box.left + 4, top: box.top + 4, width: box.width - 8, height: Math.max(8, box.height - 8) },
