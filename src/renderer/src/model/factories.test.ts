@@ -20,6 +20,7 @@ import {
   type NodeView,
   type StateMachineNodeKind,
   type Idef0NodeKind,
+  type RadNodeKind,
   type TimingNodeKind,
   type UMLClassifierView,
   type UMLNameCompartmentView,
@@ -71,7 +72,7 @@ function setup() {
 type DiagramBucket = 'classDiagram' | 'useCase' | 'sequence' | 'activity' | 'object' | 'composite' | 'communication' | 'overview'
 
 /** State machine and timing kinds are covered by their own tests (they need containers and own regions). */
-type GenericKind = Exclude<NodeKind, StateMachineNodeKind | TimingNodeKind | Idef0NodeKind>
+type GenericKind = Exclude<NodeKind, StateMachineNodeKind | TimingNodeKind | Idef0NodeKind | RadNodeKind>
 
 const DIAGRAM_OF: Record<GenericKind, DiagramBucket> = {
   Object: 'object',

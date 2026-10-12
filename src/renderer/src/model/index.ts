@@ -43,6 +43,7 @@ export * from './factories'
 export { newRegion, newStateMachine, type StateMachineNodeKind } from './factories-statemachine'
 export type { TimingNodeKind } from './factories-timing'
 export * from './structure-factories'
+export * from './factories-rad'
 export * from './idef0-numbering'
 export {
   IDEF0_AREA,
