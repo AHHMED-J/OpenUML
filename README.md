@@ -44,6 +44,13 @@ builds register OpenUML as the editor of `.mdj` files, with their own document i
 `.mdj` file while OpenUML runs opens it in the running window. The builds are not code-signed, so
 macOS Gatekeeper and Windows SmartScreen warn on first launch.
 
+Building on Linux for the other systems also works: Windows needs Wine (32- and 64-bit:
+`wine64` and `wine32:i386` on Ubuntu) for the NSIS installer and the executable icon. macOS
+targets cannot be signed or put in a `.dmg` off macOS: build with `npx electron-builder --mac dir`,
+sign the bundle ad hoc with [rcodesign](https://github.com/indygreg/apple-platform-rs)
+(`rcodesign sign release/mac-arm64/OpenUML.app`), and zip it keeping its symbolic links
+(`zip -qry`); electron-builder's own zip on Linux turns the framework symlinks into copies.
+
 The icons in `build/` and `resources/icon.png` are generated from the logo artwork in
 `build/icon-src/` (Python 3 with Pillow and NumPy):
 
