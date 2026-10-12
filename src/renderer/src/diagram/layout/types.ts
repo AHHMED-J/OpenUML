@@ -89,6 +89,8 @@ export interface NodeLayout<D = unknown> {
   readonly moveAxis?: 'horz' | 'vert'
   /** Areas where the view is hit (default: the whole box), e.g. a frame's border and label. */
   readonly hitAreas?: readonly Rect[]
+  /** Areas outside `box` that also hit the view (labels drawn beside a symbol). */
+  readonly outerHitAreas?: readonly Rect[]
   /** Draggable horizontal dividers that resize sub-views (combined-fragment operands). */
   readonly dividers?: readonly NodeDivider[]
   readonly zIndex: number

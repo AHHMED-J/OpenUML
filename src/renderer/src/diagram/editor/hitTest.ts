@@ -78,7 +78,9 @@ export function hitTestDiagram(layout: DiagramLayout, p: Point, options: HitOpti
     if (options.exclude?.has(id)) continue
     const node = layout.nodes.get(id)
     if (node) {
-      const inside = rectContainsPoint(node.box, p) && (!node.hitAreas || node.hitAreas.some((r) => rectContainsPoint(r, p)))
+      const inside =
+        (rectContainsPoint(node.box, p) && (!node.hitAreas || node.hitAreas.some((r) => rectContainsPoint(r, p)))) ||
+        (node.outerHitAreas?.some((r) => rectContainsPoint(r, p)) ?? false)
       if (inside) return { kind: 'node', viewId: id, region: regionAt(node.regions, p) }
       continue
     }
