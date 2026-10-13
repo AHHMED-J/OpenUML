@@ -1,9 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron'
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { IpcChannels, type MenuItemSpec } from '../shared/ipc'
-import { FileAccess, writeFileAtomic } from './fileAccess'
+import { FileAccess, readProjectFile, writeFileAtomic } from './fileAccess'
 import {
   allowedExternalUrl,
   findFileArgument,
@@ -170,14 +169,15 @@ function registerIpc(): void {
     const result = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], filters: sanitizeFilters(filters) })
     const path = result.filePaths[0]
     if (result.canceled || !path) return null
-    const content = await readFile(path, 'utf8')
+    // The user picked this file, so a symbolic link to any file name is followed.
+    const content = await readProjectFile(path, false)
     fileAccess.grantFile(path)
     return { path, content }
   })
 
   handle(IpcChannels.readTextFile, async (_event, path) => {
     if (!fileAccess.canRead(path)) throw denied(path)
-    const content = await readFile(path, 'utf8')
+    const content = await readProjectFile(path, true)
     // A project opened by path (recent files, the OS) may be saved back in place.
     fileAccess.grantFile(path)
     return content
@@ -212,14 +212,14 @@ function registerIpc(): void {
   })
 
   handle(IpcChannels.writeTextFile, async (_event, path, content) => {
-    if (typeof content !== 'string' || !fileAccess.canWrite(path)) throw denied(path)
-    return writeFileAtomic(path, content)
+    if (typeof content !== 'string' || !(await fileAccess.canWriteResolved(path))) throw denied(path)
+    return writeFileAtomic(path as string, content)
   })
 
   handle(IpcChannels.writeBinaryFile, async (_event, path, base64) => {
     if (typeof base64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) throw denied(path)
-    if (!fileAccess.canWrite(path)) throw denied(path)
-    return writeFileAtomic(path, Buffer.from(base64, 'base64'))
+    if (!(await fileAccess.canWriteResolved(path))) throw denied(path)
+    return writeFileAtomic(path as string, Buffer.from(base64, 'base64'))
   })
 
   handle(IpcChannels.showMessageBox, async (_event, rawOptions) => {
