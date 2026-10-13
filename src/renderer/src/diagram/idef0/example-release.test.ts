@@ -90,6 +90,18 @@ describe('Software Release example', () => {
     expect(validateIdef0(ex.model).map((i) => `${i.id} ${i.message}`)).toEqual(['W01 Diagram "Build and Test Change" has 2 boxes (3 to 6 expected)'])
   })
 
+  it('opens on its A-0 diagram and contains no empty default model', () => {
+    const text = readFileSync(new URL('../../../../../examples/software-release-idef0.mdj', import.meta.url), 'utf8')
+    const { repository } = readMdj(text)
+    const first = repository.defaultDiagram()
+    expect(first?._type).toBe('IDEF0Diagram')
+    expect(first?.['diagramKind']).toBe('context')
+    expect(first?.name).toBe('Release a Software Change')
+    const owned = ((repository.project?.['ownedElements'] as Elem[] | undefined) ?? []).map((e) => e._type)
+    expect(owned).toEqual(['IDEF0Model'])
+    expect(repository.diagrams().every((d) => isKindOf(d, 'IDEF0Diagram'))).toBe(true)
+  })
+
   it('matches the committed file and round trips byte for byte', () => {
     if (process.env['UPDATE_EXAMPLES']) {
       mkdirSync(new URL('../../../../../examples/', import.meta.url), { recursive: true })

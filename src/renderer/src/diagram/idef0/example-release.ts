@@ -12,7 +12,7 @@
  * deployment reuses the test suites of A32 (call arrow) and a build farm serves A3 without
  * appearing on its child diagram (tunneled end).
  */
-import { applyPlan, ModelEngine, createDiagram } from '../../commands'
+import { applyPlan, ModelEngine, createDiagram, deleteFromModel } from '../../commands'
 import {
   Repository,
   createDefaultProject,
@@ -58,6 +58,8 @@ export function buildReleaseExample(): ReleaseExample {
   const repository = new Repository(createDefaultProject())
   const engine = new ModelEngine(repository)
   const project = repository.project as Project
+  // The default project brings an empty class model; the example contains only the IDEF0 model.
+  const defaultModels = [...((project['ownedElements'] as Elem[] | undefined) ?? [])]
   const envOf = (diagram: Diagram): DiagramEnv => ({ engine, diagram, measurer })
   const set = (el: Elem, values: Record<string, unknown>): void => {
     engine.transact('Set', (b) => b.setAll(el, values))
@@ -76,7 +78,9 @@ export function buildReleaseExample(): ReleaseExample {
     viewpoint: 'Release manager.'
   })
   set(top, { name: 'Release a Software Change' })
-  set(contextDiagram, { author: 'OpenUML example', status: 'recommended' })
+  // The A-0 diagram is titled after the top function, and opens first when the example is loaded.
+  set(contextDiagram, { name: 'Release a Software Change', author: 'OpenUML example', status: 'recommended', defaultDiagram: true })
+  deleteFromModel(engine, defaultModels, 'Remove default model')
 
   // The A-0 box is widened so that its many arrow labels sit side by side.
   const topView = functionViewsOf(contextDiagram)[0] as NodeView
