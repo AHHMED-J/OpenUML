@@ -10,6 +10,7 @@
  * - Fragments: `writeFragment(el)`, `parseFragment(text)`, `remapIds(json)`; importing is
  *   `importFragment` in `commands/`.
  * - `validateModel(root)` → structural problems (IDs, `_parent`, refs, embedded sub-views, edge ends).
+ * - `cssColorOr(value, fallback)`: colors from files, limited to plain color syntax.
  * - Low level (used by undo snapshots): `serializeElement`, `ElementReader`,
  *   `encodeFieldValue` / `decodeFieldValue`.
  */
@@ -18,3 +19,4 @@ export * from './codec'
 export * from './mdj'
 export * from './fragment'
 export * from './validate'
+export * from './cssColor'

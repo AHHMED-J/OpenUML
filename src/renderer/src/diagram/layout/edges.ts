@@ -21,6 +21,7 @@ import {
   type Point,
   type Rect
 } from '../core'
+import { cssColorOr } from '../../format/cssColor'
 import { styleOf } from './helpers'
 import type { EdgeLabelLayout, EdgeLayout, EditTarget, LayoutContext } from './types'
 
@@ -102,8 +103,8 @@ export function placeEdgeLabels(
       text: spec.text,
       box,
       font,
-      fontColor: label?.fontColor || styleOf(edge).fontColor,
-      fillColor: label?.fillColor || COLORS.edgeBackground,
+      fontColor: cssColorOr(label?.fontColor, styleOf(edge).fontColor),
+      fillColor: cssColorOr(label?.fillColor, COLORS.edgeBackground),
       ...(spec.underline ? { underline: true } : {}),
       ...(spec.edit ? { edit: spec.edit } : {}),
       ...(spec.editText !== undefined ? { editText: spec.editText } : {})
