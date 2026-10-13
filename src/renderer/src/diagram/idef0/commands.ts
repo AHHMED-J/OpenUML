@@ -23,6 +23,7 @@ export const Idef0CommandIds = {
   nodeIndex: 'idef0.node-index',
   tunnelEnd: 'idef0.tunnel-end',
   addBoundary: (role: string) => `idef0.add-boundary-${role}`,
+  colorByRole: 'format.idef0.color-by-role',
   status: (stage: string) => `format.idef0.status.${stage}`
 } as const
 
@@ -259,6 +260,16 @@ export function registerIdef0Commands(registry: CommandRegistry, ctx: Idef0Comma
       }
     })
   }
+  add({
+    id: Idef0CommandIds.colorByRole,
+    label: 'Color Arrows by Role',
+    isEnabled: () => !!modelOf(idefDiagram()),
+    isChecked: () => modelOf(idefDiagram())?.['colorArrowsByRole'] === true,
+    run: () => {
+      const model = modelOf(idefDiagram())
+      if (model) setFieldsOfAll(state().engine, [model], { colorArrowsByRole: model['colorArrowsByRole'] !== true }, 'Color Arrows by Role')
+    }
+  })
   for (const stage of STATUS_STAGES) {
     add({
       id: Idef0CommandIds.status(stage),

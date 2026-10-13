@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { setFieldsOfAll } from '../../commands'
-import { FONT_SIZES } from '../../diagram'
+import { FONT_SIZES, colorIdef0Arrows, isFlowColorEdit } from '../../diagram'
 import { fieldOf, type Font, type View } from '../../model'
 import { projectStore } from '../../store'
 import { reportError } from '../app/commands'
@@ -52,7 +52,10 @@ function styleFieldsFor(views: readonly View[]): StyleField[] {
 
 function apply(views: readonly View[], field: string, value: unknown, label: string): void {
   try {
-    setFieldsOfAll(projectStore.getState().engine, views, { [field]: value }, `Change ${label}`)
+    const engine = projectStore.getState().engine
+    // An IDEF0 arrow is colored as one logical arrow: its branches and its counterparts on other levels.
+    if (isFlowColorEdit(views, field)) colorIdef0Arrows(engine, views, field, String(value), `Change ${label}`)
+    else setFieldsOfAll(engine, views, { [field]: value }, `Change ${label}`)
   } catch (err) {
     reportError(err)
   }

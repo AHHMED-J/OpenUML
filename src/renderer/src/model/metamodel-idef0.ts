@@ -19,7 +19,8 @@ const IDEF0_MODEL_TYPES: TypeDef[] = [
     str('abbreviation', ''),
     str('purpose', ''),
     str('viewpoint', ''),
-    ref('topFunction', 'IDEF0Function')
+    ref('topFunction', 'IDEF0Function'),
+    bool('colorArrowsByRole', false)
   ]),
   t('IDEF0Function', 'IDEF0Scope', [
     objs('functions', 'IDEF0Function'),

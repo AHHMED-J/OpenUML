@@ -28,6 +28,8 @@ export * from './decompose'
 export * from './boxCount'
 export * from './propagation'
 export * from './commands'
+export * from './colors'
+export * from './colorFlow'
 export * from './gestures'
 export * from './deletion'
 

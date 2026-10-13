@@ -11,6 +11,7 @@ import { nameEditText } from '../layout/helpers'
 import type { EdgeLayout, LayoutContext } from '../layout/types'
 import type { EdgeNotation } from '../render/registry'
 import { PORT_DIR, SIDE_DIR, IDEF0_STYLE, dirVector, rectCenterOf, slotPoint } from './geometry'
+import { arrowLabelColor, arrowLineColor, arrowTextColor } from './colors'
 import { STUB, feedbackKind, longestSegment, routeArrow, routeBranch, trimEnd, trimStart, type RouteEnd } from './routing'
 import { arrowText, callLabelText } from './strings'
 
@@ -284,7 +285,10 @@ function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> 
     routed: { points, lineStyle: (edge.lineStyle ?? 2) as never },
     extraBounds: tunnels.map((t) => t.bounds)
   })
-  const labels = labelPoints.length >= 2 ? placeEdgeLabels(labelHost(edge, text, labelPoints, ctx), labelPoints, labelSpec, ctx) : []
+  // Colors: a branch takes its trunk's, the label follows the line unless it has a text color.
+  const style = { ...base.style, lineColor: arrowLineColor(edge), fontColor: arrowTextColor(edge) }
+  const labelColor = arrowLabelColor(edge, edge['nameLabel'] as View | null | undefined)
+  const labels = (labelPoints.length >= 2 ? placeEdgeLabels(labelHost(edge, text, labelPoints, ctx), labelPoints, labelSpec, ctx) : []).map((l) => ({ ...l, fontColor: labelColor }))
   let squiggle: Point[] | null = null
   const label = labels[0]
   if (label && edge['showSquiggle'] !== false) {
@@ -302,6 +306,7 @@ function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> 
       : undefined
   return {
     ...base,
+    style,
     labels,
     labelPoints,
     ...(fallback ? { fallbackEdit: fallback } : {}),

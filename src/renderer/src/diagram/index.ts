@@ -153,8 +153,11 @@ export { ensureNotations } from './notations'
 
 // IDEF0: commands, validation and model edits for the shell
 export {
+  IDEF0_ROLE_COLORS,
   Idef0CommandIds,
+  colorIdef0Arrows,
   decomposeFunction,
+  isFlowColorEdit,
   deleteIdef0Elements,
   issueItems,
   registerIdef0Commands,
