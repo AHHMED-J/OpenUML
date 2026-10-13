@@ -5,6 +5,7 @@
 import {
   containmentFields,
   fieldOf,
+  idef0DiagramLabel,
   isElem,
   isKindOf,
   typeDisplayName,
@@ -151,6 +152,7 @@ export function explorerLabel(el: Elem, showStereotype = true): string {
   } else if (!label) {
     label = `(${typeDisplayName(el._type)})`
   }
+  if (isKindOf(el, 'IDEF0Diagram')) label = idef0DiagramLabel(el, label)
   if (showStereotype) {
     const st = variantText(el['stereotype'])
     if (st) label = `«${st}»${label}`
