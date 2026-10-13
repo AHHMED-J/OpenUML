@@ -260,6 +260,106 @@ export function icomCodes(diagram: Elem): Map<string, string> {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Arrows of a box, by role and position along its sides
+
+/** The ICOM roles in IDEF0 reading order (also the order of the explorer's role folders). */
+export const ROLE_ORDER: readonly Idef0Role[] = ['input', 'control', 'output', 'mechanism', 'call']
+
+/** Display name of a role (`Input`, `Control`, ...). */
+export const ROLE_TITLE: Readonly<Record<Idef0Role, string>> = {
+  input: 'Input',
+  control: 'Control',
+  output: 'Output',
+  mechanism: 'Mechanism',
+  call: 'Call'
+}
+
+/** Plural display name of a role (`Inputs`, `Controls`, ...). */
+export const ROLE_PLURAL: Readonly<Record<Idef0Role, string>> = {
+  input: 'Inputs',
+  control: 'Controls',
+  output: 'Outputs',
+  mechanism: 'Mechanisms',
+  call: 'Calls'
+}
+
+/**
+ * The roles an arrow has at a box it touches directly: the role of its target end
+ * (input/control/mechanism) and `output` (or `call`) at its source end. A box feeding itself gets
+ * both; an arrow that does not touch `fn` gets none.
+ */
+export function rolesAt(arrow: Elem, fn: Elem): Idef0Role[] {
+  const roles: Idef0Role[] = []
+  const role = roleOf(arrow)
+  if (arrow['target'] === fn && role !== 'call' && role !== 'output') roles.push(role)
+  if (arrow['source'] === fn) roles.push(role === 'call' ? 'call' : 'output')
+  return roles
+}
+
+/** The diagram drawing the arrows of a scope (A-0 for the model, else the function's child diagram). */
+function diagramOfArrowScope(scope: Elem | null): Elem | null {
+  if (!scope) return null
+  if (isKindOf(scope, 'IDEF0Model')) return contextDiagramOf(scope)
+  return (scope['childDiagram'] as Elem | null) ?? null
+}
+
+/** Coordinate along a box side where the `end` of an arrow view's stored route attaches. */
+function endCoordinate(end: 'source' | 'target', side: Idef0Side, view: View | undefined): number {
+  const points = (view?.['points'] as readonly Point[] | undefined) ?? []
+  const p = end === 'target' ? points[points.length - 1] : points[0]
+  if (!p) return Number.POSITIVE_INFINITY
+  return side === 'top' || side === 'bottom' ? p.x : p.y
+}
+
+/**
+ * The arrows touching function box `fn` on its own diagram, grouped by their role at the box in
+ * `ROLE_ORDER` and numbered along each side as the ICOM codes are: top to bottom for inputs and
+ * outputs, left to right for controls, mechanisms and calls (by the stored attachment points;
+ * arrows without a route keep model order). Roles without arrows are left out.
+ */
+export function boxArrowGroups(fn: Elem, viewOfArrow?: (arrow: Elem) => View | undefined): Array<{ role: Idef0Role; arrows: Elem[] }> {
+  const scope = fn._parent
+  const arrows = list(scope, 'arrows').filter((a) => isKindOf(a, 'IDEF0Arrow') && (a['source'] === fn || a['target'] === fn))
+  if (arrows.length === 0) return []
+  const find = viewOfArrow ?? viewFinder(diagramOfArrowScope(scope))
+  const groups: Array<{ role: Idef0Role; arrows: Elem[] }> = []
+  for (const role of ROLE_ORDER) {
+    const end = role === 'output' || role === 'call' ? 'source' : 'target'
+    const side = ROLE_SIDE[role]
+    const keyed = arrows
+      .filter((a) => rolesAt(a, fn).includes(role))
+      .map((a, i) => ({ a, i, c: endCoordinate(end, side, find(a)) }))
+    if (keyed.length === 0) continue
+    keyed.sort((x, y) => (x.c === y.c ? x.i - y.i : x.c - y.c))
+    groups.push({ role, arrows: keyed.map((k) => k.a) })
+  }
+  return groups
+}
+
+/** 1-based position of `arrow` among the arrows of `role` at `fn` (0 when it is not attached there). */
+export function arrowPositionAt(arrow: Elem, fn: Elem, role: Idef0Role): number {
+  const group = boxArrowGroups(fn).find((g) => g.role === role)
+  return (group?.arrows.indexOf(arrow) ?? -1) + 1
+}
+
+/** The label of a call arrow when it has no name: its `calledNode` text or the called box's reference. */
+export function arrowDisplayName(arrow: Elem): string {
+  const name = (arrow['name'] as string | undefined) ?? ''
+  if (name || roleOf(arrow) !== 'call') return name
+  const text = (arrow['calledNode'] as string | undefined) ?? ''
+  if (text) return text
+  const caller = arrow['source'] as Elem | null
+  const called = isIdef0Function(caller) ? (caller['calledFunction'] as Elem | null) : null
+  return called ? functionReference(called) : ''
+}
+
+/** `Role N: name`, or just `Role N` for an unnamed arrow (`Input 1: Customer Order`, `Output 2`). */
+export function arrowRoleLabel(role: Idef0Role, position: number, name: string): string {
+  const head = `${ROLE_TITLE[role]} ${position}`
+  return name ? `${head}: ${name}` : head
+}
+
+// ---------------------------------------------------------------------------------------------
 // Slots
 
 /** Rounds to the 8-unit grid. */
