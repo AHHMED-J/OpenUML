@@ -8,6 +8,7 @@ import { isKindOf, type Elem, type NodeView, type View } from '../../model'
 import { unionRects, wrapText, withFontStyle, type Font, type NodeOutline, type Rect } from '../core'
 import { nameOf, nodeLayout, storedBox, styleOf } from '../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine, ViewStyle } from '../layout/types'
+import { edgesAt } from '../layout/passIndex'
 import { nodeNotationFor } from '../render/registry'
 import { roleTitle } from './strings'
 import { radWarningsByElement, type RadWarning } from './validation'
@@ -214,7 +215,12 @@ function warned(ctx: LayoutContext, model: Elem | null | undefined, lines: reado
 
 /** Fixed-size copy of a view: symbols cannot be resized, only moved. */
 function fixed(view: NodeView, width: number, height: number): NodeView {
-  return { ...view, width, height, autoResize: false } as NodeView
+  // A prototype-backed overlay: copying every field of the view costs more than the layout itself.
+  const copy = Object.create(view) as NodeView
+  copy.width = width
+  copy.height = height
+  copy.autoResize = false
+  return copy
 }
 
 function nameRegions(view: NodeView, label: readonly TextLine[], box: Rect, font: Font, target: EditRegion['target'], text: string): EditRegion[] {
@@ -284,8 +290,8 @@ function boxAt(view: NodeView, width: number, height: number): Rect {
  */
 function entersFromRight(view: NodeView, ctx: LayoutContext): boolean {
   const cx = (view.left ?? 0) + (view.width ?? 0) / 2
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v._type !== 'RADStateLineView' || v.visible === false || v.model?.['loopBack'] === true || v.model?.['routing'] === 'bus') continue
+  for (const v of edgesAt(ctx, 'RADStateLineView').get(view) ?? []) {
+    if (v.model?.['loopBack'] === true || v.model?.['routing'] === 'bus') continue
     const e = v as unknown as { tail: NodeView | null; head: View | null }
     if (e.head !== view || !e.tail || !isKindOf(e.tail.model, 'RADBranch')) continue
     const t = e.tail
@@ -297,8 +303,7 @@ function entersFromRight(view: NodeView, ctx: LayoutContext): boolean {
 /** The interaction link views joined to an interaction view, and the partner views. */
 function linkPartners(view: NodeView, ctx: LayoutContext): NodeView[] {
   const out: NodeView[] = []
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v._type !== 'RADInteractionLinkView' || v.visible === false) continue
+  for (const v of edgesAt(ctx, 'RADInteractionLinkView').get(view) ?? []) {
     const e = v as unknown as { tail: View | null; head: View | null }
     if (e.tail === view && e.head && isKindOf(e.head, 'NodeView')) out.push(e.head as NodeView)
     else if (e.head === view && e.tail && isKindOf(e.tail, 'NodeView')) out.push(e.tail as NodeView)
