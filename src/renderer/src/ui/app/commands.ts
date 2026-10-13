@@ -39,6 +39,7 @@ export function initCommands(): void {
     })
   } catch (err) {
     console.error('Failed to register diagram commands', err)
+    uiStore.getState().toast('Some diagram commands could not be loaded and are unavailable', 'error')
   }
   const core = new CommandRegistry()
   registerCoreCommands(core, projectStore)
