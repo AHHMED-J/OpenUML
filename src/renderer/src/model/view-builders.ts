@@ -66,6 +66,27 @@ export function centerOf(view: View): Point | null {
   return b ? { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) } : null
 }
 
+/**
+ * Initial points of a new edge: the centers of its ends, or for a self edge a 30 × 20 loop out
+ * of the right side of the view.
+ */
+export function defaultEdgePoints(tail: View, head: View): Point[] {
+  const a = centerOf(tail)
+  const b = centerOf(head)
+  if (!a || !b) return []
+  if (tail === head) {
+    const box = boundsOf(tail) as Bounds
+    const right = box.left + box.width
+    return [
+      { x: right, y: a.y - 10 },
+      { x: right + 30, y: a.y - 10 },
+      { x: right + 30, y: a.y + 10 },
+      { x: right, y: a.y + 10 }
+    ]
+  }
+  return [a, b]
+}
+
 function labelInside(host: NodeView, props: Record<string, unknown> = {}): LabelView {
   return createElement<LabelView>('LabelView', {
     left: host.left,

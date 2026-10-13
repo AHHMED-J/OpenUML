@@ -5,15 +5,14 @@
  */
 import { isKindOf } from './metamodel'
 import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest } from './factories'
-import type { Bounds, Diagram, Elem, NodeView, Point, View } from './types'
+import type { Bounds, Diagram, Elem, NodeView, View } from './types'
 import {
   addFloatingLabels,
   addListCompartment,
   addNameCompartment,
   addSubView,
-  boundsOf,
   buildGeneralEdgeView,
-  centerOf,
+  defaultEdgePoints,
   createElement,
   defaultName
 } from './view-builders'
@@ -253,23 +252,6 @@ export function canConnectStateMachine(tail: View, head: View): boolean {
   return !(isKindOf(target, 'UMLPseudostate') && target['kind'] === 'initial')
 }
 
-function defaultTransitionPoints(tail: View, head: View): Point[] {
-  const a = centerOf(tail)
-  const b = centerOf(head)
-  if (!a || !b) return []
-  if (tail === head) {
-    const box = boundsOf(tail) as Bounds
-    const right = box.left + box.width
-    return [
-      { x: right, y: a.y - 10 },
-      { x: right + 30, y: a.y - 10 },
-      { x: right + 30, y: a.y + 10 },
-      { x: right, y: a.y + 10 }
-    ]
-  }
-  return [a, b]
-}
-
 /** Plans a transition owned by the lowest region containing both ends. */
 export function planTransition(req: EdgeRequest): CreationPlan {
   const source = req.tail.model as Elem
@@ -278,7 +260,7 @@ export function planTransition(req: EdgeRequest): CreationPlan {
   const region = lowestCommonRegion(source, target) ?? (machine?.['regions'] as Elem[] | undefined)?.[0]
   if (!region) throw new Error('The state machine has no region')
   const model = createElement('UMLTransition', { ...(req.name ? { name: req.name } : {}), source, target })
-  const points = req.points ? [...req.points] : defaultTransitionPoints(req.tail, req.head)
+  const points = req.points ? [...req.points] : defaultEdgePoints(req.tail, req.head)
   const view = buildGeneralEdgeView('UMLTransitionView', { model, tail: req.tail, head: req.head, points })
   return {
     model,
