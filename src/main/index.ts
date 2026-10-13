@@ -1,7 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { IpcChannels, type MenuItemSpec } from '../shared/ipc'
+import { APP_ENTRY_URL, APP_ORIGIN, APP_SCHEME, resolveAppAsset } from './appProtocol'
 import { FileAccess, readProjectFile, writeFileAtomic } from './fileAccess'
 import {
   allowedExternalUrl,
@@ -29,7 +30,10 @@ const fileAccess = new FileAccess()
 const devServerUrl = !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined
 const rendererRoot = join(__dirname, '../renderer')
 
-const rendererEntry = join(rendererRoot, 'index.html')
+// The packaged UI is served from app://openuml/ (a secure, standard origin) instead of file://.
+protocol.registerSchemesAsPrivileged([
+  { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, codeCache: true } }
+])
 
 /** Opens `path` in the running window (asking about unsaved changes), or at launch if not ready yet. */
 function openFile(path: string): void {
@@ -48,7 +52,8 @@ app.on('open-file', (event, path) => {
 function isAppUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
-    if (parsed.protocol === 'file:') return parsed.pathname === pathToFileURL(rendererEntry).pathname
+    // URL.origin is "null" for non-special schemes such as app:, so compare scheme and host.
+    if (`${parsed.protocol}//${parsed.host}` === APP_ORIGIN) return true
     return devServerUrl !== undefined && parsed.origin === new URL(devServerUrl).origin
   } catch {
     return false
@@ -124,7 +129,16 @@ function createWindow(): void {
   })
 
   if (devServerUrl) void window.loadURL(devServerUrl)
-  else void window.loadFile(rendererEntry)
+  else void window.loadURL(APP_ENTRY_URL)
+}
+
+/** Serves the renderer bundle for app://openuml/ requests; everything else is a 404. */
+function registerAppProtocol(): void {
+  protocol.handle(APP_SCHEME, (request) => {
+    const file = resolveAppAsset(rendererRoot, request.url)
+    if (!file) return new Response('Not found', { status: 404 })
+    return net.fetch(pathToFileURL(file).toString())
+  })
 }
 
 /** The UI needs no camera, microphone, location, notifications, etc.; only clipboard text access. */
@@ -336,6 +350,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(() => {
+    registerAppProtocol()
     restrictPermissions()
     registerIpc()
     createWindow()
