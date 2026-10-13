@@ -111,6 +111,9 @@ describe('IDEF0 validation', () => {
   it('W07: an unlabeled branch whose trunk is also unlabeled', () => {
     const k = exampleKit()
     arrowNamed(k.top, 'Sales Policy')['name'] = ''
+    // The boundary trunk still carries the label of the A-0 arrow its port stands for.
+    expect(ids(k).filter((id) => id === 'W05' || id === 'W07')).toEqual([])
+    arrowNamed(k.model, 'Sales Policy')['name'] = ''
     const found = validateIdef0(k.model).filter((i) => i.id === 'W07')
     expect(found).toHaveLength(2)
   })

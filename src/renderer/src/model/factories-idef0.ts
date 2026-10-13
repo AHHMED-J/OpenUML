@@ -9,6 +9,7 @@ import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest, Re
 import {
   attachedArrows,
   contextDiagramOf,
+  effectiveArrowName,
   isContextDiagram,
   isIdef0Function,
   nextFreeBoxNumber,
@@ -169,7 +170,8 @@ interface BoxSlot {
  * Plans the decomposition of `fn` into `count` boxes. The new diagram is owned by `fn` and set as
  * its `childDiagram`. Every arrow attached to `fn` on its own diagram that is not tunneled at the
  * connected end (call arrows excluded) gets a boundary port (ICOM role of the parent attachment,
- * `corresponds` = the parent arrow) and a default-wired arrow: inputs to the first box, controls
+ * `corresponds` = the parent arrow) and a default-wired arrow labeled with the parent arrow's
+ * effective label (an unlabeled branch gives its trunk's): inputs to the first box, controls
  * forked to every box, mechanisms to the first box, outputs from the last box.
  */
 export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
@@ -230,7 +232,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
     for (const parent of parents) {
       const along = takeSlot(first, ROLE_SIDE[role], parents.length)
       const portView = addPort(role, parent, along)
-      const trunk = addArrow(role, parent['name'] as string, portView.model, first.fn, portView, first.view)
+      const trunk = addArrow(role, effectiveArrowName(parent), portView.model, first.fn, portView, first.view)
       if (role === 'control') {
         for (const box of boxes.slice(1)) addArrow('control', '', trunk.model, box.fn, trunk, box.view)
       }
@@ -239,7 +241,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   const outputs = attached('output')
   for (const parent of outputs) {
     const portView = addPort('output', parent, takeSlot(last, 'right', outputs.length))
-    addArrow('output', parent['name'] as string, last.fn, portView.model, last.view, portView)
+    addArrow('output', effectiveArrowName(parent), last.fn, portView.model, last.view, portView)
   }
 
   for (const child of functions) insertions.push({ owner: fn, field: 'functions', element: child })

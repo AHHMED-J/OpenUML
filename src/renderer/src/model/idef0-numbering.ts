@@ -233,6 +233,48 @@ export function rootArrow(arrow: Elem): Elem {
   return current
 }
 
+/** The arrow a branch leaves (fork) or joins, or null for an arrow between boxes and ports. */
+export function trunkOf(arrow: Elem): Elem | null {
+  const source = arrow['source'] as Elem | null
+  const target = arrow['target'] as Elem | null
+  return isKindOf(source, 'IDEF0Arrow') ? source : isKindOf(target, 'IDEF0Arrow') ? target : null
+}
+
+function boundaryPortOf(arrow: Elem): Elem | null {
+  const source = arrow['source'] as Elem | null
+  const target = arrow['target'] as Elem | null
+  return isKindOf(source, 'IDEF0Port') ? source : isKindOf(target, 'IDEF0Port') ? target : null
+}
+
+/** Deepest chain of labels followed (branches of branches, levels of decomposition). */
+const LABEL_DEPTH = 64
+
+/**
+ * The label drawn on an arrow: its own name, else, for a boundary arrow of a child diagram, the
+ * effective label of the parent arrow its port stands for. That parent arrow is often an unlabeled
+ * branch whose label is its trunk's, so a boundary arrow seeded from it (or written by an older
+ * version, with an empty name) still reads "Shipping rates" on the child diagram. An unlabeled
+ * branch draws nothing: it shares its trunk's label.
+ */
+export function shownArrowName(arrow: Elem, depth = 0): string {
+  const own = (arrow['name'] as string | undefined) ?? ''
+  if (own || trunkOf(arrow) || depth > LABEL_DEPTH) return own
+  const parent = boundaryPortOf(arrow)?.['corresponds'] as Elem | null | undefined
+  return parent ? effectiveArrowName(parent, depth + 1) : ''
+}
+
+/**
+ * The label an arrow carries (IDEF0 label inheritance): `shownArrowName`, else, for an unlabeled
+ * branch, the effective label of its trunk. Used to label child boundary arrows, by the validator
+ * and in the explorer.
+ */
+export function effectiveArrowName(arrow: Elem, depth = 0): string {
+  const shown = shownArrowName(arrow, depth)
+  if (shown || depth > LABEL_DEPTH) return shown
+  const trunk = trunkOf(arrow)
+  return trunk ? effectiveArrowName(trunk, depth + 1) : ''
+}
+
 /**
  * Side of a function box an arrow leaves from: the right side (output), or the bottom for a call
  * arrow. The arrow's `role` describes its target end, so a source end is always an output.
@@ -392,10 +434,14 @@ export function arrowPositionAt(arrow: Elem, fn: Elem, role: Idef0Role): number 
   return (group?.arrows.indexOf(arrow) ?? -1) + 1
 }
 
-/** The label of a call arrow when it has no name: its `calledNode` text or the called box's reference. */
+/**
+ * Label of an arrow in lists: its name, the label a child boundary arrow inherits (`shownArrowName`),
+ * or for a call arrow its `calledNode` text or the called box's reference.
+ */
 export function arrowDisplayName(arrow: Elem): string {
   const name = (arrow['name'] as string | undefined) ?? ''
-  if (name || roleOf(arrow) !== 'call') return name
+  if (name) return name
+  if (roleOf(arrow) !== 'call') return shownArrowName(arrow)
   const text = (arrow['calledNode'] as string | undefined) ?? ''
   if (text) return text
   const caller = arrow['source'] as Elem | null

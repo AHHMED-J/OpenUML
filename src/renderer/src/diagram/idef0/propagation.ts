@@ -12,7 +12,9 @@
  * - **Child counterparts**: the boundary arrows of a child diagram standing for an arrow of the
  *   decomposed box, with the arrows they feed (deleted with it).
  * - **Linked names**: renaming an arrow renames the arrows that carry the same flow on the other
- *   levels (through ports that carry a single arrow).
+ *   levels (through ports that carry a single arrow). An unlabeled branch carries its trunk's
+ *   label (its effective label), so renaming the trunk also relabels the counterparts of its
+ *   unlabeled branches on the other levels.
  *
  * Everything runs inside the caller's operation, so the gesture and its consequences on other
  * diagrams form one undo step. The downward direction (`syncPorts`) adds ports only for parent
@@ -22,6 +24,7 @@ import { applyPlan, deleteFromModel, type ModelEngine, type OperationBuilder } f
 import {
   IDEF0_AREA,
   diagramOfScope,
+  effectiveArrowName,
   isIdef0Function,
   isKindOf,
   planBoundaryArrow,
@@ -112,7 +115,7 @@ export function propagateUp(b: OperationBuilder, env: LevelEnv, port: Elem): Ele
     const parentDiagram = boxDiagramOf(fn)
     const box = nodeViewOf(parentDiagram, fn, 'IDEF0FunctionView')
     if (!parentDiagram || !box) break
-    const name = arrows.map((a) => (a['name'] as string | undefined) ?? '').find((n) => n !== '') ?? ''
+    const name = arrows.map((a) => effectiveArrowName(a)).find((n) => n !== '') ?? ''
     const plan = planBoundaryArrow(parentDiagram as Diagram, box, role as BoundaryRole, name, alongParentBox(current, role as BoundaryRole, box))
     applyPlan(b, plan)
     const parentArrow = plan.model as Elem
@@ -242,9 +245,35 @@ export function linkedArrows(arrow: Elem): Elem[] {
   return [...seen]
 }
 
-/** Gives the arrows linked to `arrow` on other levels its name (inside the rename operation). */
+/** The branches of `arrow` (and their branches) that have no label of their own: they carry its label. */
+function inheritingBranches(arrow: Elem): Elem[] {
+  const out: Elem[] = []
+  const queue = [arrow]
+  while (queue.length > 0 && out.length < 256) {
+    const trunk = queue.shift() as Elem
+    for (const a of list(trunk._parent, 'arrows')) {
+      if ((a['source'] !== trunk && a['target'] !== trunk) || a === arrow || out.includes(a) || a['name']) continue
+      out.push(a)
+      queue.push(a)
+    }
+  }
+  return out
+}
+
+/**
+ * Gives the arrows linked to `arrow` on other levels its name (inside the rename operation), and
+ * the counterparts of the unlabeled branches of that flow its effective label: renaming the trunk
+ * "Shipping rates" relabels the child boundary arrow standing for one of its branches.
+ */
 export function syncLinkedNames(b: OperationBuilder, arrow: Elem): void {
   if (!isKindOf(arrow, 'IDEF0Arrow')) return
   const name = (arrow['name'] as string | undefined) ?? ''
-  for (const other of linkedArrows(arrow)) if (other['name'] !== name) b.set(other, 'name', name)
+  const flow = [arrow, ...linkedArrows(arrow)]
+  for (const other of flow) if (other !== arrow && other['name'] !== name) b.set(other, 'name', name)
+  const label = effectiveArrowName(arrow)
+  for (const a of flow) {
+    for (const branch of inheritingBranches(a)) {
+      for (const other of linkedArrows(branch)) if (!flow.includes(other) && other['name'] !== label) b.set(other, 'name', label)
+    }
+  }
 }
