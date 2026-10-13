@@ -83,6 +83,27 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # electron-builder downloads the Electron zips and its packaging tools (about 100 MB) on
+      # every run. They are cached per OS and per Electron / electron-builder version. A cached
+      # file is checked again before use: Electron zips against the release's SHASUMS256.txt,
+      # builder tools against the checksums pinned in electron-builder, so a tampered cache entry
+      # is downloaded again instead of being packaged.
+      - name: Electron and electron-builder versions
+        id: electron-versions
+        shell: bash
+        run: echo "key=$(node -p "require('electron/package.json').version + '-' + require('electron-builder/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: electron-downloads-${{ runner.os }}-${{ steps.electron-versions.outputs.key }}
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+
       # No signing certificates: the macOS app is signed ad hoc (package.json: mac.identity "-"),
       # which Apple Silicon needs to run it at all; Windows builds are unsigned.
       - name: Package
