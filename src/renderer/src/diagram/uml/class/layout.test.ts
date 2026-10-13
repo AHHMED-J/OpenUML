@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { addAttribute, addEnumerationLiteral, addOperation, addParameter, setFields } from '../../../commands'
 import type { Elem, NodeView } from '../../../model'
-import { testDiagram } from '../../testUtils'
+import { BOLD_CHAR, CHAR, testDiagram } from '../../testUtils'
 import type { NodeLayout } from '../../layout/types'
 import type { ClassifierData, PackageData } from './layout'
 import { attributeText, operationText } from './strings'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const BOLD_CHAR = 13 * 0.6 * 1.1
-const CHAR = 13 * 0.6
 
 function classifier(layout: NodeLayout | undefined): NodeLayout<ClassifierData> {
   if (!layout) throw new Error('no layout')

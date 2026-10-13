@@ -7,6 +7,12 @@ import { computeDiagramLayout } from './layout/layoutDiagram'
 import type { DiagramLayout } from './layout/types'
 import { ensureNotations } from './notations'
 
+/** Character widths of the default 13 px font with the test measurer (regular, bold). */
+export const CHAR = 13 * 0.6
+export const BOLD_CHAR = CHAR * 1.1
+/** Width of a bold name compartment line of `n` characters (5 padding on each side). */
+export const nameWidth = (n: number): number => Math.ceil(n * BOLD_CHAR) + 10
+
 export interface TestDiagram extends DiagramEnv {
   readonly repository: Repository
   node(kind: NodeKind, left: number, top: number, width?: number, height?: number): View

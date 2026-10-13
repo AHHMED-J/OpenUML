@@ -8,14 +8,13 @@ import { createEdgeBetween, createNodeAt, moveSelection } from '../../editor/act
 import { applyQuickEdit } from '../../editor/quickEditApply'
 import { computeDiagramLayout } from '../../layout/layoutDiagram'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
-import { testDiagram } from '../../testUtils'
+import { CHAR, testDiagram } from '../../testUtils'
 import { snapToSegment } from './edges'
 import type { DurationConstraintData, TimeSegmentData, TimeTickData, TimingLifelineData, TimingStateData } from './layout'
 import { arrangeTiming } from './arrange'
 import { intervalText, parseInterval } from './layout'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const CHAR = 13 * 0.6
 
 function timing() {
   const t = testDiagram()

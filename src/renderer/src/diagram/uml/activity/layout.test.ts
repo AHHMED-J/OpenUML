@@ -6,14 +6,12 @@ import { createNodeAt, creationContainer, findDropContainer } from '../../editor
 import { computeDiagramLayout } from '../../layout/layoutDiagram'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
 import { nodeNotationFor } from '../../render/registry'
-import { testDiagram } from '../../testUtils'
+import { BOLD_CHAR, CHAR, testDiagram } from '../../testUtils'
 import { flowLabelText } from './edges'
 import type { ActionData, ControlNodeData, ObjectNodeData, PinData, SwimlaneData } from './layout'
 import { acceptEventPolygon, nearestBorderPoint, pinLabelBox, sendSignalPolygon } from './layout'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const BOLD_CHAR = 13 * 0.6 * 1.1
-const CHAR = 13 * 0.6
 
 function activityDiagram() {
   const t = testDiagram()
