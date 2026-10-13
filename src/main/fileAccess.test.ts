@@ -1,8 +1,8 @@
-import { mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileAccess, writeFileAtomic } from './fileAccess'
+import { FileAccess, FileTooLargeError, readProjectFile, writeFileAtomic } from './fileAccess'
 
 describe('FileAccess', () => {
   it('reads project files only', () => {
@@ -11,6 +11,15 @@ describe('FileAccess', () => {
     expect(access.canRead('/home/u/MODEL.MDJ')).toBe(true)
     expect(access.canRead('/home/u/.ssh/id_rsa')).toBe(false)
     expect(access.canRead(42)).toBe(false)
+    expect(access.canRead('model.mdj')).toBe(false)
+    expect(access.canRead('../../model.mdj')).toBe(false)
+    expect(access.canRead('/home/u/a\0.mdj')).toBe(false)
+  })
+
+  it('refuses relative write paths even when they resolve to a granted file', () => {
+    const access = new FileAccess('linux')
+    access.grantFile(`${process.cwd()}/out.mdj`)
+    expect(access.canWrite('out.mdj')).toBe(false)
   })
 
   it('writes only granted files (with the extensions the caller may append) and inside granted folders', () => {
@@ -31,6 +40,72 @@ describe('FileAccess', () => {
     const access = new FileAccess('win32')
     access.grantFile('C:\\Users\\U\\Model.mdj')
     expect(access.canWrite('c:\\users\\u\\model.MDJ')).toBe(true)
+  })
+})
+
+describe('FileAccess with symbolic links', () => {
+  let dir = ''
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true })
+  })
+
+  it('does not follow a link inside a granted folder to a place outside it', async () => {
+    dir = await realpath(await mkdtemp(join(tmpdir(), 'openuml-')))
+    await mkdir(join(dir, 'export'))
+    await mkdir(join(dir, 'secret'))
+    await symlink(join(dir, 'secret'), join(dir, 'export', 'link'))
+    await writeFile(join(dir, 'secret', 'file.png'), 'keep')
+    await symlink(join(dir, 'secret', 'file.png'), join(dir, 'export', 'file-link.png'))
+    await symlink(join(dir, 'secret', 'missing.png'), join(dir, 'export', 'dangling.png'))
+    const access = new FileAccess(process.platform)
+    access.grantFolder(join(dir, 'export'))
+    expect(await access.canWriteResolved(join(dir, 'export', 'a.png'))).toBe(true)
+    expect(await access.canWriteResolved(join(dir, 'export', 'new', 'b.png'))).toBe(true)
+    expect(access.canWrite(join(dir, 'export', 'link', 'authorized_keys'))).toBe(true)
+    expect(await access.canWriteResolved(join(dir, 'export', 'link', 'authorized_keys'))).toBe(false)
+    expect(await access.canWriteResolved(join(dir, 'export', 'file-link.png'))).toBe(false)
+    expect(await access.canWriteResolved(join(dir, 'other.png'))).toBe(false)
+    // A dangling link is replaced by the atomic write, never followed.
+    expect(await access.canWriteResolved(join(dir, 'export', 'dangling.png'))).toBe(true)
+    await writeFileAtomic(join(dir, 'export', 'dangling.png'), 'data')
+    expect(await readdir(join(dir, 'secret'))).toEqual(['file.png'])
+  })
+
+  it('follows links for files the user chose', async () => {
+    dir = await realpath(await mkdtemp(join(tmpdir(), 'openuml-')))
+    await writeFile(join(dir, 'real.mdj'), '{}')
+    await symlink(join(dir, 'real.mdj'), join(dir, 'link.mdj'))
+    const access = new FileAccess(process.platform)
+    access.grantFile(join(dir, 'link.mdj'))
+    expect(await access.canWriteResolved(join(dir, 'link.mdj'))).toBe(true)
+  })
+})
+
+describe('readProjectFile', () => {
+  let dir = ''
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true })
+  })
+
+  it('reads project files and links to project files', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'openuml-'))
+    await writeFile(join(dir, 'a.mdj'), '{"_type":"Project"}')
+    await symlink(join(dir, 'a.mdj'), join(dir, 'b.mdj'))
+    expect(await readProjectFile(join(dir, 'a.mdj'), true)).toBe('{"_type":"Project"}')
+    expect(await readProjectFile(join(dir, 'b.mdj'), true)).toBe('{"_type":"Project"}')
+  })
+
+  it('refuses a .mdj link to another kind of file, folders and oversized files', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'openuml-'))
+    await writeFile(join(dir, 'id_rsa'), 'secret')
+    await symlink(join(dir, 'id_rsa'), join(dir, 'model.mdj'))
+    await expect(readProjectFile(join(dir, 'model.mdj'), true)).rejects.toThrow(/not a project file/)
+    // A file the user picked in the open dialog may be a link to any name.
+    expect(await readProjectFile(join(dir, 'model.mdj'), false)).toBe('secret')
+    await mkdir(join(dir, 'folder.mdj'))
+    await expect(readProjectFile(join(dir, 'folder.mdj'), true)).rejects.toThrow(/not a file/)
+    await writeFile(join(dir, 'big.mdj'), 'x'.repeat(100))
+    await expect(readProjectFile(join(dir, 'big.mdj'), true, 10)).rejects.toBeInstanceOf(FileTooLargeError)
   })
 })
 
