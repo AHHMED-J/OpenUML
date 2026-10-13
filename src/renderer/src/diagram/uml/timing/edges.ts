@@ -4,14 +4,12 @@
  * constraint label to its host message or segment.
  */
 import type { EdgeView, View } from '../../../model'
-import { LineStyle, guillemets, messageNotation, relationshipNotation, type Point } from '../../core'
-import { buildEdgeLayout, type EdgeLabelSpec } from '../../layout/edges'
-import { stereotypeName } from '../../layout/helpers'
+import { LineStyle, messageNotation, relationshipNotation, type Point } from '../../core'
+import { buildEdgeLayout } from '../../layout/edges'
 import type { EdgeLayout, LayoutContext, NodeLayout } from '../../layout/types'
-import { tagString } from '../../render/generic'
 import type { EdgeNotation } from '../../render/registry'
 import { messageSortOf } from '../sequence/analysis'
-import { messageEditText, messageLabelText } from '../sequence/strings'
+import { messageLabelSpecs } from '../sequence/messages'
 import { type TimeSegmentData } from './layout'
 
 /** Ends snap to a segment's left or right edge when this close. */
@@ -45,22 +43,6 @@ function routeTimingMessage(edge: EdgeView, ctx: LayoutContext): Point[] | null 
   ]
 }
 
-function messageLabels(edge: EdgeView): EdgeLabelSpec[] {
-  const model = edge.model
-  const n = messageNotation(messageSortOf(model))
-  const keyword = stereotypeName(model) || n.fixedKeyword || ''
-  return [
-    {
-      field: 'nameLabel',
-      defaults: 'messageName',
-      text: messageLabelText(model, { sequenceNumber: '', showSignature: true }),
-      ...(model ? { edit: { kind: 'custom' as const, elementId: model._id, syntax: 'message' }, editText: messageEditText(model) } : {})
-    },
-    { field: 'stereotypeLabel', defaults: 'messageStereotype', text: keyword && (edge['stereotypeDisplay'] ?? 'label') !== 'none' ? guillemets(keyword) : '' },
-    { field: 'propertyLabel', defaults: 'messageProperty', text: edge['showProperty'] === false ? '' : tagString(model) }
-  ]
-}
-
 /** Z-index of messages: above the segments they join. */
 const TIMING_MESSAGE_Z = 3
 
@@ -73,7 +55,7 @@ export const timingMessageNotation: EdgeNotation = {
       tailEnd: n.tail,
       headEnd: n.head,
       zIndex: TIMING_MESSAGE_Z,
-      labels: messageLabels(edge),
+      labels: messageLabelSpecs(edge, { sequenceNumber: '', showSignature: true }),
       ...(points ? { routed: { points, lineStyle: LineStyle.Oblique } } : {})
     })
   }
