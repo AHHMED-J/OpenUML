@@ -13,7 +13,7 @@
  * The payload is JSON text so it can travel through the system clipboard.
  */
 import type { ModelEngine } from '../commands'
-import { ElementReader, isJsonObject, serializeElement, type Json, type JsonObject } from '../format'
+import { ElementReader, isJsonObject, parseJsonText, serializeElement, type Json, type JsonObject } from '../format'
 import {
   findContainment,
   formatPoints,
@@ -145,7 +145,8 @@ export function serializeClipboard(payload: ViewClipboardPayload): string {
 /** Parses clipboard text; null when it is not an OpenUML view payload. */
 export function parseClipboard(text: string): ViewClipboardPayload | null {
   try {
-    const value = JSON.parse(text) as unknown
+    // Clipboard text is untrusted: parse it with the same depth and `__proto__` guards as files.
+    const value = parseJsonText(text) as unknown
     if (
       isJsonObject(value) &&
       value['format'] === VIEW_CLIPBOARD_FORMAT &&
