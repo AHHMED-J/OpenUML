@@ -113,13 +113,13 @@ function prefersReducedMotion(): boolean {
 function gestureChange(g: Gesture, env: DiagramEnv, layout: DiagramLayout): (() => void) | null {
   switch (g.type) {
     case 'move':
-      return g.moved ? () => moveSelection(env, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined) : null
+      return g.moved ? () => moveSelection(env, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, layout) : null
     case 'resize':
       return g.rect !== g.box ? () => resizeNode(env, g.id, g.rect) : null
     case 'divider':
       return g.moved ? () => resizeSubView(env, g.divider.viewId, g.y - g.divider.top) : null
     case 'edge-shift':
-      return g.moved && g.dy !== 0 ? () => moveSelection(env, [g.edgeId], 0, g.dy) : null
+      return g.moved && g.dy !== 0 ? () => moveSelection(env, [g.edgeId], 0, g.dy, undefined, layout) : null
     case 'vertex':
       return g.moved && !g.end ? () => setEdgeVertices(env, g.edgeId, g.points) : null
     case 'segment':
@@ -805,7 +805,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     const p = toDiagram(e.clientX, e.clientY)
     switch (g.type) {
       case 'move':
-        if (g.moved) moveSelection(en, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined)
+        if (g.moved) moveSelection(en, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, l)
         else if (g.reselect) setSelection([g.clickedId])
         return
       case 'resize':
@@ -815,7 +815,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (g.moved) resizeSubView(en, g.divider.viewId, g.y - g.divider.top)
         return
       case 'edge-shift':
-        if (g.moved && g.dy !== 0) moveSelection(en, [g.edgeId], 0, g.dy)
+        if (g.moved && g.dy !== 0) moveSelection(en, [g.edgeId], 0, g.dy, undefined, l)
         return
       case 'band': {
         if (!g.rect) {
@@ -975,7 +975,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const step = e.shiftKey ? GRID.size : 1
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
-        moveSelection(en, selIds, dx, dy)
+        moveSelection(en, selIds, dx, dy, undefined, l)
         break
       }
       case 'Enter':

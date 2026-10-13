@@ -259,14 +259,26 @@ function recontain(b: OperationBuilder, env: DiagramEnv, nodes: readonly View[],
 // Geometry gestures
 
 /** Moves views (with their contained views and attached edges); optionally re-contains the nodes. */
-export function moveSelection(env: DiagramEnv, ids: readonly string[], dx: number, dy: number, drop?: { container: View | null }): void {
+/**
+ * Moves views by `(dx, dy)`, optionally dropping them into `drop.container`. `current` is the
+ * diagram's layout before the move when the caller has it (the editor does), which saves a
+ * layout pass.
+ */
+export function moveSelection(
+  env: DiagramEnv,
+  ids: readonly string[],
+  dx: number,
+  dy: number,
+  drop?: { container: View | null },
+  current?: DiagramLayout
+): void {
   const views = viewsById(env, ids)
   if (views.length === 0) return
   const nodes = views.filter((v) => isKindOf(v, 'NodeView'))
   const recontaining = drop !== undefined && isContainmentChange(nodes, drop.container)
   // Axis-restricted views (sequence lifelines) constrain the whole group.
   if (nodes.length > 0 && (dx !== 0 || dy !== 0)) {
-    const axis = moveAxisOf(layoutOf(env), nodes.map((v) => v._id))
+    const axis = moveAxisOf(current ?? layoutOf(env), nodes.map((v) => v._id))
     if (axis === 'horz') dy = 0
     else if (axis === 'vert') dx = 0
   }
