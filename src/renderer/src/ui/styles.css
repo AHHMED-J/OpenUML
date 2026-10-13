@@ -626,8 +626,7 @@ textarea:focus {
   border-bottom: 1px solid var(--border);
 }
 
-.tool-group-header,
-.section-header {
+.tool-group-header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -642,8 +641,7 @@ textarea:focus {
   cursor: default;
 }
 
-.tool-group-header:hover,
-.section-header:hover {
+.tool-group-header:hover {
   background: var(--hover);
 }
 
