@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addAttribute, setFields } from '../commands'
+import { cssColorOr, isCssColor } from '../format'
 import type { Elem } from '../model'
 import { testDiagram } from '../diagram/testUtils'
 import { renderDiagramSvg } from './svg'
@@ -56,5 +57,47 @@ describe('SVG export', () => {
     const { svg, bounds } = renderDiagramSvg(t.diagram, t.repository, t.measurer)
     expect(bounds).toEqual({ left: 0, top: 0, width: 20, height: 20 })
     expect(svg).toContain('<svg')
+  })
+
+  it('keeps hostile names inert: no elements, handlers or script URLs in the markup', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 200, 60)
+    const hostile = '</text><script>alert(1)</script><foreignObject><img src=x onerror="alert(1)"/></foreignObject><a href="javascript:alert(1)">x</a>]]>'
+    setFields(t.engine, a.model as Elem, { name: hostile })
+    const { svg } = renderDiagramSvg(t.diagram, t.repository, t.measurer)
+    expect(svg).not.toMatch(/<(script|foreignObject|img|a)\b/i)
+    // Handler-looking text stays text (its quotes are escaped), never an attribute.
+    expect(svg).not.toMatch(/\son\w+="/i)
+    expect(svg).not.toContain('href="')
+    expect(svg).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
+  it('draws file colors only when they are plain colors', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 100, 60)
+    setFields(t.engine, a, {
+      fillColor: 'url(https://tracker.example/x.svg#p)',
+      lineColor: 'red" onload="alert(1)',
+      fontColor: '#12ab34'
+    })
+    const { svg } = renderDiagramSvg(t.diagram, t.repository, t.measurer)
+    expect(svg).not.toContain('tracker.example')
+    expect(svg).not.toContain('onload')
+    expect(svg).toContain('fill="#12ab34"')
+  })
+})
+
+describe('isCssColor', () => {
+  it('accepts plain color syntax', () => {
+    for (const c of ['#fff', '#ffff', '#a1b2c3', '#a1b2c3d4', 'red', 'transparent', 'none', 'rgb(1, 2, 3)', 'rgba(1,2,3,0.5)', 'hsl(120deg 50% 50% / 0.3)']) {
+      expect(isCssColor(c)).toBe(true)
+    }
+  })
+
+  it('refuses references, functions and injection attempts', () => {
+    for (const c of ['url(#a)', 'url(https://x)', 'var(--x)', 'red;stroke:url(x)', 'rgb(url(x))', 'expression(alert(1))', '#ggg', '', 'a'.repeat(100), 42, null]) {
+      expect(isCssColor(c)).toBe(false)
+    }
+    expect(cssColorOr('url(x)', '#000000')).toBe('#000000')
   })
 })
