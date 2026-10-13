@@ -40,6 +40,20 @@ function regionAt(regions: readonly EditRegion[], p: Point): EditRegion | null {
   return best
 }
 
+/** The resize direction of a point within `tol` of a box's outline (corners first), or null. */
+function outlineHandle(box: Rect, p: Point, tol: number): HandlePosition | null {
+  const right = box.left + box.width
+  const bottom = box.top + box.height
+  if (p.x < box.left - tol || p.x > right + tol || p.y < box.top - tol || p.y > bottom + tol) return null
+  const n = Math.abs(p.y - box.top) <= tol
+  const s = Math.abs(p.y - bottom) <= tol
+  const w = Math.abs(p.x - box.left) <= tol
+  const e = Math.abs(p.x - right) <= tol
+  const v = n ? 'n' : s ? 's' : ''
+  const hz = w ? 'w' : e ? 'e' : ''
+  return v || hz ? ((v + hz) as HandlePosition) : null
+}
+
 export interface HitOptions {
   readonly selected: ReadonlySet<string>
   readonly zoom: number
@@ -57,7 +71,7 @@ export function hitTestDiagram(layout: DiagramLayout, p: Point, options: HitOpti
     for (const id of selected) {
       const node = layout.nodes.get(id)
       if (node && node.sizable !== 'none') {
-        const h = handleAt(node.box, p, node.sizable, zoom, SELECTION.handleSize)
+        const h = handleAt(node.box, p, node.sizable, zoom, SELECTION.handleSize) ?? (node.resizeOutline && node.sizable === 'free' ? outlineHandle(node.box, p, tol) : null)
         if (h) return { kind: 'handle', viewId: id, handle: h }
       }
       const dividers = node?.dividers ?? []
