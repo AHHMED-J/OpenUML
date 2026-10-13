@@ -8,6 +8,7 @@ export const Cmd = {
   ...CommandIds,
   // File
   fileOpenRecent: 'file.open-recent',
+  fileOpenExample: 'file.open-example',
   fileClearRecent: 'file.clear-recent',
   fileExportPng: 'file.export-diagram-as.png',
   fileExportSvg: 'file.export-diagram-as.svg',
@@ -110,6 +111,7 @@ export const NATIVE_EDIT_COMMANDS: Readonly<Record<string, 'undo' | 'redo' | 'cu
 /** Commands that need arguments or only make sense from a specific widget: hidden from the palette. */
 export const PALETTE_HIDDEN = new Set<string>([
   Cmd.fileOpenRecent,
+  Cmd.fileOpenExample,
   Cmd.modelAdd,
   Cmd.modelAddDiagram,
   Cmd.editRename,

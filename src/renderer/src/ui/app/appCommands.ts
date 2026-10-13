@@ -18,12 +18,14 @@ import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge } from './bridge'
+import { EXAMPLES } from '../examples'
 import { promptBoxCount } from './boxCount'
 import {
   closeWindow,
   exportAllDiagrams,
   exportDiagram,
   newProject,
+  openExample,
   openProjectDialog,
   openProjectPath,
   saveProject,
@@ -172,6 +174,14 @@ export function registerAppCommands(registry: CommandRegistry): void {
     label: 'Open Recent',
     run: (path) => (typeof path === 'string' ? openProjectPath(path) : undefined),
     isEnabled: () => bridge !== null
+  })
+  add({
+    id: Cmd.fileOpenExample,
+    label: 'Open Example',
+    run: (id) => {
+      const example = EXAMPLES.find((e) => e.id === id)
+      return example ? openExample(example.text) : undefined
+    }
   })
   add({ id: Cmd.fileClearRecent, label: 'Clear Recent', run: () => ui().clearRecent(), isEnabled: () => ui().recentFiles.length > 0 })
   add({ id: Cmd.fileSave, label: 'Save', run: () => saveProject(), isEnabled: () => bridge !== null })
