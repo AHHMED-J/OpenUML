@@ -96,6 +96,8 @@ export function DiagramArea(): React.JSX.Element {
   const zoom = useUiStore((s) => (activeId ? (s.zoomByDiagram[activeId] ?? 1) : 1))
   const showGrid = useUiStore((s) => s.prefs.showGrid)
   const snapToGrid = useUiStore((s) => s.prefs.snapToGrid)
+  const gridSize = useUiStore((s) => s.prefs.gridSize)
+  const defaultFontSize = useUiStore((s) => s.prefs.defaultFontSize)
 
   return (
     <main className="diagram-area" aria-label="Diagram">
@@ -120,6 +122,8 @@ export function DiagramArea(): React.JSX.Element {
               onZoomChange={(z) => uiStore.getState().setZoom(activeId, z)}
               showGrid={showGrid}
               snapToGrid={snapToGrid}
+              gridSize={gridSize}
+              defaultFontSize={defaultFontSize}
               onNotify={(message) => uiStore.getState().toast(message)}
             />
           </EditorBoundary>

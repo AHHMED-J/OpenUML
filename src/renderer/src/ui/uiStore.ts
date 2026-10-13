@@ -5,7 +5,7 @@
  */
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
-import { ZOOM } from '../diagram'
+import { GRID, sanitizeGridSize, ZOOM } from '../diagram'
 import {
   areaOf,
   describePosition,
@@ -55,8 +55,9 @@ export interface Preferences {
   readonly theme: ThemePreference
   readonly showGrid: boolean
   readonly snapToGrid: boolean
+  /** Grid step of the diagram editor in diagram units (drawing, snapping, Shift+arrow nudge). */
   readonly gridSize: number
-  /** Default font size for new views. */
+  /** Font size of views created in the diagram editor (where they would take the default font). */
   readonly defaultFontSize: number
   /** RAD: a new element placed below an open-ended element gets a state line from it. */
   readonly radAutoThread: boolean
@@ -66,7 +67,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
   showGrid: true,
   snapToGrid: true,
-  gridSize: 8,
+  gridSize: GRID.size,
   defaultFontSize: 13,
   radAutoThread: true
 }
@@ -240,8 +241,7 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
     theme: v.theme === 'dark' || v.theme === 'light' || v.theme === 'system' ? v.theme : DEFAULT_PREFERENCES.theme,
     showGrid: typeof v.showGrid === 'boolean' ? v.showGrid : DEFAULT_PREFERENCES.showGrid,
     snapToGrid: typeof v.snapToGrid === 'boolean' ? v.snapToGrid : DEFAULT_PREFERENCES.snapToGrid,
-    gridSize:
-      typeof v.gridSize === 'number' && v.gridSize >= 2 && v.gridSize <= 50 ? Math.round(v.gridSize) : DEFAULT_PREFERENCES.gridSize,
+    gridSize: sanitizeGridSize(v.gridSize),
     defaultFontSize:
       typeof v.defaultFontSize === 'number' && v.defaultFontSize >= 6 && v.defaultFontSize <= 72
         ? Math.round(v.defaultFontSize)

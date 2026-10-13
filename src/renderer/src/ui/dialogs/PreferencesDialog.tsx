@@ -4,7 +4,12 @@ import { FONT_SIZES } from '../../diagram'
 import { Modal } from '../components/Modal'
 import { uiStore, useUiStore, type ThemePreference } from '../uiStore'
 
-const GRID_SIZES = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
+const GRID_SIZES = [2, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 48, 64]
+
+/** The offered values plus the current one, so a value saved from elsewhere still shows. */
+function withCurrent(values: readonly number[], current: number): number[] {
+  return values.includes(current) ? [...values] : [...values, current].sort((a, b) => a - b)
+}
 
 export function PreferencesDialog(): React.JSX.Element {
   const prefs = useUiStore((s) => s.prefs)
@@ -38,9 +43,11 @@ export function PreferencesDialog(): React.JSX.Element {
           </select>
         </div>
         <div className="pref-row">
-          <label htmlFor="pref-font-size">Default font size</label>
+          <label htmlFor="pref-font-size" title="Font size of elements created from now on; existing diagrams keep theirs">
+            Default font size
+          </label>
           <select id="pref-font-size" value={prefs.defaultFontSize} onChange={(e) => set({ defaultFontSize: Number(e.target.value) })}>
-            {FONT_SIZES.map((s) => (
+            {withCurrent(FONT_SIZES, prefs.defaultFontSize).map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -63,9 +70,11 @@ export function PreferencesDialog(): React.JSX.Element {
           <input id="pref-rad-thread" type="checkbox" checked={prefs.radAutoThread} onChange={(e) => set({ radAutoThread: e.target.checked })} />
         </div>
         <div className="pref-row">
-          <label htmlFor="pref-grid-size">Grid size</label>
+          <label htmlFor="pref-grid-size" title="Grid spacing in diagram units, also the snap step and the Shift+arrow nudge">
+            Grid size
+          </label>
           <select id="pref-grid-size" value={prefs.gridSize} onChange={(e) => set({ gridSize: Number(e.target.value) })}>
-            {GRID_SIZES.map((s) => (
+            {withCurrent(GRID_SIZES, prefs.gridSize).map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
