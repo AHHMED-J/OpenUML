@@ -5,6 +5,7 @@
  */
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
+import { ZOOM } from '../diagram'
 import {
   areaOf,
   describePosition,
@@ -194,13 +195,10 @@ export interface UiState {
   dismissToast(id: number): void
 }
 
-export const ZOOM_MIN = 0.1
-export const ZOOM_MAX = 3
-export const ZOOM_STEP = 0.1
-
-export function clampZoom(zoom: number): number {
-  if (!Number.isFinite(zoom)) return 1
-  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100
+/** Clamps a stored zoom to the diagram module's range, rounded to whole percents. */
+function clampZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return ZOOM.default
+  return Math.round(Math.min(ZOOM.max, Math.max(ZOOM.min, zoom)) * 100) / 100
 }
 
 interface PersistedLayout {
