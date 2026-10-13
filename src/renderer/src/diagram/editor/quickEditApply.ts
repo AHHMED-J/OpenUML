@@ -42,6 +42,19 @@ export function registerRenameHook(hook: RenameHook): void {
   renameHooks.push(hook)
 }
 
+/**
+ * Renames elements in one operation and runs the rename hooks, so a rename from anywhere (Model
+ * Explorer, Property Editor) keeps dependent names in sync like an inline rename does.
+ */
+export function renameElements(engine: ModelEngine, elements: readonly Elem[], name: string, operation = 'Rename'): void {
+  engine.transact(operation, (b) => {
+    for (const el of elements) {
+      b.set(el, 'name', name)
+      for (const hook of renameHooks) hook(b, engine.repository, el)
+    }
+  })
+}
+
 function applyName(b: OperationBuilder, repo: Repository, el: Elem, parsed: ParsedName): void {
   setIfField(b, el, 'name', parsed.name)
   for (const hook of renameHooks) hook(b, repo, el)

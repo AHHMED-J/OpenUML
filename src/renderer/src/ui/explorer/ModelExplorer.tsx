@@ -9,7 +9,8 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import { moveElement, rename } from '../../commands'
+import { moveElement } from '../../commands'
+import { renameElements } from '../../diagram'
 import { isKindOf, type Elem } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
 import { confirmAndDeleteFromModel, openDiagram, selectInExplorer } from '../app/appCommands'
@@ -397,7 +398,7 @@ function RenameInput({ el }: { el: Elem }): React.JSX.Element {
     uiStore.getState().startRename(null)
     if (commit && value !== initial) {
       try {
-        rename(projectStore.getState().engine, el, value)
+        renameElements(projectStore.getState().engine, [el], value)
       } catch (err) {
         reportError(err)
       }

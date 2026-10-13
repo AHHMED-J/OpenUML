@@ -5,6 +5,7 @@ import { registerDiagramHooks } from '../editor/actions'
 import { registerRenameHook } from '../editor/quickEditApply'
 import { deleteIdef0Views } from './deletion'
 import { createIdef0Edge, freeEnds, pickEnd, reconnectIdef0 } from './gestures'
+import { syncLinkedNames } from './propagation'
 
 /** A diagram is titled with the name of the box it details. */
 export function titleOf(diagram: Elem): string | null {
@@ -48,6 +49,8 @@ export function registerIdef0Hooks(): void {
     pickEnd,
     freeEnds
   })
+  // Renaming an arrow renames its counterparts on the other levels.
+  registerRenameHook((b, _repo, el) => syncLinkedNames(b, el))
   // Renaming a box renames the diagram that details it (and the A-0 title with the top function).
   registerRenameHook((b, _repo, el) => {
     if (!isIdef0Function(el)) return

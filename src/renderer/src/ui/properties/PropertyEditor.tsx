@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { addFeature, deleteFromModel, reorderElement, setFieldsOfAll } from '../../commands'
+import { renameElements } from '../../diagram'
 import { isElem, typeDisplayName, type Elem } from '../../model'
 import { projectStore } from '../../store'
 import { selectInExplorer } from '../app/appCommands'
@@ -19,7 +20,10 @@ const MIXED = '—'
 
 function commit(row: PropertyRow, value: unknown): void {
   try {
-    setFieldsOfAll(projectStore.getState().engine, row.targets, { [row.field]: value }, `Change ${row.label}`)
+    const engine = projectStore.getState().engine
+    // Names go through the rename hooks (linked IDEF0 arrows, diagram titles).
+    if (row.field === 'name' && typeof value === 'string') renameElements(engine, row.targets, value, `Change ${row.label}`)
+    else setFieldsOfAll(engine, row.targets, { [row.field]: value }, `Change ${row.label}`)
   } catch (err) {
     reportError(err)
   }
