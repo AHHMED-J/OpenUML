@@ -12,17 +12,17 @@ import { nameEditText, nameOf, stereotypeName } from '../../layout/helpers'
 import { tagString } from '../../render/generic'
 import type { EdgeNotation } from '../../render/registry'
 
-export type UseCaseRelationshipKind = 'include' | 'extend'
+type UseCaseRelationshipKind = 'include' | 'extend'
 
 /** Keyword label text: `«include»`, or `«st» «include»` with a (displayed) user stereotype. */
-export function keywordText(edge: EdgeView, kind: UseCaseRelationshipKind): string {
+function keywordText(edge: EdgeView, kind: UseCaseRelationshipKind): string {
   const st = stereotypeName(edge.model)
   const showStereotype = (edge['stereotypeDisplay'] ?? 'label') !== 'none'
   return showStereotype && st ? `${guillemets(st)} ${guillemets(kind)}` : guillemets(kind)
 }
 
 /** Name, keyword and property labels of an include/extend edge. */
-export function useCaseEdgeLabels(edge: EdgeView, kind: UseCaseRelationshipKind): EdgeLabelSpec[] {
+function useCaseEdgeLabels(edge: EdgeView, kind: UseCaseRelationshipKind): EdgeLabelSpec[] {
   const model = edge.model
   const name = nameOf(model)
   const tags = edge['showProperty'] === false ? '' : tagString(model)

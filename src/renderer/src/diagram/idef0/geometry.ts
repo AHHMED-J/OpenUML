@@ -5,15 +5,13 @@
 import {
   IDEF0_AREA,
   IDEF0_BOX,
-  IDEF0_CONTEXT_BOX,
   IDEF0_PORT_SIZE,
-  IDEF0_SHEET,
   slotOffsets,
   type Idef0Side
 } from '../../model'
 import { JUNCTION_MARGIN, type Point, type Rect } from '../core'
 
-export { IDEF0_AREA, IDEF0_BOX, IDEF0_CONTEXT_BOX, IDEF0_PORT_SIZE, IDEF0_SHEET }
+export { IDEF0_BOX, IDEF0_PORT_SIZE }
 
 /** Direction of travel / outward normal. */
 export type Dir = 'N' | 'E' | 'S' | 'W'

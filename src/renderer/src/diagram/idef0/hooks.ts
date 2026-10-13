@@ -8,7 +8,7 @@ import { createIdef0Edge, freeEnds, pickEnd, reconnectIdef0 } from './gestures'
 import { syncLinkedNames } from './propagation'
 
 /** A diagram is titled with the name of the box it details. */
-export function titleOf(diagram: Elem): string | null {
+function titleOf(diagram: Elem): string | null {
   const scope = diagram._parent
   if (!scope) return null
   if (isContextDiagram(diagram)) return ((scope['topFunction'] as Elem | null)?.['name'] as string | undefined) ?? null
@@ -20,7 +20,7 @@ export function titleOf(diagram: Elem): string | null {
  * `autoNumber` is set, and diagram titles follow the names of the boxes they detail, so numbering
  * and titles change in the same undo step as the edit that caused them.
  */
-export function normalizeIdef0(b: OperationBuilder, diagram: Diagram): void {
+function normalizeIdef0(b: OperationBuilder, diagram: Diagram): void {
   if (diagram['autoNumber'] !== false) {
     for (const change of planRenumber(diagram)) b.set(change.fn, 'boxNumber', change.boxNumber)
   }

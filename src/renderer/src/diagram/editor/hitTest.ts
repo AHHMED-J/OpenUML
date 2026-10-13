@@ -27,7 +27,7 @@ export type DiagramHit =
   | { readonly kind: 'node'; readonly viewId: string; readonly region: EditRegion | null }
 
 /** Edge hit tolerance in diagram units: 5 units, but at least ~4 screen px when zoomed out. */
-export function edgeTolerance(zoom: number): number {
+function edgeTolerance(zoom: number): number {
   return Math.max(HIT_TOLERANCE, 4 / zoom)
 }
 

@@ -125,7 +125,7 @@ export function exportBounds(boxes: readonly Rect[], margin: number = EXPORT.mar
 /** Padding kept around the content when deciding whether it fits the viewport. */
 export const CANVAS_FIT_PADDING = 10
 /** Extra scroll room beyond the content once it does not fit the viewport. */
-export const CANVAS_SCROLL_MARGIN = 400
+const CANVAS_SCROLL_MARGIN = 400
 
 /**
  * Canvas extent (diagram units) along one axis for content ending at `contentEnd`: exactly the

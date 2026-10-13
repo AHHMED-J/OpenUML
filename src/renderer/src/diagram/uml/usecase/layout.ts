@@ -36,9 +36,9 @@ const GAP = SPACING.compartmentItemGap
 const ICON = SPACING.decorationIconSize
 const ICON_INSET = SPACING.decorationIconInset
 /** Gap between a use case ellipse and the compartments below it (spec 03 §4.3). */
-export const USE_CASE_COMPARTMENT_GAP = 5
+const USE_CASE_COMPARTMENT_GAP = 5
 /** Minimum subject size (not specified by the reference; OpenUML uses the package minimum). */
-export const SUBJECT_MIN_SIZE = MIN_SIZES.package
+const SUBJECT_MIN_SIZE = MIN_SIZES.package
 /**
  * Subjects paint between the diagram frame (−1) and ordinary views (0), so they always stay
  * behind the use cases and actors they contain (spec 03 §4.3 [R]), whatever the list order.
@@ -48,7 +48,7 @@ export const SUBJECT_Z_INDEX = -0.5
 // ---------------------------------------------------------------------------------------------
 // Shared pieces
 
-export type UseCaseCompartmentKind = 'extensionPoints' | 'attributes' | 'operations'
+type UseCaseCompartmentKind = 'extensionPoints' | 'attributes' | 'operations'
 
 export interface UseCaseCompartmentLayout {
   readonly kind: UseCaseCompartmentKind
@@ -67,13 +67,13 @@ function items(model: Elem | null, field: string): Elem[] {
 }
 
 /** Stereotype display form of a view (default `label`). */
-export function stereotypeFormOf(view: NodeView): StereotypeForm {
+function stereotypeFormOf(view: NodeView): StereotypeForm {
   const v = view['stereotypeDisplay']
   return v === 'none' || v === 'decoration' || v === 'decoration-label' || v === 'icon' || v === 'icon-label' ? v : 'label'
 }
 
 /** Text of an extension point row: `name` or `name: location`. */
-export function extensionPointText(ep: Elem): string {
+function extensionPointText(ep: Elem): string {
   const location = typeof ep['location'] === 'string' ? ep['location'].trim() : ''
   return location ? `${nameOf(ep)}: ${location}` : nameOf(ep)
 }
@@ -155,7 +155,7 @@ function widthOf(compartments: readonly Compartment[]): number {
  * Re-measures a name compartment with the name wrapped to `maxTextWidth` (each wrapped line is
  * a name item, 2 apart). `maxTextWidth = 0` puts every word on its own line (the narrowest form).
  */
-export function wrapNameCompartment(m: NameCompartmentMeasure, maxTextWidth: number, ctx: LayoutContext): NameCompartmentMeasure {
+function wrapNameCompartment(m: NameCompartmentMeasure, maxTextWidth: number, ctx: LayoutContext): NameCompartmentMeasure {
   const name = m.items.find((i) => i.index === 1)
   if (!name || !name.text.includes(' ') || name.size.width <= maxTextWidth) return m
   const lines = wrapText(name.text, Math.max(0, maxTextWidth), name.font, ctx.measurer)
@@ -444,7 +444,7 @@ export interface SubjectData {
 }
 
 /** The element whose name a subject shows: its represented classifier, else itself. */
-export function subjectShownElement(model: Elem | null): Elem | null {
+function subjectShownElement(model: Elem | null): Elem | null {
   const represent = model?.['represent']
   return isKindOf(represent as Elem | null, 'UMLClassifier') ? (represent as Elem) : model
 }

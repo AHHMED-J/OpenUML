@@ -25,10 +25,9 @@ import { DurationConstraintNode, TimeConstraintNode, TimeSegmentNode, TimeTickNo
 export * from './arrange'
 export * from './edges'
 export * from './layout'
-export { registerTimingQuickEdit } from './quickEdit'
 
 /** The timing frame contains lifeline bands, ticks, duration constraints and annotations. */
-export const timingFrameContainer: ContainerBehavior = {
+const timingFrameContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel === null || isKindOf(childModel, 'UMLLifeline') || isKindOf(childModel, 'UMLDurationConstraint')
   },
@@ -38,7 +37,7 @@ export const timingFrameContainer: ContainerBehavior = {
 }
 
 /** A lifeline band contains its state/condition rows (owned by the lifeline). */
-export const timingLifelineContainer: ContainerBehavior = {
+const timingLifelineContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel !== null && isKindOf(childModel, 'UMLConstraint') && !isKindOf(childModel, 'UMLIntervalConstraint')
   },
@@ -59,7 +58,7 @@ export const timingLifelineContainer: ContainerBehavior = {
 }
 
 /** A state/condition row contains time segments; dropping one re-links the segment to the row. */
-export const timingStateContainer: ContainerBehavior = {
+const timingStateContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel !== null && isKindOf(childModel, 'UMLStateInvariant')
   },

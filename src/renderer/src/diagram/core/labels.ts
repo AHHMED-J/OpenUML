@@ -74,7 +74,7 @@ export function polarLabelCenter(a: EdgeAnchor, params: PolarParams): Point {
 }
 
 /** Label box (floored) of the given size centered on `center`. */
-export function labelBoxAt(center: Point, size: Size): Rect {
+function labelBoxAt(center: Point, size: Size): Rect {
   return {
     left: Math.floor(center.x - size.width / 2),
     top: Math.floor(center.y - size.height / 2),
@@ -84,7 +84,7 @@ export function labelBoxAt(center: Point, size: Size): Rect {
 }
 
 /** Polar parameters that place a label's center at `center` relative to an anchor. */
-export function polarParamsFor(a: EdgeAnchor, center: Point): PolarParams {
+function polarParamsFor(a: EdgeAnchor, center: Point): PolarParams {
   const dx = center.x - a.anchor.x
   const dy = center.y - a.anchor.y
   const distance = Math.hypot(dx, dy)
@@ -110,7 +110,7 @@ export function edgeLabelParamsFromBox(points: readonly Point[], position: EdgeP
 }
 
 /** Anchor for a label floating on a node: the node center, reference direction +x. */
-export function nodeAnchor(node: Rect): EdgeAnchor {
+function nodeAnchor(node: Rect): EdgeAnchor {
   const c = { x: node.left + node.width / 2, y: node.top + node.height / 2 }
   return { anchor: c, reference: { x: c.x + 1, y: c.y } }
 }
@@ -159,5 +159,3 @@ export const NODE_LABEL_DEFAULTS = {
   stereotype: { alpha: (3 * P) / 4, distance: 35 },
   property: { alpha: (-3 * P) / 4, distance: 20 }
 } as const satisfies Record<string, PolarParams>
-
-export type NodeLabelKind = keyof typeof NODE_LABEL_DEFAULTS

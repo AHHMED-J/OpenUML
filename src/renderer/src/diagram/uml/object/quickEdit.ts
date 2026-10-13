@@ -20,7 +20,7 @@ function typeValue(repo: Repository, el: Elem, name: string | null): unknown {
 }
 
 /** Applies a parsed object expression: the type goes to `classifier` (absent type clears it). */
-export function applyObject(b: OperationBuilder, repo: Repository, instance: Elem, p: ParsedObject): void {
+function applyObject(b: OperationBuilder, repo: Repository, instance: Elem, p: ParsedObject): void {
   b.set(instance, 'name', p.name)
   if (fieldOf(instance, 'visibility')) b.set(instance, 'visibility', p.visibility ?? 'public')
   setStereotype(b, repo, instance, p.stereotype)
@@ -28,7 +28,7 @@ export function applyObject(b: OperationBuilder, repo: Repository, instance: Ele
 }
 
 /** Applies a parsed slot expression (absent type / value clear them). */
-export function applySlot(b: OperationBuilder, repo: Repository, slot: Elem, p: ParsedSlot): void {
+function applySlot(b: OperationBuilder, repo: Repository, slot: Elem, p: ParsedSlot): void {
   b.set(slot, 'name', p.name)
   if (fieldOf(slot, 'visibility')) b.set(slot, 'visibility', p.visibility ?? 'public')
   setStereotype(b, repo, slot, p.stereotype)

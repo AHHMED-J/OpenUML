@@ -41,7 +41,7 @@ export const RAD_GEOMETRY = {
 } as const
 
 /** Rectangles a role must contain around a symbol (its box, label, wait stub, ...). */
-export interface RadContent {
+interface RadContent {
   readonly content: readonly Rect[]
 }
 
@@ -143,12 +143,12 @@ function boxesOf(lines: readonly TextLine[]): Rect[] {
 }
 
 /** Union of text lines as one rectangle (null for no lines). */
-export function linesBounds(lines: readonly TextLine[]): Rect | null {
+function linesBounds(lines: readonly TextLine[]): Rect | null {
   return unionRects(boxesOf(lines))
 }
 
 /** Where label lines of `text` go relative to the symbol box. */
-export type LabelPlace = 'right' | 'right-above' | 'right-below' | 'above'
+type LabelPlace = 'right' | 'right-above' | 'right-below' | 'above'
 
 function placeLabel(ctx: LayoutContext, box: Rect, text: string, font: Font, wrap: number, place: LabelPlace): TextLine[] {
   const lines = wrapLines(ctx, text, wrap, font)
@@ -193,7 +193,7 @@ function positionIn(ctx: LayoutContext): (el: Elem) => { x: number; y: number } 
 }
 
 /** Warnings about `model`, computed for its process once per layout pass. */
-export function warningsOf(ctx: LayoutContext, model: Elem | null | undefined): readonly RadWarning[] {
+function warningsOf(ctx: LayoutContext, model: Elem | null | undefined): readonly RadWarning[] {
   if (!model) return []
   let process: Elem | null = model
   while (process && !isKindOf(process, 'RADProcess')) process = process._parent
@@ -435,7 +435,7 @@ export function layoutRoleStart(view: NodeView, ctx: LayoutContext): NodeLayout<
 // Refinements and branches
 
 /** Branch views of a refinement view, left to right. */
-export function branchViewsOf(refinement: NodeView, ctx: LayoutContext): NodeView[] {
+function branchViewsOf(refinement: NodeView, ctx: LayoutContext): NodeView[] {
   const out: NodeView[] = []
   for (const v of ctx.diagram.ownedViews ?? []) {
     if (v._type !== 'RADBranchView' || v.visible === false || !v.model || v.model['refinement'] !== refinement.model) continue
@@ -636,7 +636,7 @@ export function layoutRole(view: NodeView, ctx: LayoutContext): NodeLayout<RoleD
 }
 
 /** Header rectangles of a role layout (title and goal), for export bounds and hit testing outside the box. */
-export function roleHeaderBounds(layout: NodeLayout<RoleData>): Rect[] {
+function roleHeaderBounds(layout: NodeLayout<RoleData>): Rect[] {
   const out: Rect[] = []
   const t = linesBounds(layout.data.titleLines)
   const goal = linesBounds(layout.data.goalLines)

@@ -7,13 +7,13 @@ import { isKindOf, type Elem, type View } from '../../../model'
 import { nameOf } from '../../layout/helpers'
 
 /** The target of an overview action, or null. */
-export function overviewTarget(action: Elem | null | undefined): Elem | null {
+function overviewTarget(action: Elem | null | undefined): Elem | null {
   const t = action?.['target']
   return t && typeof t === 'object' ? (t as Elem) : null
 }
 
 /** The interaction use behind a reference node, or null. */
-export function referencedUse(action: Elem | null | undefined): Elem | null {
+function referencedUse(action: Elem | null | undefined): Elem | null {
   const t = overviewTarget(action)
   return isKindOf(t, 'UMLInteractionUse') ? t : null
 }

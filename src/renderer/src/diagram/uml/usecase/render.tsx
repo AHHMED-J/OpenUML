@@ -10,7 +10,7 @@ function Segment({ s, color }: { s: readonly [number, number, number, number]; c
 }
 
 /** Stick figure (spec 03 §4.3): head filled with the fill color, body, arms and legs. */
-export function StickFigure({ rect, style }: { rect: Rect; style: ViewStyle }): React.JSX.Element {
+function StickFigure({ rect, style }: { rect: Rect; style: ViewStyle }): React.JSX.Element {
   const g = stickFigure(rect)
   const c = style.lineColor
   return (

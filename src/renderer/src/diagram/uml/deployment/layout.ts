@@ -14,8 +14,8 @@ const ICON_INSET = SPACING.decorationIconInset
 const PAD = SPACING.compartmentPaddingLeft
 
 /** Depth of the 3D box. */
-export const NODE_DEPTH = 10
-export const NODE_MIN = { width: 45, height: 45 } as const
+const NODE_DEPTH = 10
+const NODE_MIN = { width: 45, height: 45 } as const
 
 export interface NodeFaces {
   readonly front: Rect

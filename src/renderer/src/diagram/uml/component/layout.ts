@@ -13,9 +13,9 @@ const ICON = SPACING.decorationIconSize
 const ICON_INSET = SPACING.decorationIconInset
 
 /** Offset of the component's main rectangle from the left edge of its box (the tabs stick out). */
-export const COMPONENT_TAB_OFFSET = 10
-export const COMPONENT_MIN = { width: 50, height: 45 } as const
-export const ARTIFACT_ICON_MIN = { width: 40, height: 50 } as const
+const COMPONENT_TAB_OFFSET = 10
+const COMPONENT_MIN = { width: 50, height: 45 } as const
+const ARTIFACT_ICON_MIN = { width: 40, height: 50 } as const
 
 export interface ComponentGlyph {
   /** The main rectangle of the component icon. */

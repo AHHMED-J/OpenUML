@@ -18,7 +18,7 @@ function str(el: Elem | null | undefined, field: string): string {
 }
 
 /** The classifier of an instance: its name, or the raw string stored as `classifier`. */
-export function instanceTypeText(instance: Elem | null | undefined): string {
+function instanceTypeText(instance: Elem | null | undefined): string {
   return typeText(instance?.['classifier'])
 }
 
@@ -46,7 +46,7 @@ export interface SlotFormat {
 }
 
 /** Name, type and multiplicity of a slot: from its defining attribute when set, else its own fields. */
-export function slotParts(slot: Elem): { name: string; type: string; multiplicity: string } {
+function slotParts(slot: Elem): { name: string; type: string; multiplicity: string } {
   const feature = slot['definingFeature'] as Elem | null | undefined
   if (feature) return { name: nameOf(feature), type: typeText(feature['type']), multiplicity: str(feature, 'multiplicity') }
   return { name: nameOf(slot), type: typeText(slot['type']), multiplicity: '' }

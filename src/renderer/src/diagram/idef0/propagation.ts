@@ -52,7 +52,7 @@ function isPort(el: unknown): el is Elem {
 }
 
 /** The arrows of a port's scope that start or end at the port. */
-export function arrowsAtPort(port: Elem): Elem[] {
+function arrowsAtPort(port: Elem): Elem[] {
   return list(port._parent, 'arrows').filter((a) => a['source'] === port || a['target'] === port)
 }
 
@@ -136,7 +136,7 @@ export function insertedPorts(plan: { readonly insertions: ReadonlyArray<{ reado
  * box, the other on a port of the same scope that carries nothing but this arrow, no branches, and
  * no child port other than those in `excluded` standing for it. Null otherwise.
  */
-export function passThroughPort(arrow: Elem, excluded: ReadonlySet<Elem> = new Set()): Elem | null {
+function passThroughPort(arrow: Elem, excluded: ReadonlySet<Elem> = new Set()): Elem | null {
   if (!isKindOf(arrow, 'IDEF0Arrow') || roleOf(arrow) === 'call') return null
   const source = arrow['source'] as Elem | null
   const target = arrow['target'] as Elem | null

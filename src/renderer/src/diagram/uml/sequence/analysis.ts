@@ -21,7 +21,7 @@ import { MIN_SIZES, SPACING, messageNotation, type MessageSort } from '../../cor
 import { topLevelOf } from '../../layout/edges'
 import type { LayoutContext } from '../../layout/types'
 
-export interface ActivationInfo {
+interface ActivationInfo {
   readonly messageId: string
   readonly lifelineId: string
   readonly top: number
@@ -121,7 +121,7 @@ interface Bar {
   level: number
 }
 
-export function analyzeSequence(diagram: Diagram): SequenceInfo {
+function analyzeSequence(diagram: Diagram): SequenceInfo {
   const views = (diagram.ownedViews ?? []).filter(
     (v): v is UMLSeqMessageView => isKindOf(v, 'UMLSeqMessageView') && v.visible !== false
   )

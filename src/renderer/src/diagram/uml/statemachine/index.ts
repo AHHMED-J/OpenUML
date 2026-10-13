@@ -17,7 +17,6 @@ import { ConnectionPointNode, EmptyNode, FinalStateNode, PseudostateNode, StateN
 export * from './edges'
 export * from './layout'
 export * from './strings'
-export { registerStateMachineQuickEdit } from './quickEdit'
 
 /** Moves `views` (and what they contain) after everything else so they are drawn on top. */
 function bringToFront(b: Parameters<NonNullable<ContainerBehavior['reparent']>>[0]['builder'], diagram: Elem, views: readonly View[]): void {
@@ -53,7 +52,7 @@ function insideVertex(region: Elem | null | undefined, vertex: Elem): boolean {
  * there moves its model into the region's `vertices`; dropping it onto the canvas moves it to the
  * first region of the diagram's state machine. Connection point references stay on their state.
  */
-export const regionContainer: ContainerBehavior = {
+const regionContainer: ContainerBehavior = {
   accepts(container: View, childModel: Elem | null): boolean {
     return isVertexModel(childModel) && !insideVertex(container.model, childModel)
   },
@@ -75,7 +74,7 @@ export const regionContainer: ContainerBehavior = {
 }
 
 /** A state view only keeps its own connection point references (pins-style); its regions are nested containers. */
-export const stateContainer: ContainerBehavior = {
+const stateContainer: ContainerBehavior = {
   accepts(container: View, childModel: Elem | null): boolean {
     return childModel !== null && isKindOf(childModel, 'UMLConnectionPointReference') && container.model != null && childModel._parent === container.model
   },

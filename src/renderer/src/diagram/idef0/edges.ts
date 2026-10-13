@@ -14,7 +14,7 @@ import { PORT_DIR, SIDE_DIR, IDEF0_STYLE, dirVector, rectCenterOf, slotPoint } f
 import { STUB, feedbackKind, longestSegment, routeArrow, routeBranch, trimEnd, trimStart, type RouteEnd } from './routing'
 import { arrowText, callLabelText } from './strings'
 
-export interface TunnelShape {
+interface TunnelShape {
   /** SVG path data of the two parentheses of one tunneled end. */
   readonly paths: readonly string[]
   readonly bounds: Rect
@@ -72,7 +72,7 @@ interface SlotEntry {
 }
 
 /** The arrow ends attached to `side` of the function view, in slot order (top-down / left-right). */
-export function slotsOn(fnView: View, side: Idef0Side, ctx: LayoutContext): SlotEntry[] {
+function slotsOn(fnView: View, side: Idef0Side, ctx: LayoutContext): SlotEntry[] {
   const entries: Array<SlotEntry & { order: number; key: number }> = []
   arrowViews(ctx).forEach((edge, order) => {
     const arrow = edge.model
@@ -92,7 +92,7 @@ export function slotsOn(fnView: View, side: Idef0Side, ctx: LayoutContext): Slot
 }
 
 /** Attachment of one end of `edge`, or null when the end is an arrow (branch) or absent. */
-export function describeEnd(edge: EdgeView, end: 'tail' | 'head', ctx: LayoutContext): RouteEnd | null {
+function describeEnd(edge: EdgeView, end: 'tail' | 'head', ctx: LayoutContext): RouteEnd | null {
   const view = end === 'tail' ? edge.tail : edge.head
   const arrow = edge.model
   if (!view || !arrow) return null
@@ -181,7 +181,7 @@ function borderToward(box: Rect, p: Point): Point {
 }
 
 /** Wavy line (2 periods, amplitude 2) from `from` to `to`. */
-export function squigglePoints(from: Point, to: Point): Point[] {
+function squigglePoints(from: Point, to: Point): Point[] {
   const length = Math.hypot(to.x - from.x, to.y - from.y)
   if (length < 1) return [from, to]
   const ux = (to.x - from.x) / length
@@ -197,7 +197,7 @@ export function squigglePoints(from: Point, to: Point): Point[] {
 }
 
 /** Routes the arrow from its model-derived ends. */
-export function routeArrowView(edge: EdgeView, ctx: LayoutContext): { points: Point[]; join: boolean } {
+function routeArrowView(edge: EdgeView, ctx: LayoutContext): { points: Point[]; join: boolean } {
   const arrow = edge.model
   if (!arrow) return { points: storedPoints(edge), join: false }
   const role = roleOf(arrow)
@@ -242,9 +242,9 @@ function labelHost(edge: EdgeView, text: string, run: readonly Point[], ctx: Lay
 const RETRACT = IDEF0_STYLE.tunnelGap + 6
 
 /** Stored `distance` of a label nobody has dragged (spec 11 §7.2). */
-export const DEFAULT_LABEL_DISTANCE = 12
+const DEFAULT_LABEL_DISTANCE = 12
 
-export function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> {
+function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> {
   const arrow = edge.model
   const routed = routeArrowView(edge, ctx)
   let points = routed.points

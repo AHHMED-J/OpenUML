@@ -17,7 +17,7 @@ export type RadWarningCode =
   | 'part-no-merge'
   | 'case-unconditional'
 
-export type RadWarningLevel = 'soft' | 'hint' | 'blocked'
+type RadWarningLevel = 'soft' | 'hint' | 'blocked'
 
 export interface RadWarning {
   readonly code: RadWarningCode
@@ -28,7 +28,7 @@ export interface RadWarning {
 }
 
 /** Centre of an element's symbol in the diagram, when it is drawn. */
-export type RadPositionOf = (element: Elem) => { readonly x: number; readonly y: number } | null
+type RadPositionOf = (element: Elem) => { readonly x: number; readonly y: number } | null
 
 export interface RadValidationOptions {
   readonly position?: RadPositionOf

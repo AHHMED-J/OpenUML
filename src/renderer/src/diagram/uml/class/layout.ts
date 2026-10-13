@@ -32,7 +32,7 @@ import {
   type FeatureFormat
 } from './strings'
 
-export type CompartmentKind = 'literals' | 'attributes' | 'operations' | 'receptions'
+type CompartmentKind = 'literals' | 'attributes' | 'operations' | 'receptions'
 
 export interface CompartmentLayout {
   readonly kind: CompartmentKind

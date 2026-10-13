@@ -33,7 +33,7 @@ export const TIMING = {
   nameOffset: 10
 } as const
 
-export interface BandInfo {
+interface BandInfo {
   readonly viewId: string
   readonly box: Rect
   /** Rotated name text and the (unrotated, centered) box it is drawn in. */
@@ -45,7 +45,7 @@ export interface BandInfo {
   readonly font: Font
 }
 
-export interface RowInfo {
+interface RowInfo {
   readonly viewId: string
   readonly bandId: string
   readonly box: Rect
@@ -54,7 +54,7 @@ export interface RowInfo {
   readonly minLabelWidth: number
 }
 
-export interface SegmentInfo {
+interface SegmentInfo {
   readonly viewId: string
   readonly bandId: string
   readonly rowId: string | null

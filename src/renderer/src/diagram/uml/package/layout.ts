@@ -21,7 +21,7 @@ export interface PackageGlyphData extends PackageData {
 }
 
 /** Glyph geometry relative to the tab's right edge (`tabRight`) and the box top. */
-export function packageGlyph(kind: PackageGlyphKind, tabRight: number, top: number): PackageGlyph {
+function packageGlyph(kind: PackageGlyphKind, tabRight: number, top: number): PackageGlyph {
   const p = (dx: number, dy: number): Point => ({ x: tabRight + dx, y: top + dy })
   if (kind === 'model') return { kind, closed: true, polylines: [[p(-9, 3), p(-15, 10), p(-3, 10)]] }
   if (kind === 'subsystem') {

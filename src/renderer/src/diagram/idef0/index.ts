@@ -26,11 +26,9 @@ export * from './navigation'
 export * from './validate'
 export * from './decompose'
 export * from './propagation'
-export { registerIdef0QuickEdit } from './quickEdit'
 export * from './commands'
 export * from './gestures'
 export * from './deletion'
-export { normalizeIdef0, titleOf } from './hooks'
 
 let registered = false
 

@@ -10,7 +10,7 @@ import { InteractionLinkEdge, StateLineEdge, type RadEdgeData } from './render'
 import { routeInteractionLink, routeStateLine } from './routing'
 
 /** State line (thread) width, loop-back width and interaction link width. */
-export const RAD_LINE_WIDTH = { thread: 1.5, loopBack: 1.8, interaction: 3 } as const
+const RAD_LINE_WIDTH = { thread: 1.5, loopBack: 1.8, interaction: 3 } as const
 
 export const stateLineNotation: EdgeNotation<RadEdgeData> = {
   connectKind: 'RADStateLine',

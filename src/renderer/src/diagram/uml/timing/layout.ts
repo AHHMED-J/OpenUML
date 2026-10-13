@@ -180,7 +180,7 @@ export function intervalText(model: Elem | null | undefined): string {
 }
 
 /** Editable `min..max` text of an interval constraint. */
-export function intervalEditText(model: Elem | null | undefined): string {
+function intervalEditText(model: Elem | null | undefined): string {
   const min = typeof model?.['min'] === 'string' ? (model['min'] as string) : ''
   const max = typeof model?.['max'] === 'string' ? (model['max'] as string) : ''
   return min === '' && max === '' ? '' : `${min}..${max}`
