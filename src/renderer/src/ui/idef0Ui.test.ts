@@ -60,14 +60,14 @@ describe('Add Diagram entry', () => {
 })
 
 describe('Model Explorer', () => {
-  it('shows the decomposition tree and arrows but hides boundary ports', () => {
+  it('shows the decomposition tree, hides boundary ports and lists arrows under their boxes instead of their owner', () => {
     const ex = buildOrderExample()
     const kids = explorerChildren(ex.top)
     expect(kids.some((k) => k._type === 'IDEF0Port')).toBe(false)
     expect(kids.filter((k) => k._type === 'IDEF0Function').map((k) => k['name'])).toEqual(['Receive Order', 'Check Credit and Stock', 'Ship and Invoice'])
-    expect(kids.filter((k) => k._type === 'IDEF0Arrow')).toHaveLength(8)
+    expect(kids.filter((k) => k._type === 'IDEF0Arrow')).toHaveLength(0)
     expect(kids[0]?._type).toBe('IDEF0Diagram')
-    expect(explorerChildren(ex.model).map((k) => k._type)).toEqual(['IDEF0Diagram', 'IDEF0Function', 'IDEF0Arrow', 'IDEF0Arrow', 'IDEF0Arrow', 'IDEF0Arrow'])
+    expect(explorerChildren(ex.model).map((k) => k._type)).toEqual(['IDEF0Diagram', 'IDEF0Function'])
     expect(typeOrder(ex.model)).toBe(1004)
     expect(typeOrder(ex.top)).toBe(1211)
   })

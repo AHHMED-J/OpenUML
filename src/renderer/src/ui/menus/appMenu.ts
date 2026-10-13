@@ -306,9 +306,12 @@ export function explorerSettingsMenu(): MenuNode[] {
     { label: 'Sort by Name', command: Cmd.explorerSortByName, checkbox: true },
     SEP,
     { label: 'Show Stereotype Text', command: Cmd.explorerShowStereotype, checkbox: true },
+    { label: 'Group Arrows by Role', command: Cmd.explorerGroupArrows, checkbox: true },
     SEP,
     { label: 'Expand All', command: Cmd.explorerExpandAll },
-    { label: 'Collapse All', command: Cmd.explorerCollapseAll }
+    { label: 'Collapse All', command: Cmd.explorerCollapseAll },
+    { label: 'Expand All Arrow Folders', command: Cmd.explorerExpandArrowFolders },
+    { label: 'Collapse All Arrow Folders', command: Cmd.explorerCollapseArrowFolders }
   ]
 }
 

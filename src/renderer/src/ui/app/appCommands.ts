@@ -13,7 +13,7 @@ import {
 } from '../../commands'
 import { fieldOf, isKindOf, type DiagramKind, type Elem, type NodeView, type View } from '../../model'
 import { activeDiagram, projectStore, selectedModels, selectedViews } from '../../store'
-import { expandableIds } from '../explorer/tree'
+import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
 import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
 import { promptText, ZOOM_STEP, uiStore, type ToggleablePanel } from '../uiStore'
@@ -41,9 +41,9 @@ export function selectedParent(): Elem {
 
 /** Selects an element in the explorer and reveals it (expanding its ancestors). */
 export function selectInExplorer(el: Elem): void {
-  const ancestors: string[] = []
-  for (let p = el._parent; p; p = p._parent) ancestors.push(p._id)
-  ui().expandMany(ancestors)
+  const path = revealPath(el, { groupArrows: ui().groupArrows })
+  ui().expandMany(path.expand)
+  if (path.folder) ui().setFoldersCollapsed([path.folder], false)
   ps().select({ elements: [el._id] })
   ui().reveal()
 }
@@ -485,8 +485,33 @@ export function registerAppCommands(registry: CommandRegistry): void {
     isChecked: () => ui().showStereotype,
     run: () => ui().setShowStereotype(!ui().showStereotype)
   })
-  add({ id: Cmd.explorerExpandAll, label: 'Expand All', run: () => ui().expandMany(expandableIds(ps().project)) })
+  add({
+    id: Cmd.explorerExpandAll,
+    label: 'Expand All',
+    run: () => {
+      ui().expandMany(expandableIds(ps().project))
+      ui().setFoldersCollapsed(arrowFolderKeys(ps().project), false)
+    }
+  })
   add({ id: Cmd.explorerCollapseAll, label: 'Collapse All', run: () => ui().collapseAll() })
+  add({
+    id: Cmd.explorerGroupArrows,
+    label: 'Group Arrows by Role',
+    isChecked: () => ui().groupArrows,
+    run: () => ui().setGroupArrows(!ui().groupArrows)
+  })
+  add({
+    id: Cmd.explorerExpandArrowFolders,
+    label: 'Expand All Arrow Folders',
+    isEnabled: () => ui().groupArrows,
+    run: () => ui().setFoldersCollapsed(arrowFolderKeys(ps().project), false)
+  })
+  add({
+    id: Cmd.explorerCollapseArrowFolders,
+    label: 'Collapse All Arrow Folders',
+    isEnabled: () => ui().groupArrows,
+    run: () => ui().setFoldersCollapsed(arrowFolderKeys(ps().project), true)
+  })
 
   // Toolbox
   add({
