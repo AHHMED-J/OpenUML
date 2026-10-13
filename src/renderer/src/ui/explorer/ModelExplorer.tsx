@@ -7,7 +7,7 @@
  * entries under function boxes. Rows are identified by node key, since one arrow can be listed
  * under two boxes; selection is by element, so both entries of an arrow highlight together.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { moveElement } from '../../commands'
 import { renameElements } from '../../diagram'
@@ -18,6 +18,7 @@ import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
 import { dropField, explorerLabel, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
+import { scrollToReveal, visibleRows } from './virtualRows'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
 const ELEMENT_DRAG_TYPE = 'application/x-openuml-element'
@@ -63,6 +64,44 @@ export function ModelExplorer(): React.JSX.Element {
   const [focusId, setFocusId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const treeRef = useRef<HTMLDivElement>(null)
+  // Virtualization (see virtualRows.ts): only rows near the viewport are rendered. Rows have a
+  // fixed height (--row-height), measured from a rendered row; `pad` is the tree's top padding.
+  const [viewport, setViewport] = useState({ top: 0, height: 0 })
+  const [metrics, setMetrics] = useState({ rowHeight: 22, pad: 0 })
+  const metricsRef = useRef(metrics)
+  metricsRef.current = metrics
+
+  useEffect(() => {
+    const el = treeRef.current
+    if (!el) return
+    const update = (): void => setViewport((v) => (v.top === el.scrollTop && v.height === el.clientHeight ? v : { top: el.scrollTop, height: el.clientHeight }))
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(update) : null
+    ro?.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro?.disconnect()
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = treeRef.current
+    const row = el?.querySelector<HTMLElement>('.tree-row')
+    if (!el || !row || row.offsetHeight <= 0) return
+    const next = { rowHeight: row.offsetHeight, pad: parseFloat(getComputedStyle(el).paddingTop) || 0 }
+    if (next.rowHeight !== metrics.rowHeight || next.pad !== metrics.pad) setMetrics(next)
+  })
+
+  /** Scrolls the row with `key` into view (it may not be rendered yet). */
+  const revealRow = (key: string): void => {
+    const el = treeRef.current
+    const index = rowsRef.current.findIndex((r) => r.node.key === key)
+    if (!el || index < 0) return
+    const { rowHeight, pad } = metricsRef.current
+    const top = scrollToReveal(index, rowHeight, el.scrollTop, el.clientHeight, pad)
+    if (top !== el.scrollTop) el.scrollTop = top
+  }
 
   // Expand the project and its top-level children whenever a project is opened.
   useEffect(() => {
@@ -80,6 +119,7 @@ export function ModelExplorer(): React.JSX.Element {
   )
   const rowsRef = useRef(rows)
   rowsRef.current = rows
+  const shown = visibleRows(rows.length, metrics.rowHeight, viewport.top - metrics.pad, viewport.height)
   const selected = useMemo(() => new Set(selectedIds), [selectedIds])
   // The focused row: the last clicked/navigated one, else the first row of the selection.
   const current =
@@ -104,14 +144,15 @@ export function ModelExplorer(): React.JSX.Element {
       const row = rowsRef.current.find((r) => r.el?._id === id)
       if (row) {
         setFocusId(row.node.key)
-        document.getElementById(rowDomId(row.node.key))?.scrollIntoView({ block: 'nearest' })
+        revealRow(row.node.key)
       }
       treeRef.current?.focus()
     })
   }, [revealTick])
 
   useEffect(() => {
-    if (current) document.getElementById(rowDomId(current))?.scrollIntoView({ block: 'nearest' })
+    if (current) revealRow(current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current])
 
   const select = (row: TreeRow, toggle = false): void => {
@@ -267,7 +308,8 @@ export function ModelExplorer(): React.JSX.Element {
           openMenuAt(e.clientX, e.clientY)
         }}
       >
-        {rows.map((row) => {
+        {shown.start > 0 ? <div aria-hidden="true" style={{ height: shown.start * metrics.rowHeight }} /> : null}
+        {rows.slice(shown.start, shown.end).map((row) => {
           const { el, node } = row
           const key = node.key
           const isSelected = el !== null && selected.has(el._id)
@@ -346,6 +388,7 @@ export function ModelExplorer(): React.JSX.Element {
             </div>
           )
         })}
+        {shown.end < rows.length ? <div aria-hidden="true" style={{ height: (rows.length - shown.end) * metrics.rowHeight }} /> : null}
         {rows.length === 0 ? <div className="empty-note">No matching elements</div> : null}
       </div>
     </div>
