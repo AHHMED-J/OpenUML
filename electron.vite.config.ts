@@ -20,6 +20,9 @@ export default defineConfig({
   preload: { plugins: [externalizeDepsPlugin()] },
   renderer: {
     resolve: { alias: { '@': resolve(__dirname, 'src/renderer/src') } },
-    plugins: [react(), devInlineStyles()]
+    plugins: [react(), devInlineStyles()],
+    // electron-vite leaves the renderer unminified by default: ~2.2 MB of JS to load and compile
+    // at every start instead of ~1 MB.
+    build: { minify: true }
   }
 })
