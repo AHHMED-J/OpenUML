@@ -38,3 +38,28 @@ export function scrollToReveal(index: number, rowHeight: number, scrollTop: numb
   if (bottom > scrollTop + viewportHeight) return Math.max(0, bottom - viewportHeight)
   return scrollTop
 }
+
+/** A rendered row, or a spacer standing in for `rows` rows that are not rendered. */
+export type RowSlot = { readonly kind: 'row'; readonly index: number } | { readonly kind: 'gap'; readonly rows: number }
+
+/**
+ * What to render for `count` rows: the rows of `window` plus row `pinned` wherever it is (the
+ * focused row: it is the tree's `aria-activedescendant`, so it must stay in the document even when
+ * scrolled out of view), with spacers for the rows in between.
+ */
+export function rowSlots(count: number, window: RowWindow, pinned: number | null = null): RowSlot[] {
+  const indices: number[] = []
+  const extra = pinned !== null && pinned >= 0 && pinned < count && (pinned < window.start || pinned >= window.end) ? pinned : null
+  if (extra !== null && extra < window.start) indices.push(extra)
+  for (let i = window.start; i < Math.min(window.end, count); i++) indices.push(i)
+  if (extra !== null && extra >= window.end) indices.push(extra)
+  const slots: RowSlot[] = []
+  let next = 0
+  for (const index of indices) {
+    if (index > next) slots.push({ kind: 'gap', rows: index - next })
+    slots.push({ kind: 'row', index })
+    next = index + 1
+  }
+  if (count > next) slots.push({ kind: 'gap', rows: count - next })
+  return slots
+}

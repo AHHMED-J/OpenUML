@@ -18,7 +18,7 @@ import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
 import { dropField, explorerLabel, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
-import { scrollToReveal, visibleRows } from './virtualRows'
+import { rowSlots, scrollToReveal, visibleRows } from './virtualRows'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
 const ELEMENT_DRAG_TYPE = 'application/x-openuml-element'
@@ -126,7 +126,8 @@ export function ModelExplorer(): React.JSX.Element {
     focusId && rows.some((r) => r.node.key === focusId)
       ? focusId
       : ((selectedIds[0] ? rows.find((r) => r.el?._id === selectedIds[0])?.node.key : undefined) ?? rows[0]?.node.key ?? null)
-  const currentRow = rows.find((r) => r.node.key === current)
+  const currentIndex = current ? rows.findIndex((r) => r.node.key === current) : -1
+  const currentRow = currentIndex >= 0 ? rows[currentIndex] : undefined
   // The row that shows the inline rename of `renamingId`: the focused one when it is that element.
   const renameKey = renamingId
     ? currentRow?.el?._id === renamingId
@@ -302,14 +303,20 @@ export function ModelExplorer(): React.JSX.Element {
         tabIndex={0}
         aria-activedescendant={current ? rowDomId(current) : undefined}
         onKeyDown={onKeyDown}
+        onFocus={(e) => {
+          // Tabbing into the tree brings the focused row back into view if it was scrolled away.
+          if (e.target === e.currentTarget && current && isFocusVisible(e.currentTarget)) revealRow(current)
+        }}
         onContextMenu={(e) => {
           e.preventDefault()
           if ((e.target as HTMLElement).closest('.tree-row') === null) projectStore.getState().select({ elements: [] })
           openMenuAt(e.clientX, e.clientY)
         }}
       >
-        {shown.start > 0 ? <div aria-hidden="true" style={{ height: shown.start * metrics.rowHeight }} /> : null}
-        {rows.slice(shown.start, shown.end).map((row) => {
+        {/* The focused row stays rendered when scrolled away: it is the aria-activedescendant. */}
+        {rowSlots(rows.length, shown, currentIndex >= 0 ? currentIndex : null).map((slot, i) => {
+          if (slot.kind === 'gap') return <div key={`gap:${i}`} aria-hidden="true" style={{ height: slot.rows * metrics.rowHeight }} />
+          const row = rows[slot.index] as TreeRow
           const { el, node } = row
           const key = node.key
           const isSelected = el !== null && selected.has(el._id)
@@ -388,11 +395,19 @@ export function ModelExplorer(): React.JSX.Element {
             </div>
           )
         })}
-        {shown.end < rows.length ? <div aria-hidden="true" style={{ height: (rows.length - shown.end) * metrics.rowHeight }} /> : null}
         {rows.length === 0 ? <div className="empty-note">No matching elements</div> : null}
       </div>
     </div>
   )
+}
+
+/** Whether `el` has keyboard (not pointer) focus. */
+function isFocusVisible(el: HTMLElement): boolean {
+  try {
+    return el.matches(':focus-visible')
+  } catch {
+    return false
+  }
 }
 
 /** Center of the twisty of tree level `level` (px from the row's left edge). */
