@@ -2,21 +2,14 @@
 import { registerIdef0Commands, validateIdef0, type Idef0CommandContext } from '../../diagram'
 import type { CommandRegistry } from '../../commands'
 import { activeDiagram, projectStore } from '../../store'
-import { promptText, uiStore } from '../uiStore'
+import { uiStore } from '../uiStore'
+import { promptBoxCount } from './boxCount'
 import { openDiagram, selectInExplorer } from './appCommands'
 
 const ps = () => projectStore.getState()
 
 export const idef0Context: Idef0CommandContext = {
-  async promptBoxCount() {
-    for (;;) {
-      const text = await promptText('Number of child boxes (1 to 6; IDEF0 recommends 3 to 6)', '3')
-      if (text === null) return null
-      const n = Number(text.trim())
-      if (Number.isInteger(n) && n >= 1 && n <= 6) return n
-      uiStore.getState().toast('Enter a whole number from 1 to 6', 'error')
-    }
-  },
+  promptBoxCount,
   openDiagram(diagramId, selectViewIds = []) {
     const diagram = ps().repository.get(diagramId)
     if (!diagram) return

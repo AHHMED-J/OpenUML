@@ -281,10 +281,10 @@ export function addModelElement(engine: ModelEngine, parent: Elem, item: AddItem
   return createModelElement(engine, target.owner, element, target.field)
 }
 
-/** Creates a diagram under `parent`; returns the new diagram. */
-export function addDiagram(engine: ModelEngine, parent: Elem, kind: DiagramKind): Elem {
+/** Creates a diagram under `parent`; returns the new diagram. `boxCount` is the number of child boxes of an IDEF0 decomposition (the UI asks for it first). */
+export function addDiagram(engine: ModelEngine, parent: Elem, kind: DiagramKind, boxCount = 3): Elem {
   const item = ADD_DIAGRAM_ITEMS.find((i) => i.kind === kind)
   if (item && !item.accepts(parent)) throw new Error(`${item.label} cannot be placed here.`)
-  if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) return decomposeFunction(engine, parent, 3)
+  if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) return decomposeFunction(engine, parent, boxCount)
   return createDiagram(engine, kind, parent).diagram
 }
