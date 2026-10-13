@@ -40,6 +40,13 @@
 
   /* Model Explorer indent guides. */
   --tree-guide: #c9ccd3;
+
+  /* IDEF0 arrow roles (explorer folders, arrow icons and their guide lines). */
+  --role-input: #1f5fbf;
+  --role-control: #9a6700;
+  --role-output: #1a7f37;
+  --role-mechanism: #7c4dcc;
+  --role-call: #656d76;
 }
 
 :root[data-theme='dark'] {
@@ -74,6 +81,12 @@
   --icon-note: #e6d36a;
 
   --tree-guide: #4a4e57;
+
+  --role-input: #6ea8fe;
+  --role-control: #e3b341;
+  --role-output: #56c271;
+  --role-mechanism: #b392f0;
+  --role-call: #9da5ae;
 }
 
 * {
@@ -462,6 +475,41 @@ textarea:focus {
   top: 50%;
   height: 0;
   border-top: 1px solid var(--tree-guide);
+}
+
+/* IDEF0 role colors: `role-<role>` sets --role; icons, folder labels and folder guides use it. */
+.role-input {
+  --role: var(--role-input);
+}
+
+.role-control {
+  --role: var(--role-control);
+}
+
+.role-output {
+  --role: var(--role-output);
+}
+
+.role-mechanism {
+  --role: var(--role-mechanism);
+}
+
+.role-call {
+  --role: var(--role-call);
+}
+
+.role-icon,
+.role-label {
+  color: var(--role);
+}
+
+.role-label {
+  font-weight: 600;
+}
+
+.tree-guides .guide-v[class*='role-'],
+.tree-guides .guide-h[class*='role-'] {
+  border-color: color-mix(in srgb, var(--role) 70%, transparent);
 }
 
 .twisty {
