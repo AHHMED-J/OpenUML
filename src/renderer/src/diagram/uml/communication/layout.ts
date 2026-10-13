@@ -39,7 +39,7 @@ export { COMM_LIFELINE_MIN }
 export const MESSAGE_ARROW_LENGTH = 40
 export const MESSAGE_OFFSET = 10
 /** Each further message on one connector sits this much further out. */
-export const MESSAGE_STACK_STEP = 18
+export const MESSAGE_STACK_STEP = 30
 /** Clickable margin around an arrow. */
 export const MESSAGE_HIT_MARGIN = 10
 

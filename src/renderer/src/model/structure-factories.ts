@@ -575,7 +575,7 @@ export function planStructureEdge(req: EdgeRequest): CreationPlan | null {
         hostEdge: connectorView,
         edgePosition: 1,
         alpha: Math.PI / 2,
-        distance: 10 + 18 * stacked,
+        distance: 10 + 30 * stacked,
         left: mid.x - 20,
         top: mid.y - 10,
         width: 40,
