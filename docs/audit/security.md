@@ -305,3 +305,23 @@ window is lost either way.
   troubleshooting user reports needs a development build.
 - **Path comparison off Linux.** It is case-insensitive and does not expand Windows 8.3 short
   names. Mismatches fail closed: the write is refused.
+
+## Follow-ups
+
+- **App-level error boundaries (was "Known limits": no app-level error boundary).** Every dock
+  panel, the toolbar, the status bar, the diagram tabs, dialogs and menus have their own boundary
+  (`ui/components/PanelBoundary.tsx`), plus one around the whole window layout. A render error
+  shows "This panel hit an error" with a Reload panel button in place of that part (dialogs can
+  be closed, menus close) and an error toast; the other panels keep working, and the open project
+  is untouched because it lives in the stores (`7b44c65`, tests `a3ed9c5`).
+- **Clipboard and fragment parsing share one ID remapper** (`remapTreeIds` in `format/fragment.ts`).
+  Both paths still parse with `parseJsonText` (depth limit, `__proto__` removed), and the
+  remapper itself never copies a `__proto__` key (`1cfb6a8`, `32c82ae`).
+- **Release workflow cache.** The build jobs cache the Electron and electron-builder downloads
+  (`actions/cache` pinned to a commit SHA, `v6.1.0`), keyed per OS and per Electron /
+  electron-builder version; permissions are unchanged (`contents: read`). npm dependencies are
+  still never cached. The cached downloads are verified again before use: Electron zips against
+  the release's `SHASUMS256.txt`, builder tools against the checksums in electron-builder, so a
+  tampered entry is downloaded again instead of being packaged (`b91a586`).
+- **New dev dependency:** `happy-dom` 20.14.5 (exact version, tests only, not packaged; no
+  install scripts). `npm audit` reports 0 vulnerabilities.

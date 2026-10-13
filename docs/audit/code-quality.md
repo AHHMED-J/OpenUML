@@ -114,3 +114,17 @@ numbers), **Unused** (CSS, icons, preferences, scripts), **Docs**, **Tests**.
 - `test(diagram): share the fixed-width character constants of the layout tests`
 - `refactor(rad): drop as-unknown casts on edge views in the layout`
 - `refactor(explorer): keep the row overscan constant module-local`
+
+## Follow-ups
+
+Open items resolved after the audit:
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| 18 | Clipboard and fragment ID remapping duplicated | `format/fragment.ts` has `remapTreeIds(roots)`, which remaps several trees and returns the old to new ID map; `remapIds` is its single-root form. The clipboard's `remapAll` is gone: paste and duplicate use `remapTreeIds`. Clipboard text still goes through `parseJsonText` (depth limit, no `__proto__`), and the remapper never copies a `__proto__` key either (`1cfb6a8`, `32c82ae`) |
+| 22 | Refused editor gestures only reached `console.warn` | Invalid connections and reconnections, elements that cannot be created where they were drawn, and views dropped entirely inside a container that does not take them show one plain-language toast per gesture, for example "A Generalization can't connect an Actor to a Package" (`diagram/editor/feedback.ts`, `DiagramEditor` `onNotify`). Factory rules throw `ModelRuleError`, whose message is shown as is; only unexpected errors are logged. A toast already shown is replaced rather than stacked (`1dadec1`, `ed1de29`, `4fe1319`) |
+| 23 | A failure in `registerDiagramCommands` was only logged | It also shows an error toast (`248f51f`) |
+| 30 | Grid Size and Default Font Size preferences were unused | Grid size (2 to 64 diagram units, other values fall back to 8) drives the drawn grid (lines every two steps, at least 8 units apart), snapping and the Shift+arrow nudge. Default font size is given to the views the editor creates (tools, double-click text, line tools, IDEF0 arrows) where they would take the default 13; deliberately smaller fonts (namespace labels, IDEF0 labels), existing views, pasted and duplicated views, views made by other commands (new diagram frames, IDEF0 decomposition) and files without a font keep their sizes (`c9ff927`) |
+
+`npm test` now also renders a few React components in a DOM: tests that need one select
+happy-dom (a dev dependency) with `// @vitest-environment happy-dom`; the rest run in Node.
