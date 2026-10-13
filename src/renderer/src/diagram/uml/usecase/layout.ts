@@ -16,7 +16,6 @@
 import { isKindOf, type Elem, type NodeView, type UMLClassifierView } from '../../../model'
 import { ACTOR_ASPECT, MIN_SIZES, SPACING, USE_CASE_ASPECT, wrapText, type EdgeEndpoint, type Font, type Rect } from '../../core'
 import {
-  arrangeListCompartment,
   arrangeNameCompartment,
   measureListCompartment,
   nameEditText,
@@ -28,8 +27,7 @@ import {
   type NameCompartmentMeasure
 } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
-import { classifierNameMeasure, type StereotypeForm } from '../class/layout'
-import { attributeEditText, attributeText, operationEditText, operationText, type FeatureFormat } from '../class/strings'
+import { attributeRows, classifierNameMeasure, featureFormatOf, operationRows, stackCompartments, type StereotypeForm } from '../class/layout'
 
 const PAD = SPACING.compartmentPaddingLeft
 const GAP = SPACING.compartmentItemGap
@@ -81,15 +79,7 @@ function extensionPointText(ep: Elem): string {
 /** Visible list compartments: extension points (use cases, when any), attributes, operations. */
 function compartmentsOf(view: UMLClassifierView, model: Elem | null, font: Font, ctx: LayoutContext, withExtensionPoints: boolean): Compartment[] {
   if (!model) return []
-  const format: FeatureFormat = {
-    showVisibility: view.showVisibility !== false,
-    showType: view.showType !== false,
-    showMultiplicity: view.showMultiplicity !== false,
-    showProperty: view.showProperty !== false,
-    showOperationSignature: view.showOperationSignature !== false,
-    showStereotype: true
-  }
-  const classifierId = model._id
+  const format = featureFormatOf(view)
   const result: Compartment[] = []
   const add = (kind: UseCaseCompartmentKind, rows: ListRow[]): void => {
     result.push({ kind, measure: measureListCompartment(rows, ctx.measurer) })
@@ -102,45 +92,14 @@ function compartmentsOf(view: UMLClassifierView, model: Elem | null, font: Font,
       points.map((ep) => ({ text: extensionPointText(ep), font, edit: { kind: 'name', elementId: ep._id }, editText: nameEditText(ep) }))
     )
   }
-  if (view.suppressAttributes === false) {
-    add(
-      'attributes',
-      items(model, 'attributes').map((attr) => ({
-        text: attributeText(attr, format),
-        font,
-        underline: attr['isStatic'] === true,
-        edit: { kind: 'attribute', elementId: attr._id, classifierId },
-        editText: attributeEditText(attr)
-      }))
-    )
-  }
-  if (view.suppressOperations === false) {
-    add(
-      'operations',
-      items(model, 'operations').map((op) => ({
-        text: operationText(op, format),
-        font: op['isAbstract'] === true ? { ...font, style: font.style | 2 } : font,
-        underline: op['isStatic'] === true,
-        edit: { kind: 'operation', elementId: op._id, classifierId },
-        editText: operationEditText(op)
-      }))
-    )
-  }
+  if (view.suppressAttributes === false) add('attributes', attributeRows(model, format, font))
+  if (view.suppressOperations === false) add('operations', operationRows(model, format, font))
   return result
 }
 
 /** Stacks compartments from `top` across `box`; collects their rows' edit regions. */
 function arrangeCompartments(compartments: readonly Compartment[], box: Rect, top: number, regions: EditRegion[]): UseCaseCompartmentLayout[] {
-  let y = top
-  return compartments.map((c) => {
-    const rect = { left: box.left, top: y, width: box.width, height: c.measure.height }
-    y += c.measure.height
-    const rows = arrangeListCompartment(c.measure, rect)
-    for (const row of rows) {
-      if (row.edit) regions.push({ box: { ...row.box, left: rect.left, width: rect.width }, target: row.edit, text: row.editText ?? row.text, font: row.font })
-    }
-    return { kind: c.kind, rect, rows: rows.map(({ edit: _e, editText: _t, ...line }) => line) }
-  })
+  return stackCompartments(compartments, box.left, box.width, top, regions)
 }
 
 function heightOf(compartments: readonly Compartment[]): number {
