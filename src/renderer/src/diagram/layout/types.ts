@@ -68,6 +68,11 @@ export interface NodeLayout<D = unknown> {
   readonly minWidth: number
   readonly minHeight: number
   readonly sizable: Sizable
+  /**
+   * The whole outline of the selected node resizes it, not only its handles (IDEF0 boxes, whose
+   * side handles sit under the arrow ends).
+   */
+  readonly resizeOutline?: boolean
   readonly movable: boolean
   /** Outline used to clip edge ends. */
   readonly outline: NodeOutline
