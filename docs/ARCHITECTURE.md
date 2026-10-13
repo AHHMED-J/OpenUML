@@ -40,4 +40,12 @@ entry points, see `knip.json`).
 ## Testing
 
 `npm test` runs Vitest unit tests (`*.test.ts` next to the code). Model, format, commands and diagram geometry are
-pure TypeScript and are expected to have unit tests.
+pure TypeScript and are expected to have unit tests. Tests that render React components into a document select
+happy-dom with a `// @vitest-environment happy-dom` comment; the others run in Node.
+
+## Errors
+
+Every part of the window (dock panels, toolbar, status bar, diagram tabs, dialogs, menus) has its own React
+error boundary (`ui/components/PanelBoundary.tsx`): a render error shows a "Reload panel" notice there and a
+toast, never a blank window. Edits refused by the modeling rules throw `ModelRuleError` (plain-language message);
+the diagram editor turns refused gestures into one toast each through its `onNotify` callback.
