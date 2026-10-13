@@ -5,7 +5,7 @@
  * active bar, the head arrives at the receiver's line, the side of its new (or active) bar, or the
  * side of the created lifeline's header. Self messages loop out 30 to the right and down 20.
  */
-import { type EdgeView, type Elem, type View } from '../../../model'
+import { type EdgeView, type View } from '../../../model'
 import { LineStyle, SPACING, Z_INDEX, guillemets, messageNotation, type Point } from '../../core'
 import { buildEdgeLayout, placeEdgeLabels, type EdgeLabelSpec } from '../../layout/edges'
 import { stereotypeName, styleOf } from '../../layout/helpers'
@@ -101,14 +101,15 @@ function routeMessage(info: MessageInfo, ctx: LayoutContext): Point[] | null {
   ]
 }
 
-function labelSpecs(edge: EdgeView, model: Elem | null, info: MessageInfo | undefined, ctx: LayoutContext): EdgeLabelSpec[] {
+/**
+ * Name (editable with the `message` syntax), stereotype and property labels of a message edge;
+ * shared by sequence and timing messages.
+ */
+export function messageLabelSpecs(edge: EdgeView, options: { sequenceNumber: string; showSignature: boolean }): EdgeLabelSpec[] {
+  const model = edge.model
   const n = messageNotation(messageSortOf(model))
-  const st = stereotypeName(model)
-  const keyword = st || n.fixedKeyword || ''
-  const text = messageLabelText(model, {
-    sequenceNumber: info?.sequenceNumber ?? '',
-    showSignature: ctx.diagram['showSignature'] !== false
-  })
+  const keyword = stereotypeName(model) || n.fixedKeyword || ''
+  const text = messageLabelText(model, options)
   return [
     {
       field: 'nameLabel',
@@ -144,7 +145,7 @@ function layoutMessage(edge: EdgeView, ctx: LayoutContext): EdgeLayout<MessageDa
   const model = edge.model
   const info = sequenceInfo(ctx).messages.get(edge._id)
   const n = messageNotation(messageSortOf(model))
-  const specs = labelSpecs(edge, model, info, ctx)
+  const specs = messageLabelSpecs(edge, { sequenceNumber: info?.sequenceNumber ?? '', showSignature: ctx.diagram['showSignature'] !== false })
   const points = info ? routeMessage(info, ctx) : null
   const lineStyle = edge.lineStyle === LineStyle.Curve ? LineStyle.Rectilinear : ((edge.lineStyle ?? LineStyle.Oblique) as LineStyle)
   const base = buildEdgeLayout<MessageData>(edge, ctx, {
