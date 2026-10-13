@@ -13,13 +13,39 @@ import { edgeNotationFor, nodeNotationFor } from '../render/registry'
 import { edgeLayoutBounds } from './edges'
 import type { DiagramLayout, EdgeLayout, LayoutContext, NodeLayout } from './types'
 
-const signatures = new WeakMap<object, string>()
-
+/** `prev` when it holds the same data as `next` (so memoized renderers skip the view), else `next`. */
 function share<T extends object>(next: T, prev: T | undefined): T {
-  const sig = JSON.stringify(next)
-  if (prev && signatures.get(prev) === sig) return prev
-  signatures.set(next, sig)
-  return next
+  return prev !== undefined && sameLayoutData(next, prev) ? prev : next
+}
+
+/**
+ * Deep equality of plain layout data as JSON would see it: `undefined`-valued properties count
+ * as absent and key order is ignored. Stops at the first difference and allocates nothing (this
+ * runs for every view on every layout pass, so it must stay cheaper than serializing).
+ */
+export function sameLayoutData(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+    // NaN serializes like itself (as null).
+    return typeof a === 'number' && typeof b === 'number' && Number.isNaN(a) && Number.isNaN(b)
+  }
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) if (!sameLayoutData(a[i], b[i])) return false
+    return true
+  }
+  if (Array.isArray(b)) return false
+  const x = a as Record<string, unknown>
+  const y = b as Record<string, unknown>
+  let count = 0
+  for (const key in x) {
+    const v = x[key]
+    if (v === undefined) continue
+    count++
+    if (!sameLayoutData(v, y[key])) return false
+  }
+  for (const key in y) if (y[key] !== undefined) count--
+  return count === 0
 }
 
 function isEdgeEnd(view: View | null | undefined): boolean {
