@@ -5,7 +5,7 @@
  * ellipses). Pure: reads the model, returns layout data.
  */
 import { PORT_SIZE, isKindOf, type Elem, type NodeView, type View } from '../../../model'
-import { NODE_LABEL_DEFAULTS, placeNodeLabel, type Point, type Rect } from '../../core'
+import { NODE_LABEL_DEFAULTS, placeNodeLabel, type Font, type Point, type Rect } from '../../core'
 import {
   arrangeNameCompartment,
   measureNameCompartment,
@@ -56,6 +56,15 @@ export function snapToBorder(host: Rect, p: Point, outline: 'rect' | 'ellipse' =
   const point = { x: cx + dx * t, y: cy + dy * t }
   const side: PortSide = Math.abs(dx) * hh >= Math.abs(dy) * hw ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'top' : 'bottom'
   return { point, side }
+}
+
+/**
+ * Edit region of a port or part: the `name: Type[mult]` it shows (with stereotype and
+ * non-public visibility), committed through the typed-name syntax so type and multiplicity apply.
+ */
+function typedFeatureRegion(model: Elem, box: Rect, font: Font): EditRegion {
+  const text = nameEditText(model) + typedFeatureText(model).slice(nameOf(model).length)
+  return { box, target: { kind: 'typedName', elementId: model._id }, text, font }
 }
 
 export interface PortData {
@@ -126,7 +135,7 @@ export function layoutPort(view: NodeView, ctx: LayoutContext): NodeLayout<PortD
     const s = ctx.measurer.measure(text, style.font)
     const lb = placeNodeLabel(box, polar(view['nameLabel'], NODE_LABEL_DEFAULTS.name), { width: Math.ceil(s.width), height: s.height })
     labels.push({ text, font: style.font, align: 'center', box: lb, underline })
-    if (model) regions.push({ box: lb, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font })
+    if (model) regions.push(typedFeatureRegion(model, lb, style.font))
   }
   const st = stereotypeName(model)
   if (st && labelShown(view['stereotypeLabel'], false)) {
@@ -139,7 +148,7 @@ export function layoutPort(view: NodeView, ctx: LayoutContext): NodeLayout<PortD
       box: placeNodeLabel(box, polar(view['stereotypeLabel'], NODE_LABEL_DEFAULTS.stereotype), { width: Math.ceil(s.width), height: s.height })
     })
   }
-  if (model) regions.push({ box, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font })
+  if (model) regions.push(typedFeatureRegion(model, box, style.font))
 
   const positioned = { ...view, left: box.left, top: box.top, width: PORT_SIZE, height: PORT_SIZE, autoResize: false } as NodeView
   return nodeLayout(positioned, {
@@ -182,7 +191,7 @@ export function layoutPart(view: NodeView, ctx: LayoutContext): NodeLayout<PartD
       const nameRect = { left: box.left, top: box.top, width: box.width, height: name.height }
       return { nameRect, nameLines: arrangeNameCompartment(name, nameRect), composite }
     },
-    regions: (box) => (model ? [{ box: { left: box.left, top: box.top, width: box.width, height: name.height }, target: { kind: 'name', elementId: model._id }, text: nameEditText(model), font: style.font }] : [])
+    regions: (box) => (model ? [typedFeatureRegion(model, { left: box.left, top: box.top, width: box.width, height: name.height }, style.font)] : [])
   })
 }
 

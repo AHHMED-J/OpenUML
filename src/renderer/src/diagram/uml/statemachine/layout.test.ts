@@ -165,6 +165,20 @@ describe('state machine creation and ownership', () => {
     expect(() => a.edge('Transition', s, note)).toThrow()
   })
 
+  it('refuses transitions leaving a final state or terminate, or entering an initial pseudostate', () => {
+    const a = stateDiagram()
+    const s = a.node('State', 0, 0)
+    const initial = a.node('InitialState', 200, 0)
+    const final = a.node('FinalState', 300, 0)
+    const terminate = a.node('Terminate', 400, 0)
+    expect(() => a.edge('Transition', final, s)).toThrow()
+    expect(() => a.edge('Transition', terminate, s)).toThrow()
+    expect(() => a.edge('Transition', s, initial)).toThrow()
+    expect(a.edge('Transition', initial, s).model?._type).toBe('UMLTransition')
+    expect(a.edge('Transition', s, final).model?._type).toBe('UMLTransition')
+    expect(a.edge('Transition', s, terminate).model?._type).toBe('UMLTransition')
+  })
+
   it('Add Diagram and Model > Add entries exist', () => {
     const t = testDiagram()
     const model = t.diagram._parent as Elem
@@ -499,7 +513,7 @@ describe('region containment', () => {
     const a = stateDiagram()
     const kinds: NodeKind[] = ['State', 'CompositeState', 'OrthogonalState', 'SubmachineState', 'InitialState', 'Choice', 'Join', 'Fork', 'Junction', 'ShallowHistory', 'DeepHistory', 'EntryPoint', 'ExitPoint', 'Terminate', 'FinalState']
     const views = kinds.map((k, i) => a.node(k, (i % 5) * 320, Math.floor(i / 5) * 280))
-    a.edge('Transition', views[0] as View, views[4] as View)
+    a.edge('Transition', views[4] as View, views[0] as View)
     const { svg } = renderDiagramSvg(a.diagram, a.repository, a.measurer)
     expect(svg).toContain('<svg')
     expect(svg).toContain('H*')

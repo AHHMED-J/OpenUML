@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { setFields } from '../../../commands'
+import { deleteFromModel, setFields } from '../../../commands'
+import { validateModel } from '../../../format'
 import { canConnect, isKindOf, type Elem, type View } from '../../../model'
 import { createEdgeBetween } from '../../editor/actions'
 import { structureTest } from '../object/testEnv'
@@ -110,16 +111,45 @@ describe('creation', () => {
     expect((forward as unknown as { hostEdge: View }).hostEdge).toBe(connectorViews[0])
     expect(forward._type).toBe('UMLCommMessageView')
 
-    // A second message reuses the connector, in either direction, and stacks 18 further out.
+    // A second message reuses the connector, in either direction, and stacks 30 further out.
     const reverse = t.edge('CommReverseMessage', a, b, { messageSort: 'reply' })
     expect(t.diagram.ownedViews.filter((v) => v._type === 'UMLConnectorView')).toHaveLength(1)
     const rm = reverse.model as Elem
     expect(rm['source']).toBe(b.model)
     expect(rm['target']).toBe(a.model)
     expect(rm['connector']).toBe(message['connector'])
-    expect((reverse as unknown as { distance: number }).distance).toBe(28)
+    expect((reverse as unknown as { distance: number }).distance).toBe(40)
     expect((forward as unknown as { distance: number }).distance).toBe(10)
     expect((reverse.model as Elem)._parent).toBe(t.diagram._parent)
+  })
+
+  it('keeps the label of a message clear of the next message stacked on the connector', () => {
+    const { t, a, b } = setup()
+    const first = t.edge('CommForwardMessage', a, b, { name: 'first' })
+    const second = t.edge('CommReverseMessage', a, b, { name: 'second' })
+    const d1 = t.nodeLayout<CommMessageData>(first).data
+    const d2 = t.nodeLayout<CommMessageData>(second).data
+    const label = d1.labels[0]!.box
+    const arrowY = d2.tail.y
+    // Lifelines side by side: the connector is horizontal and both arrows are horizontal lines.
+    expect(d2.head.y).toBe(arrowY)
+    // The second arrow is stacked further out than the first label, with room to spare for taller fonts.
+    expect(d1.tail.y - arrowY).toBeGreaterThan(0)
+    expect(label.top - arrowY).toBeGreaterThanOrEqual(5)
+  })
+
+  it('Delete from Model of a connector removes the messages riding on it', () => {
+    const { t, a, b } = setup()
+    const m = t.edge('CommForwardMessage', a, b, { name: 'm' })
+    const message = m.model as Elem
+    const connector = message['connector'] as Elem
+    deleteFromModel(t.engine, [connector])
+    expect(t.repository.contains(message)).toBe(false)
+    expect(validateModel(t.repository.root as Elem)).toEqual([])
+    t.engine.undo()
+    const restored = t.repository.get(message._id) as Elem
+    expect(restored).toBeDefined()
+    expect((restored['connector'] as Elem)._id).toBe(connector._id)
   })
 
   it('refuses messages between non-lifelines', () => {
