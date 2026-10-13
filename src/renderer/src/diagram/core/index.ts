@@ -11,7 +11,7 @@
  *                intersection, ray-to-outline clipping (rect, ellipse, diamond), angles.
  * - `formats`    .mdj value encodings: `parsePoints`/`serializePoints` ("x:y;x:y"),
  *                `parseFont`/`serializeFont` ("face;size;style"), `cssFont`.
- * - `style`      Persisted enums (`LineStyle`, `LineMode`, `EdgePosition`, alignments, `FontStyle`)
+ * - `style`      Persisted enums (`LineStyle`, `EdgePosition`, `FontStyle`)
  *                and default style constants: `COLORS`, `DEFAULT_FONT`, `DASH`, `SHADOW`,
  *                `SPACING`, `MIN_SIZES`, `Z_INDEX`, `SELECTION`, `GRID`, `ZOOM`, `EXPORT`.
  * - `viewport`   Grid snapping (round/floor, dead zone), zoom clamp/step, diagram↔screen
