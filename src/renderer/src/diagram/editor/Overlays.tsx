@@ -135,6 +135,8 @@ export type DragPreview =
   | { readonly kind: 'band'; readonly rect: Rect }
   | { readonly kind: 'line'; readonly from: Point; readonly to: Point }
   | { readonly kind: 'polyline'; readonly points: readonly Point[] }
+  /** Where a dragged edge end snaps to (e.g. the slot an IDEF0 arrow end takes on a box side). */
+  | { readonly kind: 'snap'; readonly point: Point }
 
 /** Drag feedback: skeleton boxes, rubber band, creation line, edited polyline. */
 export function DragOverlay({ preview, zoom }: { preview: DragPreview | null; zoom: number }): React.JSX.Element | null {
@@ -163,6 +165,14 @@ export function DragOverlay({ preview, zoom }: { preview: DragPreview | null; zo
           <line x1={fmt(preview.from.x)} y1={fmt(preview.from.y)} x2={fmt(preview.to.x)} y2={fmt(preview.to.y)} />
           <circle cx={fmt(preview.from.x)} cy={fmt(preview.from.y)} r={r} />
           <circle cx={fmt(preview.to.x)} cy={fmt(preview.to.y)} r={r} />
+        </g>
+      )
+    }
+    case 'snap': {
+      const r = SELECTION.createEdgeEndRadius + 2
+      return (
+        <g pointerEvents="none">
+          <circle cx={fmt(preview.point.x)} cy={fmt(preview.point.y)} r={r / zoom} fill={ACCENT} fillOpacity={0.25} stroke={ACCENT} strokeWidth={1.5 * px} />
         </g>
       )
     }

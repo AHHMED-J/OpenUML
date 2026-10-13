@@ -83,6 +83,24 @@ export interface DiagramHooks {
   pickEnd?(layout: DiagramLayout, p: Point, tool: ToolSpec): string | null
   /** Whether the line tool may start on empty canvas. */
   freeEnds?(tool: ToolSpec): boolean
+  /**
+   * A segment of a selected edge the Select tool drags as a whole across its direction (e.g. the
+   * runs of IDEF0 routes): `null` = the segment cannot be dragged, `undefined` = default bend editing.
+   */
+  segmentDrag?(env: DiagramEnv, layout: DiagramLayout, edgeId: string, index: number): SegmentDrag | null | undefined
+  /** Dragging an edge end shows the reconnected edge live (the reconnect hook runs as a dry run). */
+  liveReconnect?: boolean
+  /** The view a dragged edge end is dropped on at `p` (default: the node under `p`). */
+  pickReconnect?(layout: DiagramLayout, p: Point): string | null
+}
+
+/** A segment dragged as a whole: `y` moves a horizontal segment, `x` a vertical one. */
+export interface SegmentDrag {
+  readonly axis: 'x' | 'y'
+  /** Current coordinate of the segment. */
+  readonly value: number
+  /** Moves the segment to `value` (one undo step; the hook keeps it valid). */
+  commit(value: number): void
 }
 
 const diagramHooks = new Map<string, DiagramHooks>()
