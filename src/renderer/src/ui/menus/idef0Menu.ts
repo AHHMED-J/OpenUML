@@ -17,6 +17,7 @@ export function idef0Menu(): MenuNode {
     visible: idef0Active,
     submenu: [
       { id: 'idef0.decompose', label: 'Decompose...', command: Idef0CommandIds.decompose },
+      { id: 'idef0.set-box-count', label: 'Set Number of Child Boxes...', command: Idef0CommandIds.setBoxCount },
       { id: 'idef0.go-parent', label: 'Go to Parent Diagram', command: Idef0CommandIds.goParent },
       { id: 'idef0.go-child', label: 'Go to Child Diagram', command: Idef0CommandIds.goChild },
       SEP,

@@ -5,7 +5,7 @@ import { buildOrderExample } from '../../model/idef0-example'
 import type { Elem, View } from '../../model'
 import { projectStore } from '../../store'
 import { ensureNotations } from '../notations'
-import { Idef0CommandIds, registerIdef0Commands, type Idef0CommandContext, type Idef0ListItem } from './commands'
+import { Idef0CommandIds, registerIdef0Commands, type Idef0BoxChoice, type Idef0CommandContext, type Idef0ListItem } from './commands'
 
 const ps = () => projectStore.getState()
 
@@ -18,9 +18,18 @@ function setup() {
   const opened: Array<{ id: string; views: readonly string[] }> = []
   const lists: Array<{ title: string; items: readonly Idef0ListItem[] }> = []
   const toasts: string[] = []
-  const answers = { count: 3 as number | null }
+  const prompts: Array<number | undefined> = []
+  const choices: Array<{ boxes: readonly Idef0BoxChoice[]; remove: number }> = []
+  const answers = { count: 3 as number | null, remove: (() => null) as (boxes: readonly Idef0BoxChoice[], remove: number) => readonly string[] | null }
   const ctx: Idef0CommandContext = {
-    promptBoxCount: async () => answers.count,
+    promptBoxCount: async (initial) => {
+      prompts.push(initial)
+      return answers.count
+    },
+    chooseBoxesToRemove: async (boxes, remove) => {
+      choices.push({ boxes, remove })
+      return answers.remove(boxes, remove)
+    },
     openDiagram: (id, views = []) => {
       opened.push({ id, views })
       ps().openDiagram(id)
@@ -33,7 +42,7 @@ function setup() {
   const diagram = (id: string): Elem => repo.get(id) as Elem
   const viewOf = (diagramId: string, model: string): View =>
     (diagram(diagramId)['ownedViews'] as View[]).find((v) => (v.model as Elem | null)?._id === model && v._type === 'IDEF0FunctionView') as View
-  return { example, repo, registry, opened, lists, toasts, answers, diagram, viewOf }
+  return { example, repo, registry, opened, lists, toasts, prompts, choices, answers, diagram, viewOf }
 }
 
 beforeEach(() => {
@@ -46,6 +55,7 @@ describe('IDEF0 commands', () => {
     const ids = registry.all().map((c) => c.id)
     for (const id of [
       'idef0.decompose',
+      'idef0.set-box-count',
       'idef0.go-parent',
       'idef0.go-child',
       'idef0.renumber',
@@ -64,7 +74,7 @@ describe('IDEF0 commands', () => {
     ]) expect(ids).toContain(id)
     const again = new CommandRegistry()
     again.register({ id: 'idef0.renumber', label: 'x', run: () => undefined })
-    registerIdef0Commands(again, { promptBoxCount: async () => null, openDiagram: () => undefined, showList: () => undefined, toast: () => undefined })
+    registerIdef0Commands(again, { promptBoxCount: async () => null, chooseBoxesToRemove: async () => null, openDiagram: () => undefined, showList: () => undefined, toast: () => undefined })
     expect(again.get('idef0.renumber')?.label).toBe('x')
   })
 
@@ -115,6 +125,74 @@ describe('IDEF0 commands', () => {
     ps().openDiagram(example.childDiagram._id)
     ps().select({ views: [viewOf(example.childDiagram._id, example.a2._id)._id] })
     expect(registry.isEnabled(Idef0CommandIds.decompose)).toBe(false)
+  })
+
+  describe('Set Number of Child Boxes', () => {
+    const boxCount = (repo: { get: (id: string) => unknown }, id: string): number => ((repo.get(id) as Elem)['functions'] as Elem[]).length
+
+    it('is available for a selected decomposed box and on a child diagram, not on A-0 or an undecomposed box', () => {
+      const { registry, example, viewOf } = setup()
+      const cmd = Idef0CommandIds.setBoxCount
+      ps().openDiagram(example.contextDiagram._id)
+      ps().select({ views: [] })
+      expect(registry.isEnabled(cmd)).toBe(false)
+      ps().select({ views: [viewOf(example.contextDiagram._id, example.top._id)._id] })
+      expect(registry.isEnabled(cmd)).toBe(true)
+      ps().openDiagram(example.childDiagram._id)
+      ps().select({ views: [] })
+      expect(registry.isEnabled(cmd)).toBe(true)
+      ps().closeDiagram(example.childDiagram._id)
+      ps().closeDiagram(example.contextDiagram._id)
+      expect(registry.isEnabled(cmd)).toBe(false)
+    })
+
+    it('adds boxes after a prompt that defaults to the current count; same count and cancel change nothing', async () => {
+      const { registry, example, repo, answers, prompts, toasts } = setup()
+      ps().openDiagram(example.childDiagram._id)
+      const depth = ps().engine.undoDepth
+      answers.count = null
+      await registry.execute(Idef0CommandIds.setBoxCount)
+      answers.count = 3
+      await registry.execute(Idef0CommandIds.setBoxCount)
+      expect(prompts).toEqual([3, 3])
+      expect(toasts.at(-1)).toMatch(/already has 3 boxes/)
+      expect(ps().engine.undoDepth).toBe(depth)
+      answers.count = 6
+      await registry.execute(Idef0CommandIds.setBoxCount)
+      expect(boxCount(repo, example.top._id)).toBe(6)
+      expect(ps().engine.undoDepth).toBe(depth + 1)
+      ps().undo()
+      expect(boxCount(repo, example.top._id)).toBe(3)
+    })
+
+    it('lets the user choose the boxes to remove and removes exactly those in one undo step', async () => {
+      const { registry, example, repo, answers, choices, viewOf } = setup()
+      ps().openDiagram(example.contextDiagram._id)
+      ps().select({ views: [viewOf(example.contextDiagram._id, example.top._id)._id] })
+      answers.count = 1
+      answers.remove = (boxes, remove) => boxes.slice(0, remove).map((b) => b.id)
+      const depth = ps().engine.undoDepth
+      await registry.execute(Idef0CommandIds.setBoxCount)
+      expect(choices).toHaveLength(1)
+      expect(choices[0]?.remove).toBe(2)
+      expect(choices[0]?.boxes.map((b) => b.label)).toEqual(['A1  Receive Order', 'A2  Check Credit and Stock', 'A3  Ship and Invoice'])
+      expect(choices[0]?.boxes[1]?.detail).toBe('3 arrows attached')
+      expect(boxCount(repo, example.top._id)).toBe(1)
+      expect((repo.get(example.a3._id) as Elem | undefined)?.['boxNumber']).toBe(1)
+      expect(ps().engine.undoDepth).toBe(depth + 1)
+      ps().undo()
+      expect(boxCount(repo, example.top._id)).toBe(3)
+    })
+
+    it('does nothing when the choice is cancelled or has the wrong size', async () => {
+      const { registry, example, repo, answers } = setup()
+      ps().openDiagram(example.childDiagram._id)
+      answers.count = 2
+      await registry.execute(Idef0CommandIds.setBoxCount)
+      answers.remove = (boxes) => boxes.slice(0, 2).map((b) => b.id)
+      await registry.execute(Idef0CommandIds.setBoxCount)
+      expect(boxCount(repo, example.top._id)).toBe(3)
+    })
   })
 
   it('shows validation warnings and the node index as lists', () => {

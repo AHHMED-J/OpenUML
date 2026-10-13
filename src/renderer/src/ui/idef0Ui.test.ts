@@ -161,7 +161,7 @@ describe('IDEF0 menus', () => {
     const ex = buildOrderExample()
     projectStore.getState().openProject(writeMdj(ex.project), null)
     const registry = new CommandRegistry()
-    registerIdef0Commands(registry, { promptBoxCount: async () => 3, openDiagram: () => undefined, showList: () => undefined, toast: () => undefined })
+    registerIdef0Commands(registry, { promptBoxCount: async () => 3, chooseBoxesToRemove: async () => null, openDiagram: () => undefined, showList: () => undefined, toast: () => undefined })
     const ctx = { commands: registry, platform: 'darwin' as const }
     projectStore.getState().openDiagram(ex.childDiagram._id)
     const model = resolveMenu([idef0Menu()], ctx)
@@ -170,6 +170,7 @@ describe('IDEF0 menus', () => {
     const labels = sub?.kind === 'submenu' ? sub.items.flatMap((i) => (i.kind === 'separator' ? [] : [i.label])) : []
     expect(labels).toEqual([
       'Decompose...',
+      'Set Number of Child Boxes...',
       'Go to Parent Diagram',
       'Go to Child Diagram',
       'Renumber Boxes',

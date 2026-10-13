@@ -2,7 +2,7 @@
 import { registerIdef0Commands, validateIdef0, type Idef0CommandContext } from '../../diagram'
 import type { CommandRegistry } from '../../commands'
 import { activeDiagram, projectStore } from '../../store'
-import { uiStore } from '../uiStore'
+import { chooseRows, uiStore } from '../uiStore'
 import { promptBoxCount } from './boxCount'
 import { openDiagram, selectInExplorer } from './appCommands'
 
@@ -10,6 +10,14 @@ const ps = () => projectStore.getState()
 
 export const idef0Context: Idef0CommandContext = {
   promptBoxCount,
+  chooseBoxesToRemove(boxes, remove) {
+    return chooseRows(
+      'Remove boxes',
+      `Tick the ${remove} box${remove === 1 ? '' : 'es'} to remove. Removed boxes take their child diagrams and arrows that only served them with them; the remaining boxes are renumbered. This can be undone.`,
+      boxes,
+      remove
+    )
+  },
   openDiagram(diagramId, selectViewIds = []) {
     const diagram = ps().repository.get(diagramId)
     if (!diagram) return
