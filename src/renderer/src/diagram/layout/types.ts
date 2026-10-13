@@ -152,6 +152,8 @@ export interface EdgeLayout<D = unknown> {
   readonly fallbackEdit?: { readonly target: EditTarget; readonly text: string }
   /** Dragging the edge shifts it along this axis instead of editing bends (sequence messages). */
   readonly dragAxis?: 'vert'
+  /** Edge views drawn as one with this edge (an IDEF0 fork), highlighted with their labels when it is selected. */
+  readonly highlightGroup?: readonly string[]
   readonly data: D
 }
 

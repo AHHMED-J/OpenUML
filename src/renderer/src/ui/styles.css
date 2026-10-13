@@ -609,6 +609,16 @@ textarea:focus {
   min-width: 0;
 }
 
+/* IDEF0: hovering an arrow label highlights the line it labels (editor only; exports carry no CSS). */
+.ou-diagram-editor .idef0-arrow:has(.idef0-arrow-label:hover) .idef0-arrow-line {
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 2px #4f99ff);
+}
+
+.ou-diagram-editor .idef0-arrow-label:hover rect {
+  fill: #e8f1ff;
+}
+
 .canvas-message {
   display: flex;
   flex-direction: column;

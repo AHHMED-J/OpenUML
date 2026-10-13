@@ -11,7 +11,7 @@ import { nameEditText } from '../layout/helpers'
 import type { EdgeLayout, LayoutContext } from '../layout/types'
 import type { EdgeNotation } from '../render/registry'
 import { PORT_DIR, SIDE_DIR, IDEF0_STYLE, dirVector, rectCenterOf, slotPoint } from './geometry'
-import { arrowLabelColor, arrowLineColor, arrowTextColor } from './colors'
+import { arrowLabelColor, arrowLineColor, arrowTextColor, isArrowView as isArrowEdge } from './colors'
 import { STUB, feedbackKind, longestSegment, routeArrow, routeBranch, trimEnd, trimStart, type RouteEnd } from './routing'
 import { arrowText, callLabelText } from './strings'
 
@@ -239,6 +239,26 @@ function labelHost(edge: EdgeView, text: string, run: readonly Point[], ctx: Lay
   return { ...edge, nameLabel: label } as EdgeView
 }
 
+/**
+ * The arrow views forming one fork/join tree with `edge` on its diagram (its root trunk and every
+ * branch below it; just `edge` when it has no branches).
+ */
+function arrowTree(edge: EdgeView, ctx: LayoutContext): string[] {
+  let root: View = edge
+  for (let guard = 0; guard < 64; guard++) {
+    const up = isArrowEdge(root['tail']) ? (root['tail'] as View) : isArrowEdge(root['head']) ? (root['head'] as View) : null
+    if (!up) break
+    root = up
+  }
+  const views = arrowViews(ctx)
+  const tree: View[] = [root]
+  for (let i = 0; i < tree.length && tree.length < 512; i++) {
+    const trunk = tree[i] as View
+    for (const v of views) if ((v.tail === trunk || v.head === trunk) && !tree.includes(v)) tree.push(v)
+  }
+  return tree.map((v) => v._id)
+}
+
 /** Gap between the line and a tunneled end where the parentheses sit. */
 const RETRACT = IDEF0_STYLE.tunnelGap + 6
 
@@ -310,6 +330,7 @@ function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> 
     labels,
     labelPoints,
     ...(fallback ? { fallbackEdit: fallback } : {}),
+    highlightGroup: arrowTree(edge, ctx),
     data: { tunnels, squiggle, lineWidth: IDEF0_STYLE.arrowLine, role }
   }
 }
