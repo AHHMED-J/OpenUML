@@ -10,7 +10,7 @@ import {
   type CommandDefinition,
   type CommandRegistry
 } from '../../commands'
-import { deleteIdef0Elements, getTextMeasurer } from '../../diagram'
+import { deleteIdef0Elements, getTextMeasurer, requestReveal } from '../../diagram'
 import { isKindOf, type DiagramKind, type Elem, type View } from '../../model'
 import { projectStore, selectedModels } from '../../store'
 import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
@@ -103,21 +103,27 @@ function canMove(step: number): boolean {
   return index >= 0 && index < (c.owner[c.field] as Elem[]).length
 }
 
-function selectInDiagram(): void {
-  const model = singleSelectedModel() ?? selectedModels(ps())[0]
-  if (!model) return
+/**
+ * Opens the diagram that draws `model` (the active diagram when it does) and selects its view
+ * there. Returns false when no diagram shows the element.
+ */
+export function revealInDiagram(model: Elem): boolean {
   const repo = ps().repository
   const views = repo.viewsOf(model).filter((v) => v.visible !== false && repo.diagramOf(v))
-  if (views.length === 0) {
-    ui().toast('No diagrams to show')
-    return
-  }
+  if (views.length === 0) return false
   const active = ps().activeDiagramId
   const view = views.find((v) => repo.diagramOf(v)?._id === active) ?? (views[0] as View)
   const diagram = repo.diagramOf(view)
-  if (!diagram) return
+  if (!diagram) return false
+  requestReveal(view._id)
   ps().openDiagram(diagram._id)
-  ps().select({ views: [view._id] })
+  ps().select({ views: [view._id], elements: [model._id] })
+  return true
+}
+
+function selectInDiagram(): void {
+  const model = singleSelectedModel() ?? selectedModels(ps())[0]
+  if (model && !revealInDiagram(model)) ui().toast('No diagrams to show')
 }
 
 export function confirmAndDeleteFromModel(elements: readonly Elem[]): Promise<void> {
