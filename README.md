@@ -1,7 +1,13 @@
 # OpenUML
 
-OpenUML is an open-source desktop UML modeling tool built with Electron, React and TypeScript. It edits
-class, use case, sequence and activity diagrams and reads and writes `.mdj` project files.
+<p align="center"><img src="build/icon.png" alt="OpenUML logo" width="128"></p>
+
+OpenUML is an open-source desktop modeling tool for macOS, Windows and Linux, built with Electron, React and
+TypeScript. It edits 15 UML diagram types plus Role Activity Diagrams (RAD) and IDEF0 process models, and
+reads and writes `.mdj` project files.
+
+**[Download the latest version](https://github.com/AHHMED-J/OpenUML/releases/latest)** — see [Download](#download)
+for which file to pick.
 
 > OpenUML is an independent project. It is not affiliated with, endorsed by, or connected to any other UML tool
 > or its vendor. It is implemented from written behavioral specifications in its own code and contains no
@@ -11,8 +17,21 @@ class, use case, sequence and activity diagrams and reads and writes `.mdj` proj
 
 - **Model Explorer** – the project tree with type icons, sorting by insertion order or name, search,
   inline rename (F2 or double-click), drag-and-drop re-parenting, and context menus to add elements and diagrams.
-- **Diagrams** – class, use case, sequence and activity diagrams with a toolbox per diagram type plus annotations
-  (notes, note links, text). Diagram tabs and a Working Diagrams list, zoom, grid and snap-to-grid.
+- **UML diagrams** – class, object, package, component, deployment, composite structure, profile, use case,
+  activity, state machine, sequence, communication, timing, interaction overview and information flow, each with
+  its own toolbox, plus annotations (notes, note links, text).
+- **Role Activity Diagrams (RAD)** – roles, activities, state lines, interactions between roles, alternative
+  (case) and parallel (part) refinements, iteration, waits, role initialization and state markers. Roles grow to
+  fit their content, threads stay connected when elements move, and soft warnings (for example a role name that
+  is not a gerund) never block editing.
+- **IDEF0** – function boxes with automatic numbering, ICOM arrows (input, control, output, mechanism) that
+  snap to the right side, forks and joins, call and tunneled arrows, the A-0 context diagram, *Decompose* into
+  child diagrams with Go to Parent/Child, the title block, and consistency warnings with a status-bar count.
+- **Editing** – live preview while moving, resizing and drawing, animated zoom, grid and snap-to-grid, inline
+  name editing and quick-edit syntax (e.g. `-total : Money [0..1] = 0`, `trigger [guard] / effect`), copy,
+  paste and duplicate, alignment commands. Diagram tabs and a Working Diagrams list.
+- **Customizable layout** – long-press a panel header (Toolbox, Model Explorer, Properties, …) and drag it to
+  another place; the layout is remembered. *View > Reset Layout* restores the default.
 - **Property Editor** – rows generated from the metamodel (text, numbers, checkboxes, enumerations, references,
   type/stereotype autocomplete, attribute/operation/parameter/literal lists), multi-selection editing,
   association-end sections, plus a Style editor and a Documentation editor.
@@ -25,10 +44,18 @@ class, use case, sequence and activity diagrams and reads and writes `.mdj` proj
 
 ## Download
 
-Installers for Windows (64-bit), macOS (Apple Silicon and Intel) and Linux (64-bit AppImage) are
-published on the [Releases page](https://github.com/AHHMED-J/OpenUML/releases): pick the latest
-release and download the file for your system. Each release lists SHA-256 checksums
-(`SHA256SUMS.txt`) to verify the downloads.
+Installers are published on the [Releases page](https://github.com/AHHMED-J/OpenUML/releases/latest).
+Download the file for your system:
+
+| System | File |
+| --- | --- |
+| macOS, Apple Silicon (M1/M2/M3/M4) | `OpenUML-<version>-mac-arm64.dmg` |
+| macOS, Intel | `OpenUML-<version>-mac-x64.dmg` |
+| Windows 10/11 (64-bit) | `OpenUML-<version>-win-x64.exe` |
+| Linux (64-bit) | `OpenUML-<version>-linux-x86_64.AppImage` |
+
+Not sure which Mac you have? Open the Apple menu > *About This Mac*: "Chip: Apple M…" means Apple Silicon.
+Each release lists SHA-256 checksums (`SHA256SUMS.txt`) to verify the downloads.
 
 The builds are **not code-signed** (that needs paid Apple and Microsoft certificates), so each
 system warns on first launch:
@@ -36,8 +63,10 @@ system warns on first launch:
 - **Windows:** SmartScreen shows "Windows protected your PC": click *More info*, then *Run anyway*.
   The installer lets you choose the folder and registers OpenUML as the editor of `.mdj` files.
 - **macOS:** open the `.dmg` (or unzip), drag `OpenUML.app` to *Applications*, then right-click it
-  and choose *Open* (or *System Settings > Privacy & Security > Open Anyway*). The app is signed
-  ad hoc, which Apple Silicon requires to run it at all.
+  and choose *Open* (or *System Settings > Privacy & Security > Open Anyway*). After the first launch it
+  opens normally from Launchpad, Spotlight or the Dock. If macOS reports that the app "is damaged and
+  can't be opened", run `xattr -cr /Applications/OpenUML.app` once in Terminal. The app is signed ad hoc,
+  which Apple Silicon requires to run it at all.
 - **Linux:** `chmod +x OpenUML-<version>-linux-x86_64.AppImage` and run it. Without FUSE 2, add
   `--appimage-extract-and-run`; on Ubuntu 24.04 and later you may also need `--no-sandbox`.
 
