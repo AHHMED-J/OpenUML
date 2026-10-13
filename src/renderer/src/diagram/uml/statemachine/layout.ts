@@ -18,7 +18,7 @@ import {
   type ListRow
 } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeDivider, NodeLayout, TextLine } from '../../layout/types'
-import { nodeNotationFor } from '../../render/registry'
+import { hostNodeLayout, ownerHostView } from '../gluedViews'
 import { nearestBorderPoint } from '../activity/layout'
 import { internalActivityRows, internalTransitions, stateNameText, transitionLabel } from './strings'
 
@@ -354,36 +354,13 @@ function connectionPointText(model: Elem | null | undefined): string {
   return [...namesOf(model?.['entry']), ...namesOf(model?.['exit'])].join(', ')
 }
 
-function hostBox(host: View, ctx: LayoutContext): Rect | null {
-  const laid = ctx.nodeLayout(host._id)
-  if (laid) return laid.box
-  if (!isKindOf(host, 'NodeView')) return null
-  try {
-    return nodeNotationFor(host).layout(host as NodeView, ctx).box
-  } catch {
-    return null
-  }
-}
-
-/** The state view a connection point reference is glued to. */
-function connectionPointHost(view: NodeView, ctx: LayoutContext): View | null {
-  const state = view.model?._parent
-  const container = view.containerView ?? null
-  if (container && (!state || container.model === state)) return container
-  if (!state) return null
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v !== view && v.model === state && isKindOf(v, 'NodeView') && v.visible !== false) return v as View
-  }
-  return null
-}
-
 /** Connection point reference: 14 × 14 circle glued to the border of its state view. */
 export function layoutConnectionPoint(view: NodeView, ctx: LayoutContext): NodeLayout<ConnectionPointData> {
   const style = styleOf(view)
   const model = view.model
   const stored = { left: view.left ?? 0, top: view.top ?? 0, width: CPR_SIZE.width, height: CPR_SIZE.height }
-  const host = connectionPointHost(view, ctx)
-  const hb = host ? hostBox(host, ctx) : null
+  const host = ownerHostView(view, ctx)
+  const hb = host ? (hostNodeLayout(host, ctx)?.box ?? null) : null
   let box: Rect = stored
   if (hb) {
     const snap = nearestBorderPoint(hb, { x: stored.left + stored.width / 2, y: stored.top + stored.height / 2 })

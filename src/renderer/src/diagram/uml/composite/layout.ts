@@ -16,7 +16,7 @@ import {
   styleOf
 } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
-import { nodeNotationFor } from '../../render/registry'
+import { hostNodeLayout } from '../gluedViews'
 import { collaborationUseText, typedFeatureText } from './strings'
 
 
@@ -84,14 +84,7 @@ function portHostView(view: NodeView, ctx: LayoutContext): View | null {
 }
 
 function hostLayout(host: View, ctx: LayoutContext): { box: Rect; outline: 'rect' | 'ellipse' } | null {
-  let laid: NodeLayout | undefined = ctx.nodeLayout(host._id)
-  if (!laid && isKindOf(host, 'NodeView')) {
-    try {
-      laid = nodeNotationFor(host).layout(host as NodeView, ctx)
-    } catch {
-      return null
-    }
-  }
+  const laid = hostNodeLayout(host, ctx)
   return laid ? { box: laid.box, outline: laid.outline === 'ellipse' ? 'ellipse' : 'rect' } : null
 }
 
