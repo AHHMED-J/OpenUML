@@ -7,7 +7,7 @@
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path'
 
 export const APP_SCHEME = 'app'
-export const APP_HOST = 'openuml'
+const APP_HOST = 'openuml'
 /** Origin of the renderer in packaged builds. */
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`
 export const APP_ENTRY_URL = `${APP_ORIGIN}/index.html`

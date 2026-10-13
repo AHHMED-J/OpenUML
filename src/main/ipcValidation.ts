@@ -8,7 +8,7 @@ import { extname, posix, resolve, win32 } from 'node:path'
 import type { FileFilter, MenuItemSpec } from '../shared/ipc'
 
 /** Longest path accepted from the renderer, the command line or the OS. */
-export const MAX_PATH_LENGTH = 4096
+const MAX_PATH_LENGTH = 4096
 const MAX_LABEL = 200
 const MAX_COMMAND = 200
 const MAX_ACCELERATOR = 64
