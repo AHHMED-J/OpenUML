@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { setFields } from '../../../commands'
 import { canConnect, isKindOf, type Elem, type NodeView } from '../../../model'
 import { createNodeAt, moveSelection } from '../../editor/actions'
+import { applyQuickEdit } from '../../editor/quickEditApply'
 import { structureTest } from '../object/testEnv'
 import { collaborationUseText, connectorLabelText, typedFeatureText } from './strings'
 import { snapToBorder, type CollaborationData, type PartData, type PortData } from './layout'
@@ -87,6 +88,29 @@ describe('ports and parts', () => {
     const port = t.repository.get(id) as NodeView
     setFields(t.engine, port.model as Elem, { name: 'p', type: 'Iface', multiplicity: '1..*' })
     expect(t.nodeLayout<PortData>(port).data.labels[0]?.text).toBe('p: Iface[1..*]')
+  })
+
+  it('edits ports and parts inline with the name: Type[mult] notation they show', () => {
+    const t = structureTest('CompositeStructureDiagram')
+    const host = t.node('Class', 100, 100, { width: 300, height: 200 })
+    const engine = t.node('Class', 500, 100, { name: 'Engine' })
+    const portId = createNodeAt(t, t.layout(), 'Port', { left: 390, top: 140, width: 0, height: 0 }) as string
+    const partId = createNodeAt(t, t.layout(), 'Part', { left: 130, top: 150, width: 0, height: 0 }) as string
+    void host
+    for (const [id, text] of [[portId, 'svc: Iface[1..*]'], [partId, 'eng: Engine[2]']] as const) {
+      const view = t.repository.get(id) as NodeView
+      const region = t.nodeLayout(view).regions.find((r) => r.target.kind !== 'text')
+      expect(region?.target.kind).toBe('typedName')
+      expect(applyQuickEdit(t.engine, region!.target, text)).toBe(true)
+    }
+    const port = (t.repository.get(portId) as NodeView).model as Elem
+    expect(port).toMatchObject({ name: 'svc', type: 'Iface', multiplicity: '1..*' })
+    const part = (t.repository.get(partId) as NodeView).model as Elem
+    expect(part).toMatchObject({ name: 'eng', multiplicity: '2' })
+    expect(part['type']).toBe(engine.model)
+    // The editor opens on the text the view shows.
+    const shown = t.nodeLayout<PartData>(t.repository.get(partId) as NodeView)
+    expect(shown.regions[0]?.text).toBe('eng: Engine[2]')
   })
 
   it('refuses a port on an untyped part', () => {

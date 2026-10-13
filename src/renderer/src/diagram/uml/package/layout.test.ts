@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDiagram, createEdge, createNode, moveElement, setFields } from '../../../commands'
-import { canConnect, isKindOf, type Elem, type NodeView, type View } from '../../../model'
+import { canConnect, isKindOf, type EdgeView, type Elem, type NodeView, type View } from '../../../model'
+import { validateModel } from '../../../format'
 import { applyQuickEdit } from '../../editor/quickEditApply'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
 import { testDiagram } from '../../testUtils'
@@ -93,6 +94,27 @@ describe('containment', () => {
     t.engine.redo()
     expect(t.diagram.ownedViews.some((v) => v._type === 'UMLContainmentView')).toBe(true)
     expect(child.model?._parent).toBe(parent.model)
+  })
+
+  it('removes the containment link to the old owner when the element is contained elsewhere', () => {
+    const t = testDiagram()
+    const first = t.node('Package', 0, 0, 300, 200)
+    const second = t.node('Package', 0, 300, 300, 200)
+    const child = t.node('Class', 400, 0)
+    const kept = createEdge(t.engine, { kind: 'Containment', diagram: t.diagram, tail: child, head: first }).view as View
+    // Drawing the same link again keeps the existing one: it still holds.
+    createEdge(t.engine, { kind: 'Containment', diagram: t.diagram, tail: child, head: first })
+    const links = () => t.diagram.ownedViews.filter((v) => v._type === 'UMLContainmentView') as EdgeView[]
+    expect(links()).toHaveLength(2)
+    const moved = createEdge(t.engine, { kind: 'Containment', diagram: t.diagram, tail: child, head: second }).view as View
+    expect(child.model?._parent).toBe(second.model)
+    expect(links()).toEqual([moved])
+    expect(validateModel(t.repository.root as Elem)).toEqual([])
+    // One undoable step brings back both the owner and the old links.
+    t.engine.undo()
+    expect(child.model?._parent).toBe(first.model)
+    expect(links().map((v) => v._id)).toContain(kept._id)
+    expect(links()).toHaveLength(2)
   })
 
   it('rejects a head inside the tail, self links and non-elements', () => {
