@@ -19,7 +19,6 @@ import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layo
 import { hostNodeLayout } from '../gluedViews'
 import { collaborationUseText, typedFeatureText } from './strings'
 
-
 // =============================================================================================
 // Port
 

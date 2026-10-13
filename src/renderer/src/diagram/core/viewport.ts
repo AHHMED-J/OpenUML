@@ -34,7 +34,6 @@ export function snapRect(r: Rect, gridSize: number = GRID.size, mode: SnapMode =
   return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) }
 }
 
-
 /**
  * Snapping with a dead zone for drags: when the proposed coordinate is less than one grid cell
  * away from the original, the original coordinate is kept (so tiny drags do not jump).
@@ -85,7 +84,6 @@ export function diagramToScreen(p: Point, vp: Viewport): Point {
 export function screenToDiagram(p: Point, vp: Viewport): Point {
   return { x: p.x / vp.zoom - vp.origin.x, y: p.y / vp.zoom - vp.origin.y }
 }
-
 
 /**
  * Zooms around a fixed screen point (e.g. the mouse position under Ctrl+wheel): the diagram
