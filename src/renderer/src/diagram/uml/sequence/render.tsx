@@ -3,22 +3,8 @@ import type React from 'react'
 import { DASH, fmt, roundedRectPath, type Rect } from '../../core'
 import type { NodeLayout, ViewStyle } from '../../layout/types'
 import { FrameLabel } from '../../render/generic'
-import { Shadow, StyledRect, SvgLines, SvgText, rectPath } from '../../render/primitives'
+import { Shadow, StyledRect, SvgLine, SvgLines, SvgText, rectPath } from '../../render/primitives'
 import { DESTRUCTION_HALF, type EndpointData, type FragmentData, type InteractionUseData, type LifelineData, type OrphanKind, type RoundedBoxData } from './layout'
-
-function Line({ x1, y1, x2, y2, color, dash }: { x1: number; y1: number; x2: number; y2: number; color: string; dash?: readonly number[] }): React.JSX.Element {
-  return (
-    <line
-      x1={fmt(x1)}
-      y1={fmt(y1)}
-      x2={fmt(x2)}
-      y2={fmt(y2)}
-      stroke={color}
-      strokeWidth={1}
-      {...(dash && dash.length > 0 ? { strokeDasharray: dash.join(' ') } : {})}
-    />
-  )
-}
 
 /** Stick figure fitted into `r` (actor-typed lifelines). */
 function ActorFigure({ r, style }: { r: Rect; style: ViewStyle }): React.JSX.Element {
@@ -30,10 +16,10 @@ function ActorFigure({ r, style }: { r: Rect; style: ViewStyle }): React.JSX.Ele
   return (
     <g>
       <circle cx={fmt(cx)} cy={fmt(r.top + head)} r={fmt(head)} fill={style.fillColor} stroke={c} strokeWidth={1} />
-      <Line x1={cx} y1={neck} x2={cx} y2={hip} color={c} />
-      <Line x1={r.left} y1={neck + head * 0.6} x2={r.left + r.width} y2={neck + head * 0.6} color={c} />
-      <Line x1={cx} y1={hip} x2={r.left} y2={r.top + r.height} color={c} />
-      <Line x1={cx} y1={hip} x2={r.left + r.width} y2={r.top + r.height} color={c} />
+      <SvgLine x1={cx} y1={neck} x2={cx} y2={hip} color={c} />
+      <SvgLine x1={r.left} y1={neck + head * 0.6} x2={r.left + r.width} y2={neck + head * 0.6} color={c} />
+      <SvgLine x1={cx} y1={hip} x2={r.left} y2={r.top + r.height} color={c} />
+      <SvgLine x1={cx} y1={hip} x2={r.left + r.width} y2={r.top + r.height} color={c} />
     </g>
   )
 }
@@ -44,7 +30,7 @@ export function LifelineNode({ layout }: { layout: NodeLayout<LifelineData> }): 
   const x = data.lineX
   return (
     <g>
-      <Line x1={x} y1={data.lineTop + 1} x2={x} y2={data.lineBottom} color={style.lineColor} dash={DASH.dot} />
+      <SvgLine x1={x} y1={data.lineTop + 1} x2={x} y2={data.lineBottom} color={style.lineColor} dash={DASH.dot} />
       {data.form === 'box' ? (
         <>
           <Shadow d={rectPath(h)} show={style.showShadow} />
@@ -52,8 +38,8 @@ export function LifelineNode({ layout }: { layout: NodeLayout<LifelineData> }): 
           <StyledRect r={h} style={style} />
           {data.active && (
             <>
-              <Line x1={h.left + 3} y1={h.top} x2={h.left + 3} y2={h.top + h.height} color={style.lineColor} />
-              <Line x1={h.left + h.width - 3} y1={h.top} x2={h.left + h.width - 3} y2={h.top + h.height} color={style.lineColor} />
+              <SvgLine x1={h.left + 3} y1={h.top} x2={h.left + 3} y2={h.top + h.height} color={style.lineColor} />
+              <SvgLine x1={h.left + h.width - 3} y1={h.top} x2={h.left + h.width - 3} y2={h.top + h.height} color={style.lineColor} />
             </>
           )}
         </>
@@ -69,8 +55,8 @@ export function LifelineNode({ layout }: { layout: NodeLayout<LifelineData> }): 
       ))}
       {data.destroyedAt !== null && (
         <>
-          <Line x1={x - DESTRUCTION_HALF} y1={data.destroyedAt - DESTRUCTION_HALF} x2={x + DESTRUCTION_HALF} y2={data.destroyedAt + DESTRUCTION_HALF} color={style.lineColor} />
-          <Line x1={x + DESTRUCTION_HALF} y1={data.destroyedAt - DESTRUCTION_HALF} x2={x - DESTRUCTION_HALF} y2={data.destroyedAt + DESTRUCTION_HALF} color={style.lineColor} />
+          <SvgLine x1={x - DESTRUCTION_HALF} y1={data.destroyedAt - DESTRUCTION_HALF} x2={x + DESTRUCTION_HALF} y2={data.destroyedAt + DESTRUCTION_HALF} color={style.lineColor} />
+          <SvgLine x1={x + DESTRUCTION_HALF} y1={data.destroyedAt - DESTRUCTION_HALF} x2={x - DESTRUCTION_HALF} y2={data.destroyedAt + DESTRUCTION_HALF} color={style.lineColor} />
         </>
       )}
     </g>
@@ -85,7 +71,7 @@ export function CombinedFragmentNode({ layout }: { layout: NodeLayout<FragmentDa
       <FrameLabel label={data.label} fill={style.fillColor} line={style.lineColor} color={style.fontColor} />
       {data.operands.map((o) => (
         <g key={o.viewId}>
-          {o.separator && <Line x1={o.rect.left} y1={o.rect.top} x2={o.rect.left + o.rect.width} y2={o.rect.top} color={style.lineColor} dash={DASH.operandSeparator} />}
+          {o.separator && <SvgLine x1={o.rect.left} y1={o.rect.top} x2={o.rect.left + o.rect.width} y2={o.rect.top} color={style.lineColor} dash={DASH.operandSeparator} />}
           {o.guard && <SvgText line={o.guard} color={style.fontColor} />}
         </g>
       ))}
@@ -128,7 +114,7 @@ export function OrphanSubViewNode({ layout }: { layout: NodeLayout<{ readonly ki
   if (data.kind === 'activation') return <StyledRect r={box} style={style} />
   if (data.kind === 'line') {
     const x = box.left + box.width / 2
-    return <Line x1={x} y1={box.top} x2={x} y2={box.top + box.height} color={style.lineColor} dash={DASH.dot} />
+    return <SvgLine x1={x} y1={box.top} x2={x} y2={box.top + box.height} color={style.lineColor} dash={DASH.dot} />
   }
   return <rect x={fmt(box.left)} y={fmt(box.top)} width={fmt(box.width)} height={fmt(box.height)} fill="none" stroke={style.lineColor} strokeDasharray={DASH.operandSeparator.join(' ')} />
 }
