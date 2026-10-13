@@ -14,6 +14,8 @@ import { registerIdef0Commands } from '../diagram'
 import { idef0FormatMenu, idef0Menu } from './menus/idef0Menu'
 import { resolveMenu } from './menus/menuModel'
 import { idef0Context, idef0WarningCount } from './app/idef0'
+import { registerAppCommands } from './app/appCommands'
+import { Cmd } from './menus/commandIds'
 import { palettesFor } from './toolbox/palettes'
 import { uiStore } from './uiStore'
 
@@ -56,6 +58,59 @@ describe('Add Diagram entry', () => {
     expect((model['topFunction'] as Elem)['childDiagram']).toBe(child)
     expect((child['ownedViews'] as Elem[]).filter((v) => v._type === 'IDEF0FunctionView')).toHaveLength(3)
     expect(() => addDiagram(engine, model['topFunction'] as Elem, 'IDEF0Diagram')).toThrow()
+  })
+})
+
+describe('Add Diagram > IDEF0 Diagram on a function (Model Explorer)', () => {
+  const setup = (): { registry: CommandRegistry; fnId: string } => {
+    const ex = buildOrderExample()
+    projectStore.getState().openProject(writeMdj(ex.project), null)
+    const registry = new CommandRegistry()
+    registerAppCommands(registry)
+    const a2 = projectStore.getState().repository.get(ex.a2._id) as Elem
+    projectStore.getState().select({ elements: [a2._id] })
+    return { registry, fnId: a2._id }
+  }
+  const boxesOf = (fnId: string): number => {
+    const child = (projectStore.getState().repository.get(fnId) as Elem)['childDiagram'] as Elem | null
+    return child ? (child['ownedViews'] as Elem[]).filter((v) => v._type === 'IDEF0FunctionView').length : -1
+  }
+  const answer = (text: string | null): void => {
+    const modal = uiStore.getState().modal
+    expect(modal?.kind).toBe('prompt')
+    if (modal?.kind === 'prompt') {
+      uiStore.getState().openModal(null)
+      modal.resolve(text)
+    }
+  }
+
+  it('asks for the number of child boxes and builds that many', async () => {
+    const { registry, fnId } = setup()
+    const done = registry.execute(Cmd.modelAddDiagram, { kind: 'IDEF0Diagram' })
+    await Promise.resolve()
+    answer('5')
+    await done
+    expect(boxesOf(fnId)).toBe(5)
+  })
+
+  it('re-asks on an invalid answer and changes nothing when cancelled', async () => {
+    const { registry, fnId } = setup()
+    const depth = projectStore.getState().engine.undoDepth
+    const done = registry.execute(Cmd.modelAddDiagram, { kind: 'IDEF0Diagram' })
+    await Promise.resolve()
+    answer('9')
+    await new Promise((r) => setTimeout(r, 0))
+    answer(null)
+    await done
+    expect(boxesOf(fnId)).toBe(-1)
+    expect(projectStore.getState().engine.undoDepth).toBe(depth)
+  })
+
+  it('still creates a new IDEF0 model on a project without asking', async () => {
+    const { registry } = setup()
+    projectStore.getState().select({ elements: [] })
+    await registry.execute(Cmd.modelAddDiagram, { kind: 'IDEF0Diagram' })
+    expect(uiStore.getState().modal).toBeNull()
   })
 })
 

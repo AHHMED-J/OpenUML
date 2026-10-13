@@ -18,6 +18,7 @@ import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge } from './bridge'
+import { promptBoxCount } from './boxCount'
 import {
   closeWindow,
   exportAllDiagrams,
@@ -222,10 +223,18 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.modelAddDiagram,
     label: 'Add Diagram',
-    run: (arg) => {
+    run: async (arg) => {
       const kind = (arg as { kind?: DiagramKind } | undefined)?.kind ?? 'ClassDiagram'
       if (!ADD_DIAGRAM_ITEMS.some((i) => i.kind === kind)) return
-      const diagram = addDiagram(ps().engine, selectedParent(), kind)
+      const parent = selectedParent()
+      // Decomposing a function asks for the number of child boxes first, like Decompose; cancel changes nothing.
+      let boxCount: number | undefined
+      if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) {
+        const count = await promptBoxCount()
+        if (count === null) return
+        boxCount = count
+      }
+      const diagram = addDiagram(ps().engine, parent, kind, boxCount)
       openDiagram(diagram)
     }
   })
