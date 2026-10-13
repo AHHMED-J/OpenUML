@@ -425,13 +425,16 @@ export function planIdef0Edge(req: EdgeRequest): CreationPlan {
   })
 }
 
-/** A boundary arrow of `role` attached to `fnView`, with its port aligned to the box. */
-export function planBoundaryArrow(diagram: Diagram, fnView: View, role: 'input' | 'control' | 'output' | 'mechanism', name = ''): CreationPlan {
+/**
+ * A boundary arrow of `role` attached to `fnView`, with its port aligned to the box: at coordinate
+ * `at` along the box side when given, else at the middle of the side.
+ */
+export function planBoundaryArrow(diagram: Diagram, fnView: View, role: 'input' | 'control' | 'output' | 'mechanism', name = '', at?: number): CreationPlan {
   const box = boundsOf(fnView)
   if (!box) throw new Error('The function view has no bounds')
-  const along = ROLE_SIDE[role] === 'left' || ROLE_SIDE[role] === 'right' ? box.top + box.height / 2 : box.left + box.width / 2
-  const at = { x: along, y: along }
+  const along = at ?? (ROLE_SIDE[role] === 'left' || ROLE_SIDE[role] === 'right' ? box.top + box.height / 2 : box.left + box.width / 2)
+  const point = { x: along, y: along }
   return role === 'output'
-    ? planIdef0Arrow({ diagram, role, tail: fnView, head: null, at, name })
-    : planIdef0Arrow({ diagram, role, tail: null, head: fnView, at, name })
+    ? planIdef0Arrow({ diagram, role, tail: fnView, head: null, at: point, name })
+    : planIdef0Arrow({ diagram, role, tail: null, head: fnView, at: point, name })
 }
