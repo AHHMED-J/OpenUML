@@ -4,7 +4,7 @@
  * processes, state markers, waits, role starts), refinements with their derived bars, and their
  * branches. Pure: reads the model and returns layout data.
  */
-import { isKindOf, type Elem, type NodeView, type View } from '../../model'
+import { isKindOf, type EdgeView, type Elem, type NodeView, type View } from '../../model'
 import { unionRects, wrapText, withFontStyle, type Font, type NodeOutline, type Rect } from '../core'
 import { nameOf, nodeLayout, storedBox, styleOf } from '../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine, ViewStyle } from '../layout/types'
@@ -292,9 +292,8 @@ function entersFromRight(view: NodeView, ctx: LayoutContext): boolean {
   const cx = (view.left ?? 0) + (view.width ?? 0) / 2
   for (const v of edgesAt(ctx, 'RADStateLineView').get(view) ?? []) {
     if (v.model?.['loopBack'] === true || v.model?.['routing'] === 'bus') continue
-    const e = v as unknown as { tail: NodeView | null; head: View | null }
-    if (e.head !== view || !e.tail || !isKindOf(e.tail.model, 'RADBranch')) continue
-    const t = e.tail
+    if (v.head !== view || !v.tail || !isKindOf(v.tail.model, 'RADBranch')) continue
+    const t = v.tail as NodeView
     if ((t.left ?? 0) + (t.width ?? 0) / 2 > cx + 2 && (view.top ?? 0) + (view.height ?? 0) / 2 > (t.top ?? 0) + (t.height ?? 0)) return true
   }
   return false
@@ -304,9 +303,8 @@ function entersFromRight(view: NodeView, ctx: LayoutContext): boolean {
 function linkPartners(view: NodeView, ctx: LayoutContext): NodeView[] {
   const out: NodeView[] = []
   for (const v of edgesAt(ctx, 'RADInteractionLinkView').get(view) ?? []) {
-    const e = v as unknown as { tail: View | null; head: View | null }
-    if (e.tail === view && e.head && isKindOf(e.head, 'NodeView')) out.push(e.head as NodeView)
-    else if (e.head === view && e.tail && isKindOf(e.tail, 'NodeView')) out.push(e.tail as NodeView)
+    if (v.tail === view && v.head && isKindOf(v.head, 'NodeView')) out.push(v.head as NodeView)
+    else if (v.head === view && v.tail && isKindOf(v.tail, 'NodeView')) out.push(v.tail as NodeView)
   }
   return out
 }
@@ -537,8 +535,7 @@ function contentOf(child: View, ctx: LayoutContext): ChildContent | null {
 function hasLoopBack(view: NodeView, ctx: LayoutContext): boolean {
   for (const v of ctx.diagram.ownedViews ?? []) {
     if (v._type !== 'RADStateLineView' || v.model?.['loopBack'] !== true) continue
-    const e = v as unknown as { tail: View | null }
-    if (e.tail?.containerView === view) return true
+    if ((v as EdgeView).tail?.containerView === view) return true
   }
   return false
 }
