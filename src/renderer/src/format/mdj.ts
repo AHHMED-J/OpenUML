@@ -85,8 +85,13 @@ function isBrokenRelationship(el: Elem): boolean {
   if (isKindOf(el, 'UndirectedRelationship')) {
     return !el.end1 || !el.end2 || !el.end1.reference || !el.end2.reference
   }
-  if (isKindOf(el, 'DirectedRelationship')) return !el.source || !el.target
+  // An IDEF0 call arrow has only a source: it points at no target, the called box is a reference of its source.
+  if (isKindOf(el, 'DirectedRelationship')) return !el.source || (!el.target && !isIdef0Call(el))
   return false
+}
+
+function isIdef0Call(arrow: Elem): boolean {
+  return arrow._type === 'IDEF0Arrow' && arrow['role'] === 'call'
 }
 
 function invalidViewReason(view: Elem, live: Set<Elem>, missingParent: Set<string>): string | null {
@@ -94,7 +99,8 @@ function invalidViewReason(view: Elem, live: Set<Elem>, missingParent: Set<strin
     return 'view has no model'
   }
   if (missingParent.has(view._id)) return 'view has no _parent'
-  if (isKindOf(view, 'EdgeView') && !isKindOf(view, 'FreelineEdgeView') && (!view.head || !view.tail)) {
+  const callView = view._type === 'IDEF0ArrowView' && isElem(view['model']) && isIdef0Call(view['model'] as Elem)
+  if (isKindOf(view, 'EdgeView') && !isKindOf(view, 'FreelineEdgeView') && (!view.tail || (!view.head && !callView))) {
     return 'edge has no head or tail'
   }
   const model = view['model']
