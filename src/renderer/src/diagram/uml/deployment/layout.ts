@@ -4,10 +4,10 @@
  */
 import { isKindOf, type Elem, type NodeView, type UMLClassifierView, type View } from '../../../model'
 import { SPACING, type Point, type Rect } from '../../core'
-import { arrangeListCompartment, arrangeNameCompartment, nodeLayout, styleOf } from '../../layout/helpers'
+import { arrangeNameCompartment, nodeLayout, styleOf } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
 import type { ContainerBehavior } from '../../render/registry'
-import { classifierNameMeasure, compartmentsOf, nameRegion, stereotypeForm, type CompartmentLayout } from '../class/layout'
+import { classifierNameMeasure, compartmentsOf, nameRegion, stackCompartments, stereotypeForm, type CompartmentLayout } from '../class/layout'
 
 const ICON = SPACING.decorationIconSize
 const ICON_INSET = SPACING.decorationIconInset
@@ -126,16 +126,7 @@ export function layoutNodeBox(view: NodeView, ctx: LayoutContext): NodeLayout<No
       height: nh
     }
     regions.push(...nameRegion(model, nameRect, name, font))
-    let y = content.top + nh
-    const laid: CompartmentLayout[] = compartments.map((c) => {
-      const rect = { left: content.left, top: y, width: content.width, height: c.measure.height }
-      y += c.measure.height
-      const rows = arrangeListCompartment(c.measure, rect)
-      for (const row of rows) {
-        if (row.edit) regions.push({ box: { ...row.box, left: rect.left, width: rect.width }, target: row.edit, text: row.editText ?? row.text, font: row.font })
-      }
-      return { kind: c.kind, rect, rows: rows.map(({ edit: _e, editText: _t, ...line }) => line) }
-    })
+    const laid: CompartmentLayout[] = stackCompartments(compartments, content.left, content.width, content.top + nh, regions)
     const glyph = decoration ? nodeGlyph({ left: box.left + box.width - ICON - ICON_INSET, top: box.top + ICON_INSET, width: ICON, height: ICON }) : null
     return {
       data: { form: decoration ? 'decoration' : 'box3d', faces: decoration ? null : nodeFaces(box), glyph, nameLines: arrangeNameCompartment(name, nameRect), compartments: laid },
