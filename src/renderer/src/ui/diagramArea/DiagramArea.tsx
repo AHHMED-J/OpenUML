@@ -120,6 +120,7 @@ export function DiagramArea(): React.JSX.Element {
               onZoomChange={(z) => uiStore.getState().setZoom(activeId, z)}
               showGrid={showGrid}
               snapToGrid={snapToGrid}
+              onNotify={(message) => uiStore.getState().toast(message)}
             />
           </EditorBoundary>
         ) : (
