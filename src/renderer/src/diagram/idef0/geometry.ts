@@ -53,7 +53,6 @@ export const SIDE_DIR: Readonly<Record<Idef0Side, Dir>> = { left: 'W', top: 'N',
 /** Outward normal of a port, pointing into the drawing area. */
 export const PORT_DIR: Readonly<Record<string, Dir>> = { input: 'E', control: 'S', output: 'W', mechanism: 'N' }
 
-
 export function dirVector(dir: Dir): Point {
   switch (dir) {
     case 'N':
@@ -70,7 +69,6 @@ export function dirVector(dir: Dir): Point {
 export function isHorizontal(dir: Dir): boolean {
   return dir === 'E' || dir === 'W'
 }
-
 
 /**
  * Attachment point on `side` of `box` for slot `index` of `count` (evenly spread, snapped to the

@@ -33,8 +33,6 @@ const LineMode = { Solid: 0, Dot: 1, Dash: 2 } as const
 export const EdgePosition = { Head: 0, Middle: 1, Tail: 2 } as const
 export type EdgePosition = (typeof EdgePosition)[keyof typeof EdgePosition]
 
-
-
 /** Font style codes used in the font string (`face;size;style`). */
 export const FontStyle = { Normal: 0, Bold: 1, Italic: 2, BoldItalic: 3 } as const
 export type FontStyle = (typeof FontStyle)[keyof typeof FontStyle]

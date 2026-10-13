@@ -506,7 +506,6 @@ export interface SwimlaneData {
   readonly name: TextLine | null
 }
 
-
 /**
  * Swimlane layout: vertical lanes have a header row across the top (name centered, 4 below the
  * top), minimum max(50, name + 20) × 300; horizontal lanes have a header column on the left with

@@ -159,7 +159,6 @@ interface Drag {
 
 let drag: Drag | null = null
 
-
 function startDrag(p: Press): void {
   endPress()
   const layout = uiStore.getState().dock
