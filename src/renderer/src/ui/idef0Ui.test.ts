@@ -208,7 +208,9 @@ describe('IDEF0 menus', () => {
       ['Status: Working', true],
       ['Status: Draft', false],
       ['Status: Recommended', false],
-      ['Status: Publication', false]
+      ['Status: Publication', false],
+      [],
+      ['Color Arrows by Role', false]
     ])
     projectStore.getState().newProject()
     expect(resolveMenu([idef0Menu(), idef0FormatMenu()], ctx)).toEqual([])

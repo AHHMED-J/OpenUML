@@ -46,7 +46,9 @@ export function idef0FormatMenu(): MenuNode {
       { label: 'Status: Working', command: Idef0CommandIds.status('working'), checkbox: true },
       { label: 'Status: Draft', command: Idef0CommandIds.status('draft'), checkbox: true },
       { label: 'Status: Recommended', command: Idef0CommandIds.status('recommended'), checkbox: true },
-      { label: 'Status: Publication', command: Idef0CommandIds.status('publication'), checkbox: true }
+      { label: 'Status: Publication', command: Idef0CommandIds.status('publication'), checkbox: true },
+      SEP,
+      { label: 'Color Arrows by Role', command: Idef0CommandIds.colorByRole, checkbox: true }
     ]
   }
 }
