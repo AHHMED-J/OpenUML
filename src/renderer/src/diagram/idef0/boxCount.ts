@@ -25,9 +25,8 @@ import { withGeometry, type DiagramEnv } from '../editor/actions'
 import { deleteIdef0Views } from './deletion'
 import { propagateUp } from './propagation'
 
-/** Fewest and most boxes of a decomposition. */
-export const MIN_CHILD_BOXES = 1
-export const MAX_CHILD_BOXES = 6
+/** Most boxes of a decomposition (IDEF0 recommends 3 to 6). */
+const MAX_CHILD_BOXES = 6
 
 /** A box of a decomposition as offered for removal. */
 export interface ChildBoxInfo {
