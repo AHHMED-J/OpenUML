@@ -33,3 +33,18 @@ export function getActiveEditor(diagramId?: string | null): EditorHandle | null 
   if (!active) return null
   return diagramId && active.diagramId !== diagramId ? null : active
 }
+
+let pendingReveal: string | null = null
+
+/** Asks the editor that shows `viewId` to scroll it into view once it is laid out. */
+export function requestReveal(viewId: string): void {
+  pendingReveal = viewId
+}
+
+/** Returns and clears the pending reveal when `has` accepts it (the view is in that editor). */
+export function takeReveal(has: (viewId: string) => boolean): string | null {
+  if (!pendingReveal || !has(pendingReveal)) return null
+  const id = pendingReveal
+  pendingReveal = null
+  return id
+}

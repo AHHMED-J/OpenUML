@@ -15,6 +15,7 @@ import {
   COLORS,
   GRID,
   CANVAS_FIT_PADDING,
+  boundsOfPoints,
   canvasExtent,
   clampZoom,
   edgeAnchor,
@@ -64,7 +65,7 @@ import {
   type ToolSpec
 } from './actions'
 import { connectionRefusal, dropRefusal, refusalReason, withArticle, readableName } from './feedback'
-import { releaseActiveEditor, setActiveEditor, type EditorHandle } from './activeEditor'
+import { releaseActiveEditor, setActiveEditor, takeReveal, type EditorHandle } from './activeEditor'
 import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
 import { applyQuickEdit } from './quickEditApply'
@@ -304,6 +305,27 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     el.scrollLeft = Math.max(0, p.anchor.x * zoom - p.screen.x)
     el.scrollTop = Math.max(0, p.anchor.y * zoom - p.screen.y)
   }, [zoom])
+
+  // Scrolls a view revealed from elsewhere (Model Explorer, Select in Diagram) into view.
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el || !layout) return
+    const id = takeReveal((viewId) => layout.nodes.has(viewId) || layout.edges.has(viewId))
+    if (!id) return
+    const node = layout.nodes.get(id)
+    const points = node ? null : (layout.edges.get(id)?.points ?? [])
+    const box = node ? node.box : boundsOfPoints(points ?? [])
+    if (!box) return
+    const z = zoom
+    const left = box.left * z
+    const top = box.top * z
+    const right = (box.left + box.width) * z
+    const bottom = (box.top + box.height) * z
+    const visible = left >= el.scrollLeft && top >= el.scrollTop && right <= el.scrollLeft + el.clientWidth && bottom <= el.scrollTop + el.clientHeight
+    if (visible) return
+    el.scrollLeft = Math.max(0, (left + right) / 2 - el.clientWidth / 2)
+    el.scrollTop = Math.max(0, (top + bottom) / 2 - el.clientHeight / 2)
+  }, [layout, selectedViewIds, zoom])
 
   // Ctrl/Cmd + wheel zoom around the cursor (non-passive listener so the page does not zoom/scroll).
   useEffect(() => {
