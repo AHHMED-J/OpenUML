@@ -38,13 +38,19 @@ interface Measure2D {
  * Measurer backed by a 2D canvas context (`OffscreenCanvas` when available, otherwise a
  * detached `<canvas>`). Results are cached per font + text. Construct only in an environment
  * with one of those APIs; see `createTextMeasurer` for a safe factory.
+ *
+ * The cache has two generations of up to `maxCacheSize` entries each: a full young generation
+ * becomes the old one (dropping the previous old one), and old entries are promoted when used.
+ * Text measured on every layout pass therefore stays cached as long as one pass measures fewer
+ * than `maxCacheSize` distinct strings, while memory stays bounded (at most twice that).
  */
 export class CanvasTextMeasurer implements TextMeasurer {
   private readonly ctx: Measure2D
-  private readonly cache = new Map<string, number>()
+  private cache = new Map<string, number>()
+  private old = new Map<string, number>()
   private readonly maxCacheSize: number
 
-  constructor(ctx?: Measure2D, maxCacheSize = 5000) {
+  constructor(ctx?: Measure2D, maxCacheSize = 20000) {
     const resolved = ctx ?? createMeasureContext()
     if (!resolved) throw new Error('CanvasTextMeasurer: no 2D canvas context available')
     this.ctx = resolved
@@ -56,17 +62,29 @@ export class CanvasTextMeasurer implements TextMeasurer {
     const key = `${css}\u0000${text}`
     let width = this.cache.get(key)
     if (width === undefined) {
-      if (this.ctx.font !== css) this.ctx.font = css
-      width = this.ctx.measureText(text).width
-      if (this.cache.size >= this.maxCacheSize) this.cache.clear()
+      width = this.old.get(key)
+      if (width === undefined) {
+        if (this.ctx.font !== css) this.ctx.font = css
+        width = this.ctx.measureText(text).width
+      }
+      if (this.cache.size >= this.maxCacheSize) {
+        this.old = this.cache
+        this.cache = new Map()
+      }
       this.cache.set(key, width)
     }
     return { width, height: font.size }
   }
 
+  /** Number of cached widths (both generations). */
+  get cacheSize(): number {
+    return this.cache.size + this.old.size
+  }
+
   /** Drops cached widths (e.g. after a web font finished loading). */
   clearCache(): void {
     this.cache.clear()
+    this.old.clear()
   }
 }
 

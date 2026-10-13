@@ -12,6 +12,8 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# Third-party actions are pinned to full commit SHAs (Dependabot keeps them current). Only the
+# publish job may write (to create the release).
 permissions:
   contents: read
 
@@ -21,12 +23,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      # No dependency cache: release builds always install from the lockfile, so a poisoned
+      # cache entry cannot end up in the installers.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
 
       # A tag must name the version in package.json, so the installers are labeled correctly.
       - name: Check the tag matches package.json
@@ -63,22 +69,50 @@ jobs:
             os: ubuntu-latest
             args: --linux AppImage --x64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      # No dependency cache: release builds always install from the lockfile, so a poisoned
+      # cache entry cannot end up in the installers.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
 
       - run: npm ci
       - run: npm run build
 
+      # electron-builder downloads the Electron zips and its packaging tools (about 100 MB) on
+      # every run. They are cached per OS and per Electron / electron-builder version. A cached
+      # file is checked again before use: Electron zips against the release's SHASUMS256.txt,
+      # builder tools against the checksums pinned in electron-builder, so a tampered cache entry
+      # is downloaded again instead of being packaged.
+      - name: Electron and electron-builder versions
+        id: electron-versions
+        shell: bash
+        run: echo "key=$(node -p "require('electron/package.json').version + '-' + require('electron-builder/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: electron-downloads-${{ runner.os }}-${{ steps.electron-versions.outputs.key }}
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+
       # No signing certificates: the macOS app is signed ad hoc (package.json: mac.identity "-"),
       # which Apple Silicon needs to run it at all; Windows builds are unsigned.
       - name: Package
-        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          BUILDER_ARGS: ${{ matrix.args }}
+        shell: bash
+        run: npx electron-builder $BUILDER_ARGS --publish never
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: installers-${{ matrix.name }}
           path: |
@@ -98,7 +132,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: installers-*
           merge-multiple: true

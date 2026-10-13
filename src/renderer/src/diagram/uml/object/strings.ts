@@ -9,6 +9,7 @@
  */
 import type { Elem } from '../../../model'
 import { guillemets } from '../../core'
+import { parseQuickEditPrefix } from '../../editor/quickEditSyntax'
 import { nameOf, stereotypeName, visibilitySymbol } from '../../layout/helpers'
 import { typeText } from '../class/strings'
 
@@ -18,7 +19,7 @@ function str(el: Elem | null | undefined, field: string): string {
 }
 
 /** The classifier of an instance: its name, or the raw string stored as `classifier`. */
-export function instanceTypeText(instance: Elem | null | undefined): string {
+function instanceTypeText(instance: Elem | null | undefined): string {
   return typeText(instance?.['classifier'])
 }
 
@@ -46,7 +47,7 @@ export interface SlotFormat {
 }
 
 /** Name, type and multiplicity of a slot: from its defining attribute when set, else its own fields. */
-export function slotParts(slot: Elem): { name: string; type: string; multiplicity: string } {
+function slotParts(slot: Elem): { name: string; type: string; multiplicity: string } {
   const feature = slot['definingFeature'] as Elem | null | undefined
   if (feature) return { name: nameOf(feature), type: typeText(feature['type']), multiplicity: str(feature, 'multiplicity') }
   return { name: nameOf(slot), type: typeText(slot['type']), multiplicity: '' }
@@ -88,27 +89,7 @@ export function slotEditText(slot: Elem): string {
 // ---------------------------------------------------------------------------------------------
 // Parsers
 
-const VISIBILITY: Readonly<Record<string, string>> = { '+': 'public', '#': 'protected', '-': 'private', '~': 'package' }
 const NAME_FORBIDDEN = /[:=<>[\]()]/
-
-function prefix(text: string): { stereotype: string | null; visibility: string | null; rest: string } | null {
-  let rest = text.trim()
-  let stereotype: string | null = null
-  const st = /^(?:<<([^>]*)>>|«([^»]*)»)/.exec(rest)
-  if (st) {
-    stereotype = (st[1] ?? st[2] ?? '').trim() || null
-    rest = rest.slice(st[0].length).trim()
-  } else if (rest.startsWith('<<') || rest.startsWith('«')) {
-    return null
-  }
-  let visibility: string | null = null
-  const v = VISIBILITY[rest.charAt(0)]
-  if (v) {
-    visibility = v
-    rest = rest.slice(1).trim()
-  }
-  return { stereotype, visibility, rest }
-}
 
 export interface ParsedObject {
   readonly stereotype: string | null
@@ -121,7 +102,7 @@ export interface ParsedObject {
 
 /** `[«st»] [vis] name [: type]` */
 export function parseObject(text: string): ParsedObject | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text)
   if (!p) return null
   const colon = p.rest.indexOf(':')
   const name = (colon < 0 ? p.rest : p.rest.slice(0, colon)).trim()
@@ -138,7 +119,7 @@ export interface ParsedSlot extends ParsedObject {
 
 /** `[«st»] [vis] name [: type] [= value]` */
 export function parseSlot(text: string): ParsedSlot | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text)
   if (!p) return null
   let rest = p.rest
   let value = ''

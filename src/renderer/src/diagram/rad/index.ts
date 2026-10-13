@@ -30,7 +30,6 @@ export * from './render'
 export * from './routing'
 export * from './strings'
 export * from './validation'
-export { registerRadQuickEdit } from './quickEdit'
 
 type ReparentBuilder = Parameters<NonNullable<ContainerBehavior['reparent']>>[0]['builder']
 
@@ -50,7 +49,7 @@ function removeWithViews(b: ReparentBuilder, repo: { viewsOf(m: Elem): readonly 
  * join a role to itself) are removed in the same operation. Dropping a contained view outside every
  * role keeps it in its role (the role grows to follow it).
  */
-export const roleContainer: ContainerBehavior = {
+const roleContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel === null || isElementModel(childModel)
   },

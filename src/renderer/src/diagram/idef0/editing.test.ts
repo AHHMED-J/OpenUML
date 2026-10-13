@@ -161,12 +161,14 @@ describe('arrow gestures', () => {
     expect(ctl).toBeTruthy()
     const ports = k.top['ports'] as Elem[]
     expect(ports.map((p) => p['role'])).toEqual(['output', 'control'])
-    expect(ports.every((p) => p['corresponds'] === null)).toBe(true)
+    // Each new boundary arrow was propagated to the top function on A-0 (same roles).
+    expect(ports.every((p) => p['corresponds'] !== null)).toBe(true)
+    expect((k.model['arrows'] as Elem[]).map((a) => a['role'])).toEqual(['output', 'control'])
     const outPort = k.child.ownedViews.find((v) => v._type === 'IDEF0PortView' && (v.model as Elem)['role'] === 'output') as NodeView
     expect(outPort.left + 4).toBe(1000)
     expect(rolesOf(k)).toEqual(['output:', 'control:'])
-    // Unlinked ports are flagged until they get a counterpart or a tunnel.
-    expect(validateIdef0(k.model).filter((i) => i.id === 'W08')).toHaveLength(2)
+    // Linked ports are not flagged as standing for nothing.
+    expect(validateIdef0(k.model).filter((i) => i.id === 'W08')).toHaveLength(0)
     expect(validateModel(k.repository.project as Elem)).toEqual([])
   })
 

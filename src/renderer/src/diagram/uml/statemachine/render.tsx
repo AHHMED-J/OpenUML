@@ -2,22 +2,8 @@
 import type React from 'react'
 import { DASH, SPACING, fmt, polygonPath, roundedRectPath } from '../../core'
 import type { NodeLayout } from '../../layout/types'
-import { Shadow, SvgLines, SvgText } from '../../render/primitives'
+import { Shadow, SvgLine, SvgLines, SvgText } from '../../render/primitives'
 import type { ConnectionPointData, FinalStateData, PseudostateData, StateData } from './layout'
-
-function Line({ x1, y1, x2, y2, color, dash }: { x1: number; y1: number; x2: number; y2: number; color: string; dash?: readonly number[] }): React.JSX.Element {
-  return (
-    <line
-      x1={fmt(x1)}
-      y1={fmt(y1)}
-      x2={fmt(x2)}
-      y2={fmt(y2)}
-      stroke={color}
-      strokeWidth={1}
-      {...(dash && dash.length > 0 ? { strokeDasharray: dash.join(' ') } : {})}
-    />
-  )
-}
 
 export function StateNode({ layout }: { layout: NodeLayout<StateData> }): React.JSX.Element {
   const { box, style, data } = layout
@@ -30,20 +16,20 @@ export function StateNode({ layout }: { layout: NodeLayout<StateData> }): React.
       <path d={d} fill={style.fillColor} stroke={style.lineColor} strokeWidth={1} />
       <SvgLines lines={data.nameLines} color={style.fontColor} />
       {data.separators.map((y) => (
-        <Line key={y} x1={box.left} y1={y} x2={right} y2={y} color={style.lineColor} />
+        <SvgLine key={y} x1={box.left} y1={y} x2={right} y2={y} color={style.lineColor} />
       ))}
       <SvgLines lines={data.activityLines} color={style.fontColor} />
       <SvgLines lines={data.transitionLines} color={style.fontColor} />
       {data.regions
         .filter((r) => r.dashedTop)
         .map((r) => (
-          <Line key={r.elementId} x1={r.rect.left} y1={r.rect.top} x2={r.rect.left + r.rect.width} y2={r.rect.top} color={style.lineColor} dash={DASH.operandSeparator} />
+          <SvgLine key={r.elementId} x1={r.rect.left} y1={r.rect.top} x2={r.rect.left + r.rect.width} y2={r.rect.top} color={style.lineColor} dash={DASH.operandSeparator} />
         ))}
       {mark && (
         <g>
           <circle cx={fmt(mark.left.cx)} cy={fmt(mark.left.cy)} r={mark.radius} fill={style.fillColor} stroke={style.lineColor} strokeWidth={1} />
           <circle cx={fmt(mark.right.cx)} cy={fmt(mark.right.cy)} r={mark.radius} fill={style.fillColor} stroke={style.lineColor} strokeWidth={1} />
-          <Line x1={mark.lineFrom.x} y1={mark.lineFrom.y} x2={mark.lineTo.x} y2={mark.lineTo.y} color={style.lineColor} />
+          <SvgLine x1={mark.lineFrom.x} y1={mark.lineFrom.y} x2={mark.lineTo.x} y2={mark.lineTo.y} color={style.lineColor} />
         </g>
       )}
     </g>
@@ -129,8 +115,8 @@ export function PseudostateNode({ layout }: { layout: NodeLayout<PseudostateData
 function Cross({ cx, cy, arm, color }: { cx: number; cy: number; arm: number; color: string }): React.JSX.Element {
   return (
     <g>
-      <Line x1={cx - arm} y1={cy - arm} x2={cx + arm} y2={cy + arm} color={color} />
-      <Line x1={cx + arm} y1={cy - arm} x2={cx - arm} y2={cy + arm} color={color} />
+      <SvgLine x1={cx - arm} y1={cy - arm} x2={cx + arm} y2={cy + arm} color={color} />
+      <SvgLine x1={cx + arm} y1={cy - arm} x2={cx - arm} y2={cy + arm} color={color} />
     </g>
   )
 }

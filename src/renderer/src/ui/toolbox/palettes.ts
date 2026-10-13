@@ -5,7 +5,7 @@
 import { EDGE_KINDS, NODE_KINDS, type EdgeKind, type NodeKind } from '../../model'
 import type { PaletteTool } from '../uiStore'
 
-export interface PaletteItem extends PaletteTool {
+interface PaletteItem extends PaletteTool {
   readonly id: string
   readonly label: string
   readonly kind: NodeKind | EdgeKind

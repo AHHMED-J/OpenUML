@@ -9,7 +9,6 @@ import { layoutArtifact, layoutComponent } from './layout'
 import { ArtifactNode, ComponentNode } from './render'
 
 export * from './layout'
-export { lollipopKind, type LollipopKind } from './interface'
 
 export function registerComponentNotations(): void {
   registerNodeNotation('UMLComponentView', { layout: layoutComponent, Render: ComponentNode })

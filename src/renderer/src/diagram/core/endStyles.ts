@@ -43,7 +43,7 @@ export interface EndSpec {
 }
 
 /** How a shape is filled: with the line color, the edge background (white), or not at all. */
-export type EndFill = 'line' | 'background' | 'none'
+type EndFill = 'line' | 'background' | 'none'
 
 /** A primitive of an end decoration. Every shape is also stroked with the line color. */
 export type EndShape =
@@ -73,7 +73,7 @@ export const END_GEOMETRY = {
 } as const
 
 /** Persisted `headEndStyle`/`tailEndStyle` codes of free-line edges (spec 01 §5.3). */
-export const END_STYLE_CODES: Readonly<Record<number, EndStyle>> = {
+const END_STYLE_CODES: Readonly<Record<number, EndStyle>> = {
   0: 'flat',
   1: 'stickArrow',
   2: 'solidArrow',

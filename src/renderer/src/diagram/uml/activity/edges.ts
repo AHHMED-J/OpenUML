@@ -30,7 +30,7 @@ export function flowLabelText(flow: Elem | null | undefined): string {
  * The name label of a flow. Double-clicking it edits the name; when the flow shows only a guard
  * (the usual case for a decision's outgoing flows) it edits the guard instead.
  */
-export function flowNameLabel(edge: EdgeView): EdgeLabelSpec {
+function flowNameLabel(edge: EdgeView): EdgeLabelSpec {
   const model = edge.model
   const text = flowLabelText(model)
   if (!model) return { field: 'nameLabel', defaults: 'name', text }

@@ -4,11 +4,8 @@ import { canConnect, isKindOf, type EdgeView, type Elem, type NodeView, type Vie
 import { validateModel } from '../../../format'
 import { applyQuickEdit } from '../../editor/quickEditApply'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
-import { testDiagram } from '../../testUtils'
+import { nameWidth, testDiagram } from '../../testUtils'
 import type { PackageGlyphData } from './layout'
-
-const BOLD_CHAR = 13 * 0.6 * 1.1
-const nameWidth = (n: number): number => Math.ceil(n * BOLD_CHAR) + 10
 
 function pkg(layout: NodeLayout | undefined): NodeLayout<PackageGlyphData> {
   if (!layout) throw new Error('no layout')

@@ -159,7 +159,7 @@ export function layoutPort(view: NodeView, ctx: LayoutContext): NodeLayout<PortD
 // ---------------------------------------------------------------------------------------------
 // Frame and title block
 
-export interface FrameCell {
+interface FrameCell {
   readonly rect: Rect
   readonly caption: TextLine
   readonly value: TextLine | null

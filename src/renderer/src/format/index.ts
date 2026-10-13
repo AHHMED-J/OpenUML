@@ -7,9 +7,11 @@
  *   Throws `FormatError` for non-JSON text or a non-Project root.
  * - `writeMdj(project, { verbose? })` → TAB-indented JSON, `_type` first, fields in metamodel order,
  *   metamodel defaults / empty strings / empty lists / null refs omitted (unless `verbose`).
- * - Fragments: `writeFragment(el)`, `parseFragment(text)`, `remapIds(json)`; importing is
+ * - Fragments: `writeFragment(el)`, `parseFragment(text)`, `remapIds(json)`, and
+ *   `remapTreeIds(roots)` for several trees with the old to new ID map (clipboard); importing is
  *   `importFragment` in `commands/`.
  * - `validateModel(root)` → structural problems (IDs, `_parent`, refs, embedded sub-views, edge ends).
+ * - `cssColorOr(value, fallback)`: colors from files, limited to plain color syntax.
  * - Low level (used by undo snapshots): `serializeElement`, `ElementReader`,
  *   `encodeFieldValue` / `decodeFieldValue`.
  */
@@ -18,3 +20,4 @@ export * from './codec'
 export * from './mdj'
 export * from './fragment'
 export * from './validate'
+export * from './cssColor'

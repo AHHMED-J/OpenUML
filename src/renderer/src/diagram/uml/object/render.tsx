@@ -2,15 +2,11 @@
 import type React from 'react'
 import { SPACING, fmt, polygonPath, type Rect } from '../../core'
 import type { NodeLayout, ViewStyle } from '../../layout/types'
-import { Shadow, StyledRect, SvgLines, rectPath } from '../../render/primitives'
+import { Shadow, StyledRect, SvgLine, SvgLines, rectPath } from '../../render/primitives'
 import type { InstanceData } from './layout'
 
-function Line({ x1, y1, x2, y2, color }: { x1: number; y1: number; x2: number; y2: number; color: string }): React.JSX.Element {
-  return <line x1={fmt(x1)} y1={fmt(y1)} x2={fmt(x2)} y2={fmt(y2)} stroke={color} strokeWidth={1} />
-}
-
 /** Page glyph: a rectangle with a folded top-right corner. */
-export function PageIcon({ rect, style }: { rect: Rect; style: ViewStyle }): React.JSX.Element {
+function PageIcon({ rect, style }: { rect: Rect; style: ViewStyle }): React.JSX.Element {
   const fold = Math.min(rect.width, rect.height) / 3
   const r = rect.left + rect.width
   const b = rect.top + rect.height
@@ -59,15 +55,15 @@ export function InstanceNode({ layout }: { layout: NodeLayout<InstanceData> }): 
       ))}
       {data.active && (
         <>
-          <Line x1={box.left + inset} y1={box.top} x2={box.left + inset} y2={box.top + box.height} color={style.lineColor} />
-          <Line x1={right - inset} y1={box.top} x2={right - inset} y2={box.top + box.height} color={style.lineColor} />
+          <SvgLine x1={box.left + inset} y1={box.top} x2={box.left + inset} y2={box.top + box.height} color={style.lineColor} />
+          <SvgLine x1={right - inset} y1={box.top} x2={right - inset} y2={box.top + box.height} color={style.lineColor} />
         </>
       )}
       {data.pageIcon && <PageIcon rect={data.pageIcon} style={style} />}
       <SvgLines lines={data.nameLines} color={style.fontColor} />
       {data.slots && (
         <g>
-          <Line x1={data.slots.rect.left} y1={data.slots.rect.top} x2={data.slots.rect.left + data.slots.rect.width} y2={data.slots.rect.top} color={style.lineColor} />
+          <SvgLine x1={data.slots.rect.left} y1={data.slots.rect.top} x2={data.slots.rect.left + data.slots.rect.width} y2={data.slots.rect.top} color={style.lineColor} />
           <SvgLines lines={data.slots.rows} color={style.fontColor} />
         </g>
       )}

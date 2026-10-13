@@ -30,7 +30,7 @@ export interface RouteInput {
 /** Shortest first/last run; the elbow clearance of a bend (radius 8 each side). */
 export const STUB = 24
 const ELBOW = 16
-export const LANE_GAP = 12
+const LANE_GAP = 12
 const FEEDBACK_CLEARANCE = 24
 
 const r8 = (n: number): number => Math.round(n / 8) * 8

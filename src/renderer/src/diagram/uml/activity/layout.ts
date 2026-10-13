@@ -27,7 +27,7 @@ import {
   type NameCompartmentMeasure
 } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
-import { nodeNotationFor } from '../../render/registry'
+import { hostNodeLayout, ownerHostView } from '../gluedViews'
 
 const PAD = SPACING.compartmentPaddingLeft
 
@@ -39,7 +39,7 @@ function str(value: unknown): string {
 }
 
 /** Name of a `var` field value: a plain string or a referenced element's name. */
-export function varName(value: unknown): string {
+function varName(value: unknown): string {
   if (typeof value === 'string') return value
   if (value && typeof value === 'object') return nameOf(value as Elem)
   return ''
@@ -69,7 +69,7 @@ function centeredBand(box: Rect, h: number): Rect {
 // Action
 
 /** Visual form of an action, from its `kind`. */
-export type ActionShape = 'opaque' | 'sendSignal' | 'acceptEvent' | 'timeEvent'
+type ActionShape = 'opaque' | 'sendSignal' | 'acceptEvent' | 'timeEvent'
 
 export interface ActionData {
   readonly shape: ActionShape
@@ -83,7 +83,7 @@ export interface ActionData {
   readonly cornerRadius: number
 }
 
-export function actionShapeOf(model: Elem | null | undefined): ActionShape {
+function actionShapeOf(model: Elem | null | undefined): ActionShape {
   const kind = model?.['kind']
   if (kind === 'sendSignal') return 'sendSignal'
   if (kind === 'acceptSignal' || kind === 'acceptEvent') return 'acceptEvent'
@@ -92,7 +92,7 @@ export function actionShapeOf(model: Elem | null | undefined): ActionShape {
 }
 
 /** Time event hourglass minimum size. */
-export const TIME_EVENT_ICON = { width: 20, height: 26 } as const
+const TIME_EVENT_ICON = { width: 20, height: 26 } as const
 
 /** Pentagon pointing right: the point at `right`, the shoulders at `right − h/4`. */
 export function sendSignalPolygon(b: Rect): Point[] {
@@ -122,7 +122,7 @@ export function acceptEventPolygon(b: Rect): Point[] {
 }
 
 /** Call-behavior rake glyph in the top-right corner. */
-export function rakeGlyph(b: Rect): Point[][] {
+function rakeGlyph(b: Rect): Point[][] {
   const r = b.left + b.width
   const t = b.top
   return [
@@ -223,7 +223,7 @@ export interface ObjectNodeData {
 }
 
 /** `name: Type` of an object node (or pin), `[mult]` appended when given. */
-export function typedNameText(model: Elem | null | undefined, withMultiplicity = false): string {
+function typedNameText(model: Elem | null | undefined, withMultiplicity = false): string {
   const name = nameOf(model)
   const type = varName(model?.['type'])
   const mult = withMultiplicity ? str(model?.['multiplicity']) : ''
@@ -231,7 +231,7 @@ export function typedNameText(model: Elem | null | undefined, withMultiplicity =
 }
 
 /** `[state1, state2]` of an object node's `inStates`, '' when none. */
-export function inStatesText(model: Elem | null | undefined): string {
+function inStatesText(model: Elem | null | undefined): string {
   const states = model?.['inStates']
   if (!Array.isArray(states) || states.length === 0) return ''
   return `[${(states as unknown[]).map(varName).filter((s) => s !== '').join(', ')}]`
@@ -271,7 +271,7 @@ export function layoutObjectNode(view: NodeView, ctx: LayoutContext): NodeLayout
 // ---------------------------------------------------------------------------------------------
 // Control nodes
 
-export type ControlNodeShape = 'initial' | 'activityFinal' | 'flowFinal' | 'decision' | 'fork'
+type ControlNodeShape = 'initial' | 'activityFinal' | 'flowFinal' | 'decision' | 'fork'
 
 export interface ControlNodeData {
   readonly shape: ControlNodeShape
@@ -279,7 +279,7 @@ export interface ControlNodeData {
   readonly horizontal: boolean
 }
 
-export function controlShapeOf(model: Elem | null | undefined): ControlNodeShape {
+function controlShapeOf(model: Elem | null | undefined): ControlNodeShape {
   if (isKindOf(model, 'UMLActivityFinalNode')) return 'activityFinal'
   if (isKindOf(model, 'UMLFlowFinalNode')) return 'flowFinal'
   if (isKindOf(model, 'UMLDecisionNode') || isKindOf(model, 'UMLMergeNode')) return 'decision'
@@ -340,29 +340,6 @@ export interface PinData {
   readonly labels: readonly TextLine[]
 }
 
-/** The owning action's view of a pin view: its container view, else the action's view in the diagram. */
-export function pinHostView(view: NodeView, ctx: LayoutContext): View | null {
-  const action = view.model?._parent
-  const container = view.containerView ?? null
-  if (container && (!action || container.model === action)) return container
-  if (!action) return null
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v !== view && v.model === action && isKindOf(v, 'NodeView') && v.visible !== false) return v as View
-  }
-  return null
-}
-
-function hostBox(host: View, ctx: LayoutContext): Rect | null {
-  const laid = ctx.nodeLayout(host._id)
-  if (laid) return laid.box
-  if (!isKindOf(host, 'NodeView')) return null
-  try {
-    return nodeNotationFor(host).layout(host as NodeView, ctx).box
-  } catch {
-    return null
-  }
-}
-
 /**
  * Nearest point of `r`'s border to `p` and the side it lies on (points inside snap to the
  * closest side, points outside are clamped onto the border).
@@ -388,7 +365,7 @@ export function nearestBorderPoint(r: Rect, p: Point): { point: Point; side: Pin
 const OUTWARD: Readonly<Record<PinSide, Point>> = { top: { x: 0, y: -1 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }
 
 /** Arrow across a pin box through its center, pointing out of the action (output) or into it (input). */
-export function pinArrow(box: Rect, side: PinSide, input: boolean): { shaft: Point[]; head: Point[] } {
+function pinArrow(box: Rect, side: PinSide, input: boolean): { shaft: Point[]; head: Point[] } {
   const inset = 2
   const cx = box.left + box.width / 2
   const cy = box.top + box.height / 2
@@ -463,8 +440,8 @@ export function layoutPin(view: NodeView, ctx: LayoutContext): NodeLayout<PinDat
   const size = MIN_SIZES.pin
   const input = isKindOf(model, 'UMLInputPin') || view._type === 'UMLInputPinView'
   const stored = { left: view.left ?? 0, top: view.top ?? 0, width: size.width, height: size.height }
-  const host = pinHostView(view, ctx)
-  const hb = host ? hostBox(host, ctx) : null
+  const host = ownerHostView(view, ctx)
+  const hb = host ? (hostNodeLayout(host, ctx)?.box ?? null) : null
   let box = stored
   let side: PinSide | null = null
   if (hb) {
@@ -527,11 +504,6 @@ export interface SwimlaneData {
   readonly border: readonly Point[]
   /** Name text (drawn rotated −90° in horizontal lanes). */
   readonly name: TextLine | null
-}
-
-/** Header thickness of a swimlane: name height + 4 + 4 (21 at 13 px). */
-export function swimlaneHeaderSize(font: Font): number {
-  return font.size + SPACING.partitionHeaderPadding * 2
 }
 
 /**

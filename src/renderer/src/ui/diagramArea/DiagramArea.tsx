@@ -3,6 +3,7 @@ import { Component } from 'react'
 import type React from 'react'
 import { DiagramEditor } from '../../diagram'
 import { projectStore } from '../../store'
+import { PanelBoundary } from '../components/PanelBoundary'
 import { TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
 import { diagramLabel, useOpenDiagrams } from './WorkingDiagrams'
@@ -96,10 +97,14 @@ export function DiagramArea(): React.JSX.Element {
   const zoom = useUiStore((s) => (activeId ? (s.zoomByDiagram[activeId] ?? 1) : 1))
   const showGrid = useUiStore((s) => s.prefs.showGrid)
   const snapToGrid = useUiStore((s) => s.prefs.snapToGrid)
+  const gridSize = useUiStore((s) => s.prefs.gridSize)
+  const defaultFontSize = useUiStore((s) => s.prefs.defaultFontSize)
 
   return (
     <main className="diagram-area" aria-label="Diagram">
-      <DiagramTabs />
+      <PanelBoundary name="Diagram tabs">
+        <DiagramTabs />
+      </PanelBoundary>
       <div
         className="canvas-host"
         onContextMenu={(e) => {
@@ -120,6 +125,9 @@ export function DiagramArea(): React.JSX.Element {
               onZoomChange={(z) => uiStore.getState().setZoom(activeId, z)}
               showGrid={showGrid}
               snapToGrid={snapToGrid}
+              gridSize={gridSize}
+              defaultFontSize={defaultFontSize}
+              onNotify={(message) => uiStore.getState().toast(message)}
             />
           </EditorBoundary>
         ) : (

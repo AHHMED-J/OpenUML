@@ -136,7 +136,8 @@ describe('IDEF0 explorer labels', () => {
     const idef0Model = a0Context._parent as Elem
     const top = idef0Model['topFunction'] as Elem
     expect(top['name']).toBe(a0Context['name'])
-    expect(explorerLabel(top)).toBe(top['name'])
+    // Boxes carry their node number (the top function is A0).
+    expect(explorerLabel(top)).toBe(`A0 ${top['name'] as string}`)
     expect(explorerLabel(a0Context)).toBe(`A-0 ${a0Context['name'] as string}`)
     expect(diagramLabel(a0Context as Diagram)).toBe(`A-0 ${a0Context['name'] as string}`)
 

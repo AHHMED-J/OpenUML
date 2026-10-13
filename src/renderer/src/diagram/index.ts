@@ -119,7 +119,7 @@ export {
 } from './editor/actions'
 export { alignBoxes, alignViews, reorderViews, ALIGN_OPS, type AlignOp } from './editor/alignment'
 export { hitTestDiagram, viewsInBand, type DiagramHit } from './editor/hitTest'
-export { applyQuickEdit, resolveByName, registerQuickEditSyntax, quickEditSyntaxHint, type QuickEditSyntax } from './editor/quickEditApply'
+export { applyQuickEdit, renameElements, resolveByName, registerQuickEditSyntax, quickEditSyntaxHint, type QuickEditSyntax } from './editor/quickEditApply'
 export * from './editor/quickEditSyntax'
 
 // Clipboard
@@ -131,6 +131,9 @@ export { computeDiagramLayout, viewLayout, type LayoutOptions } from './layout/l
 export * from './layout/helpers'
 export * from './layout/edges'
 export { getTextMeasurer, setTextMeasurer } from './layout/measurer'
+
+// Style constants shared with the shell (font size choices, zoom range)
+export { FONT_SIZES, GRID, ZOOM, sanitizeGridSize } from './core'
 
 // Rendering and the notation registry
 export * from './render/registry'
@@ -152,6 +155,7 @@ export { ensureNotations } from './notations'
 export {
   Idef0CommandIds,
   decomposeFunction,
+  deleteIdef0Elements,
   issueItems,
   registerIdef0Commands,
   validateIdef0,

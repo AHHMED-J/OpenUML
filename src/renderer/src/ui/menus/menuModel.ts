@@ -31,7 +31,7 @@ export interface MenuNode {
 }
 
 /** Read access to command state (satisfied by `CommandRegistry`). */
-export interface CommandStateSource {
+interface CommandStateSource {
   has(id: string): boolean
   isEnabled(id: string): boolean
   isChecked(id: string): boolean | undefined
@@ -76,7 +76,7 @@ function childrenOf(node: MenuNode): readonly MenuNode[] | undefined {
 }
 
 /** Removes leading, trailing and repeated separators. */
-export function tidySeparators(items: readonly ResolvedMenuItem[]): ResolvedMenuItem[] {
+function tidySeparators(items: readonly ResolvedMenuItem[]): ResolvedMenuItem[] {
   const result: ResolvedMenuItem[] = []
   for (const item of items) {
     if (item.kind === 'separator' && (result.length === 0 || result.at(-1)?.kind === 'separator')) continue

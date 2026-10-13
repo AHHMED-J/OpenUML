@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { isKindOf, type Elem, type UMLAttribute, type UMLClassifierView, type UMLGeneralEdgeView } from '../model'
-import { FormatError, readMdj, remapIds, validateModel, writeMdj, type JsonObject } from '.'
+import { FormatError, parseJsonText, readMdj, remapIds, remapTreeIds, validateModel, writeMdj, type JsonObject } from '.'
 
 const exampleText = readFileSync(new URL('./fixtures/example.mdj', import.meta.url), 'utf8')
 
@@ -336,6 +336,39 @@ describe('validateModel and fragments', () => {
     expect(dep['source']).toEqual({ $ref: 'new1' })
     expect(dep['target']).toEqual({ $ref: 'other' })
     expect(json['_id']).toBe('c')
+  })
+
+  it('remaps several trees at once, rewriting refs between them, and returns the ID map', () => {
+    const a: JsonObject = { _type: 'UMLClassView', _id: 'va', model: { $ref: 'm' } }
+    const e: JsonObject = { _type: 'UMLAssociationView', _id: 've', tail: { $ref: 'va' }, head: { $ref: 'vb' } }
+    const b: JsonObject = { _type: 'UMLClassView', _id: 'vb', subViews: [{ _type: 'LabelView', _id: 'lb', _parent: { $ref: 'vb' } }] }
+    let n = 0
+    const { roots, ids } = remapTreeIds([a, e, b], () => `n${++n}`)
+    expect([...ids]).toEqual([
+      ['va', 'n1'],
+      ['ve', 'n2'],
+      ['vb', 'n3'],
+      ['lb', 'n4']
+    ])
+    const [ra, re, rb] = roots as [JsonObject, JsonObject, JsonObject]
+    expect(ra).toEqual({ _type: 'UMLClassView', _id: 'n1', model: { $ref: 'm' } })
+    expect(re['tail']).toEqual({ $ref: 'n1' })
+    expect(re['head']).toEqual({ $ref: 'n3' })
+    expect((rb['subViews'] as JsonObject[])[0]).toEqual({ _type: 'LabelView', _id: 'n4', _parent: { $ref: 'n3' } })
+    // The inputs are left unchanged, and the single-root helper gives the same copy.
+    expect(a['_id']).toBe('va')
+    n = 0
+    expect(remapIds(b, () => `n${++n}`)).toEqual({ _type: 'UMLClassView', _id: 'n1', subViews: [{ _type: 'LabelView', _id: 'n2', _parent: { $ref: 'n1' } }] })
+  })
+
+  it('never copies prototype keys while remapping, even from unsanitized JSON', () => {
+    const parsed = parseJsonText('{"_type":"UMLClass","_id":"c","__proto__":{"polluted":true}}') as JsonObject
+    expect(Object.prototype.hasOwnProperty.call(parsed, '__proto__')).toBe(false)
+    const raw = JSON.parse('{"_type":"UMLClass","_id":"c","__proto__":{"polluted":true}}') as JsonObject
+    const [out] = remapTreeIds([raw], () => 'x').roots as [JsonObject]
+    expect(Object.getPrototypeOf(out)).toBe(Object.prototype)
+    expect((out as Record<string, unknown>)['polluted']).toBeUndefined()
+    expect(out['_id']).toBe('x')
   })
 
   it('narrows with isKindOf', () => {

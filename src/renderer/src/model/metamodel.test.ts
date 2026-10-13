@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   absentValue,
+  containmentFields,
   fieldOf,
   formatFont,
   formatPoints,
@@ -12,7 +13,9 @@ import {
   isSubtype,
   parseFont,
   parsePoints,
+  referenceFields,
   Repository,
+  setExtraFields,
   typeDisplayName,
   createDefaultProject,
   type Diagram
@@ -100,5 +103,23 @@ describe('Repository', () => {
     expect(() => repo.register({ ...diagram })).toThrow(/Duplicate/)
     const id = repo.generateId()
     expect(repo.has(id)).toBe(false)
+  })
+})
+
+describe('containment and reference fields', () => {
+  it('are the metaclass groups, plus the extra fields of an element that has some', () => {
+    const a = instantiate('UMLClass')
+    const b = instantiate('UMLClass')
+    expect(containmentFields(a).map((f) => f.name)).toContain('attributes')
+    expect(referenceFields(a).map((f) => f.name)).not.toContain('_parent')
+    expect(containmentFields(b)).toBe(containmentFields(a))
+    setExtraFields(b, [
+      { name: 'extraChildren', kind: 'objs', type: 'Element' },
+      { name: 'extraRef', kind: 'ref', type: 'Element' }
+    ])
+    expect(containmentFields(b).map((f) => f.name)).toContain('extraChildren')
+    expect(referenceFields(b).map((f) => f.name)).toContain('extraRef')
+    expect(containmentFields(a).map((f) => f.name)).not.toContain('extraChildren')
+    expect(containmentFields(instantiate('NoSuchType'))).toEqual([])
   })
 })

@@ -5,17 +5,13 @@
 import {
   IDEF0_AREA,
   IDEF0_BOX,
-  IDEF0_CONTEXT_BOX,
   IDEF0_PORT_SIZE,
-  IDEF0_SHEET,
-  ROLE_SIDE,
   slotOffsets,
-  type Idef0Role,
   type Idef0Side
 } from '../../model'
 import { JUNCTION_MARGIN, type Point, type Rect } from '../core'
 
-export { IDEF0_AREA, IDEF0_BOX, IDEF0_CONTEXT_BOX, IDEF0_PORT_SIZE, IDEF0_SHEET }
+export { IDEF0_BOX, IDEF0_PORT_SIZE }
 
 /** Direction of travel / outward normal. */
 export type Dir = 'N' | 'E' | 'S' | 'W'
@@ -57,10 +53,6 @@ export const SIDE_DIR: Readonly<Record<Idef0Side, Dir>> = { left: 'W', top: 'N',
 /** Outward normal of a port, pointing into the drawing area. */
 export const PORT_DIR: Readonly<Record<string, Dir>> = { input: 'E', control: 'S', output: 'W', mechanism: 'N' }
 
-export function sideOfRole(role: Idef0Role): Idef0Side {
-  return ROLE_SIDE[role]
-}
-
 export function dirVector(dir: Dir): Point {
   switch (dir) {
     case 'N':
@@ -76,10 +68,6 @@ export function dirVector(dir: Dir): Point {
 
 export function isHorizontal(dir: Dir): boolean {
   return dir === 'E' || dir === 'W'
-}
-
-export function opposite(dir: Dir): Dir {
-  return dir === 'N' ? 'S' : dir === 'S' ? 'N' : dir === 'E' ? 'W' : 'E'
 }
 
 /**

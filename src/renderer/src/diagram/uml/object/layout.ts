@@ -19,9 +19,9 @@ import {
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
 import { instanceEditText, instanceLabelText, slotEditText, slotText } from './strings'
 
-export type InstanceShape = 'object' | 'artifact' | 'component' | 'node'
+type InstanceShape = 'object' | 'artifact' | 'component' | 'node'
 
-export interface SlotCompartmentLayout {
+interface SlotCompartmentLayout {
   readonly rect: Rect
   readonly rows: readonly TextLine[]
 }
@@ -48,7 +48,7 @@ const NODE_DEPTH = 10
 const TAB = { width: 12, height: 6, left: -6 }
 const PAGE_ICON = { width: 18, height: 24 }
 
-export function shapeOfView(viewType: string): InstanceShape {
+function shapeOfView(viewType: string): InstanceShape {
   switch (viewType) {
     case 'UMLArtifactInstanceView':
       return 'artifact'

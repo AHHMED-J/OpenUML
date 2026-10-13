@@ -25,7 +25,7 @@ export type Sizable = 'none' | 'horz' | 'vert' | 'ratio' | 'free'
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
-export const ALL_HANDLES: readonly HandlePosition[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+const ALL_HANDLES: readonly HandlePosition[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
 
 /** Handles shown for each `sizable` value. */
 export function handlesFor(sizable: Sizable): readonly HandlePosition[] {

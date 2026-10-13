@@ -63,6 +63,21 @@ export function SvgLines({ lines, color }: { lines: readonly TextLine[]; color: 
   )
 }
 
+/** A straight 1-unit line segment, optionally dashed. */
+export function SvgLine({ x1, y1, x2, y2, color, dash }: { x1: number; y1: number; x2: number; y2: number; color: string; dash?: readonly number[] }): React.JSX.Element {
+  return (
+    <line
+      x1={fmt(x1)}
+      y1={fmt(y1)}
+      x2={fmt(x2)}
+      y2={fmt(y2)}
+      stroke={color}
+      strokeWidth={1}
+      {...(dash && dash.length > 0 ? { strokeDasharray: dash.join(' ') } : {})}
+    />
+  )
+}
+
 /** Translucent offset shadow of a shape given as path data (spec 03 §2.2). */
 export function Shadow({ d, show }: { d: string; show: boolean }): React.JSX.Element | null {
   if (!show || !d) return null

@@ -5,7 +5,7 @@
  */
 import type React from 'react'
 import { edgeEndShapes, edgePath, fmt, roundedRectPath, type Point, type Rect } from '../core'
-import type { EdgeLayout, NodeLayout, TextLine } from '../layout/types'
+import type { EdgeLayout, NodeLayout, TextLine, ViewStyle } from '../layout/types'
 import { EndDecorations, fontAttrs } from '../render/primitives'
 import type {
   ActivityData,
@@ -22,7 +22,7 @@ import type {
 
 const SW = 1.5
 const THICK = 3
-export const WARNING_COLOR = '#e08a00'
+const WARNING_COLOR = '#e08a00'
 
 export interface RadEdgeData {
   readonly strokeWidth: number
@@ -75,6 +75,11 @@ function Line({ s, color, width = SW }: { s: Segment; color: string; width?: num
 /** Open arrowhead pointing right with its tip at `(x, y)`. */
 function ArrowRight({ x, y, color }: { x: number; y: number; color: string }): React.JSX.Element {
   return <path d={`M${fmt(x - 9)} ${fmt(y - 4.5)} L${fmt(x)} ${fmt(y)} L${fmt(x - 9)} ${fmt(y + 4.5)}`} fill="none" stroke={color} strokeWidth={SW} strokeLinejoin="miter" />
+}
+
+/** Circle inscribed in a square symbol box (waits, refinements, case branches). */
+function CircleIn({ box, style }: { box: Rect; style: ViewStyle }): React.JSX.Element {
+  return <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
 }
 
 function labelsOf(layout: NodeLayout<SymbolData>, halo = true): React.JSX.Element {
@@ -143,7 +148,7 @@ export function WaitNode({ layout }: { layout: NodeLayout<WaitData> }): React.JS
     <g>
       <Line s={data.stub} color={style.lineColor} />
       <ArrowRight x={data.stub.x2} y={data.stub.y} color={style.lineColor} />
-      <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
+      <CircleIn box={box} style={style} />
       {labelsOf(layout)}
       <WarningMarks data={data} />
     </g>
@@ -151,7 +156,7 @@ export function WaitNode({ layout }: { layout: NodeLayout<WaitData> }): React.JS
 }
 
 /** Pentagon pointing right: flat left half, the right half converges to a tip at mid height. */
-export function pentagonPath(box: Rect): string {
+function pentagonPath(box: Rect): string {
   const { left, top, width, height } = box
   const mid = left + width / 2
   return `M${fmt(left)} ${fmt(top)} H${fmt(mid)} L${fmt(left + width)} ${fmt(top + height / 2)} L${fmt(mid)} ${fmt(top + height)} H${fmt(left)} Z`
@@ -184,7 +189,7 @@ export function RefinementNode({ layout }: { layout: NodeLayout<RefinementData> 
       {data.bars.map((s, i) => (
         <Line key={i} s={s} color={style.lineColor} />
       ))}
-      <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
+      <CircleIn box={box} style={style} />
       {labelsOf(layout)}
       <WarningMarks data={data} />
     </g>
@@ -192,7 +197,7 @@ export function RefinementNode({ layout }: { layout: NodeLayout<RefinementData> 
 }
 
 /** Upward-pointing triangle (apex up) filling `box`. */
-export function trianglePath(box: Rect): string {
+function trianglePath(box: Rect): string {
   const cx = box.left + box.width / 2
   return `M${fmt(cx)} ${fmt(box.top)} L${fmt(box.left + box.width)} ${fmt(box.top + box.height)} L${fmt(box.left)} ${fmt(box.top + box.height)} Z`
 }
@@ -204,7 +209,7 @@ export function BranchNode({ layout }: { layout: NodeLayout<BranchData> }): Reac
       {data.part ? (
         <path d={trianglePath(box)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} strokeLinejoin="miter" />
       ) : (
-        <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
+        <CircleIn box={box} style={style} />
       )}
       {labelsOf(layout)}
       <WarningMarks data={data} />

@@ -1,6 +1,6 @@
 /** SVG drawing of activity-diagram nodes (from their layouts only). */
 import type React from 'react'
-import { SPACING, diamondPoints, ellipsePath, fmt, polygonPath, polylinePath, roundedRectPath, type Point, type Rect } from '../../core'
+import { SPACING, SWIMLANE_LINE_WIDTH, diamondPoints, ellipsePath, fmt, polygonPath, polylinePath, roundedRectPath, type Point, type Rect } from '../../core'
 import type { NodeLayout, TextLine } from '../../layout/types'
 import { Shadow, StyledRect, SvgLines, fontAttrs, rectPath } from '../../render/primitives'
 import type { ActionData, ControlNodeData, ObjectNodeData, PinData, SwimlaneData } from './layout'
@@ -157,8 +157,8 @@ export function SwimlaneNode({ layout }: { layout: NodeLayout<SwimlaneData> }): 
   const h = data.header
   return (
     <g>
-      <rect x={fmt(h.left)} y={fmt(h.top)} width={fmt(h.width)} height={fmt(h.height)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={2} />
-      <Stroke points={data.border} color={style.lineColor} width={2} />
+      <rect x={fmt(h.left)} y={fmt(h.top)} width={fmt(h.width)} height={fmt(h.height)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SWIMLANE_LINE_WIDTH} />
+      <Stroke points={data.border} color={style.lineColor} width={SWIMLANE_LINE_WIDTH} />
       {data.name && (data.vertical ? <SvgLines lines={[data.name]} color={style.fontColor} /> : <RotatedText line={data.name} color={style.fontColor} />)}
     </g>
   )

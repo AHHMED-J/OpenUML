@@ -44,6 +44,30 @@ describe('DiagramEditor (static render)', () => {
     setTextMeasurer(null)
   })
 
+  it('draws the grid at the grid size it is given', () => {
+    ensureNotations()
+    setTextMeasurer(new FixedWidthTextMeasurer())
+    const { activeDiagramId } = projectStore.getInitialState()
+    const render = (gridSize?: number): string =>
+      renderToStaticMarkup(
+        createElement(DiagramEditor, {
+          diagramId: activeDiagramId as string,
+          tool: null,
+          onToolUsed: () => undefined,
+          zoom: 1,
+          onZoomChange: () => undefined,
+          showGrid: true,
+          snapToGrid: true,
+          ...(gridSize === undefined ? {} : { gridSize })
+        })
+      )
+    expect(render()).toMatch(/<pattern[^>]* width="16" height="16"/)
+    expect(render(20)).toMatch(/<pattern[^>]* width="40" height="40"/)
+    // Out of range: the default grid.
+    expect(render(500)).toMatch(/<pattern[^>]* width="16" height="16"/)
+    setTextMeasurer(null)
+  })
+
   it('renders a message for a missing diagram', () => {
     const html = renderToStaticMarkup(
       createElement(DiagramEditor, {

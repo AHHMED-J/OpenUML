@@ -9,9 +9,9 @@ import { computeDiagramLayout } from '../../layout/layoutDiagram'
 import type { DiagramLayout, EdgeLayout, NodeLayout } from '../../layout/types'
 import { ensureNotations } from '../../notations'
 import type { FragmentData, LifelineData } from './layout'
+import { BOLD_CHAR } from '../../testUtils'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const BOLD_CHAR = 13 * 0.6 * 1.1
 
 interface SeqTest extends DiagramEnv {
   readonly repository: Repository

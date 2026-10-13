@@ -25,11 +25,10 @@ export * from './strings'
 export * from './navigation'
 export * from './validate'
 export * from './decompose'
-export { registerIdef0QuickEdit } from './quickEdit'
+export * from './propagation'
 export * from './commands'
 export * from './gestures'
 export * from './deletion'
-export { normalizeIdef0, titleOf } from './hooks'
 
 let registered = false
 

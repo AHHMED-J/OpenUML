@@ -181,7 +181,7 @@ function alignWithCenter(p: Point, other: Point, end: EdgeEndpoint): Point {
  * to an end are realigned with that end's center when no orthogonal junction exists. A two-point
  * edge without a junction gets an extra bend.
  */
-export function attachRectilinearEnds(points: readonly Point[], tail: EdgeEndpoint, head: EdgeEndpoint): Point[] {
+function attachRectilinearEnds(points: readonly Point[], tail: EdgeEndpoint, head: EdgeEndpoint): Point[] {
   let pts = points.map((p) => ({ x: p.x, y: p.y }))
   if (pts.length < 2) pts = straightOrL(tail, head)
 
@@ -283,8 +283,8 @@ export function routeRectilinear(points: readonly Point[], tail: EdgeEndpoint, h
 // ---------------------------------------------------------------------------
 
 /** Distance the default self loop rises above the node, and extends right of it. */
-export const SELF_LOOP_RISE = 20
-export const SELF_LOOP_REACH = 30
+const SELF_LOOP_RISE = 20
+const SELF_LOOP_REACH = 30
 
 /**
  * Default self loop: out of the top edge, right, down, back into the right edge.

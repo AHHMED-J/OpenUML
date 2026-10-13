@@ -1,6 +1,8 @@
 /**
  * Application shell layout: toolbar; left and right dock areas around the center diagram area;
- * status bar. Each dock area is a vertical stack of dockable panels (Model Explorer, Working
+ * status bar. Each part of the window has its own error boundary (`components/PanelBoundary`),
+ * so a render error in one panel shows a "Reload panel" notice there instead of a blank window.
+ * Each dock area is a vertical stack of dockable panels (Model Explorer, Working
  * Diagrams, Toolbox, Styles, Properties, Documentation — by default explorer + working diagrams
  * on the left, toolbox + editors on the right). Panels are rearranged by long-pressing their
  * header and dragging (`dock/`); areas and panels are resizable (splitters) and collapsible;
@@ -10,6 +12,7 @@ import { useEffect } from 'react'
 import type React from 'react'
 import { initCommands } from './app/commands'
 import { startShell } from './app/lifecycle'
+import { PanelBoundary, PanelErrorMessage } from './components/PanelBoundary'
 import { Splitter } from './components/Splitter'
 import { DiagramArea } from './diagramArea/DiagramArea'
 import { DockAnnouncer, DockEdgeZone, DockStack } from './dock/DockArea'
@@ -40,7 +43,16 @@ function useTheme(): void {
   }, [pref])
 }
 
+/** The application window. The outer boundary is a last resort for errors in the layout itself. */
 export function Shell(): React.JSX.Element {
+  return (
+    <PanelBoundary name="Window" fallback={({ reload }) => <PanelErrorMessage name="Window" reload={reload} what="window" />}>
+      <ShellLayout />
+    </PanelBoundary>
+  )
+}
+
+function ShellLayout(): React.JSX.Element {
   // Commands must exist before the first render so toolbar and menus show their real state.
   initCommands()
   useTheme()
@@ -54,12 +66,18 @@ export function Shell(): React.JSX.Element {
 
   return (
     <div className="app">
-      {panels.toolbar.visible ? <Toolbar /> : null}
+      {panels.toolbar.visible ? (
+        <PanelBoundary name="Toolbar">
+          <Toolbar />
+        </PanelBoundary>
+      ) : null}
       <div className="workspace">
         {showLeft ? (
           <>
             <aside className="sidebar dock-area dock-area-left" style={{ width: panels.sidebar.size }} aria-label="Left sidebar">
-              <DockStack area="left" />
+              <PanelBoundary name="Left sidebar">
+                <DockStack area="left" />
+              </PanelBoundary>
             </aside>
             <Splitter
               orientation="vertical"
@@ -84,18 +102,28 @@ export function Shell(): React.JSX.Element {
               onResize={(s) => resize('navigator', s)}
             />
             <aside className="navigator dock-area dock-area-right" style={{ width: panels.navigator.size }} aria-label="Right sidebar">
-              <DockStack area="right" />
+              <PanelBoundary name="Right sidebar">
+                <DockStack area="right" />
+              </PanelBoundary>
             </aside>
           </>
         ) : null}
         <DockEdgeZone area="left" shown={showLeft} />
         <DockEdgeZone area="right" shown={showRight} />
       </div>
-      {panels.statusbar.visible ? <StatusBar /> : null}
-      <DockAnnouncer />
+      {panels.statusbar.visible ? (
+        <PanelBoundary name="Status bar">
+          <StatusBar />
+        </PanelBoundary>
+      ) : null}
+      <PanelBoundary name="Docking announcer" fallback={() => null}>
+        <DockAnnouncer />
+      </PanelBoundary>
       <ContextMenuHost />
       <ModalHost />
-      <Toasts />
+      <PanelBoundary name="Notifications" fallback={() => null}>
+        <Toasts />
+      </PanelBoundary>
     </div>
   )
 }

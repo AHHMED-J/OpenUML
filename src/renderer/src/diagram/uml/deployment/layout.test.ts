@@ -7,11 +7,8 @@ import { readMdj, writeMdj } from '../../../format'
 import { createNodeAt, creationContainer, findDropContainer, moveSelection } from '../../editor/actions'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
 import { DiagramContent } from '../../render/DiagramContent'
-import { testDiagram } from '../../testUtils'
+import { nameWidth, testDiagram } from '../../testUtils'
 import { nodeFaces, nodeGlyph, type NodeData } from './layout'
-
-const BOLD_CHAR = 13 * 0.6 * 1.1
-const nameWidth = (n: number): number => Math.ceil(n * BOLD_CHAR) + 10
 
 function node(layout: NodeLayout | undefined): NodeLayout<NodeData> {
   if (!layout) throw new Error('no layout')

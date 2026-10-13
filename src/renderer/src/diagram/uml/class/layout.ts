@@ -32,7 +32,7 @@ import {
   type FeatureFormat
 } from './strings'
 
-export type CompartmentKind = 'literals' | 'attributes' | 'operations' | 'receptions'
+type CompartmentKind = 'literals' | 'attributes' | 'operations' | 'receptions'
 
 export interface CompartmentLayout {
   readonly kind: CompartmentKind
@@ -76,9 +76,9 @@ export interface Compartment {
   readonly measure: ListCompartmentMeasure
 }
 
-/** Builds the visible list compartments of a classifier view. */
-export function compartmentsOf(view: UMLClassifierView, model: Elem, font: Font, ctx: LayoutContext): Compartment[] {
-  const format: FeatureFormat = {
+/** Feature text options of a classifier view (its show* flags). */
+export function featureFormatOf(view: UMLClassifierView): FeatureFormat {
+  return {
     showVisibility: view.showVisibility !== false,
     showType: view.showType !== false,
     showMultiplicity: view.showMultiplicity !== false,
@@ -86,6 +86,53 @@ export function compartmentsOf(view: UMLClassifierView, model: Elem, font: Font,
     showOperationSignature: view.showOperationSignature !== false,
     showStereotype: true
   }
+}
+
+/** Attribute rows of a classifier's attribute compartment (static ones underlined). */
+export function attributeRows(model: Elem, format: FeatureFormat, font: Font): ListRow[] {
+  return items(model, 'attributes').map((attr) => ({
+    text: attributeText(attr, format),
+    font,
+    underline: attr['isStatic'] === true,
+    edit: { kind: 'attribute', elementId: attr._id, classifierId: model._id },
+    editText: attributeEditText(attr)
+  }))
+}
+
+/** Operation rows of a classifier's operation compartment (abstract italic, static underlined). */
+export function operationRows(model: Elem, format: FeatureFormat, font: Font): ListRow[] {
+  return items(model, 'operations').map((op) => ({
+    text: operationText(op, format),
+    font: rowFont(font, op['isAbstract'] === true),
+    underline: op['isStatic'] === true,
+    edit: { kind: 'operation', elementId: op._id, classifierId: model._id },
+    editText: operationEditText(op)
+  }))
+}
+
+/** Stacks list compartments from `top` inside `x`/`width` and collects their rows' edit regions. */
+export function stackCompartments<K extends string>(
+  compartments: readonly { readonly kind: K; readonly measure: ListCompartmentMeasure }[],
+  x: number,
+  width: number,
+  top: number,
+  regions: EditRegion[]
+): { kind: K; rect: Rect; rows: TextLine[] }[] {
+  let y = top
+  return compartments.map((c) => {
+    const rect = { left: x, top: y, width, height: c.measure.height }
+    y += c.measure.height
+    const rows = arrangeListCompartment(c.measure, rect)
+    for (const row of rows) {
+      if (row.edit) regions.push({ box: { ...row.box, left: rect.left, width: rect.width }, target: row.edit, text: row.editText ?? row.text, font: row.font })
+    }
+    return { kind: c.kind, rect, rows: rows.map(({ edit: _e, editText: _t, ...line }) => line) }
+  })
+}
+
+/** Builds the visible list compartments of a classifier view. */
+export function compartmentsOf(view: UMLClassifierView, model: Elem, font: Font, ctx: LayoutContext): Compartment[] {
+  const format = featureFormatOf(view)
   const classifierId = model._id
   const result: Compartment[] = []
   const add = (kind: CompartmentKind, rows: ListRow[]): void => {
@@ -102,30 +149,8 @@ export function compartmentsOf(view: UMLClassifierView, model: Elem, font: Font,
       }))
     )
   }
-  if (!view.suppressAttributes) {
-    add(
-      'attributes',
-      items(model, 'attributes').map((attr) => ({
-        text: attributeText(attr, format),
-        font,
-        underline: attr['isStatic'] === true,
-        edit: { kind: 'attribute', elementId: attr._id, classifierId },
-        editText: attributeEditText(attr)
-      }))
-    )
-  }
-  if (!view.suppressOperations) {
-    add(
-      'operations',
-      items(model, 'operations').map((op) => ({
-        text: operationText(op, format),
-        font: rowFont(font, op['isAbstract'] === true),
-        underline: op['isStatic'] === true,
-        edit: { kind: 'operation', elementId: op._id, classifierId },
-        editText: operationEditText(op)
-      }))
-    )
-  }
+  if (!view.suppressAttributes) add('attributes', attributeRows(model, format, font))
+  if (!view.suppressOperations) add('operations', operationRows(model, format, font))
   if (view.suppressReceptions === false) {
     add(
       'receptions',
@@ -206,16 +231,7 @@ export function layoutClassifier(view: NodeView, ctx: LayoutContext): NodeLayout
     const nameRect = { left: box.left, top: box.top, width: box.width, height: nameHeight }
     const nameLines = arrangeNameCompartment(name, nameRect)
     const regions: EditRegion[] = [...nameRegion(model, nameRect, name, font)]
-    let y = box.top + nameHeight
-    const laid: CompartmentLayout[] = compartments.map((c) => {
-      const rect = { left: box.left, top: y, width: box.width, height: c.measure.height }
-      y += c.measure.height
-      const rows = arrangeListCompartment(c.measure, rect)
-      for (const row of rows) {
-        if (row.edit) regions.push({ box: { ...row.box, left: rect.left, width: rect.width }, target: row.edit, text: row.editText ?? row.text, font: row.font })
-      }
-      return { kind: c.kind, rect, rows: rows.map(({ edit: _e, editText: _t, ...line }) => line) }
-    })
+    const laid: CompartmentLayout[] = stackCompartments(compartments, box.left, box.width, box.top + nameHeight, regions)
     const icon = decoration
       ? { kind: iconKind, rect: { left: box.left + box.width - ICON - ICON_INSET, top: box.top + ICON_INSET, width: ICON, height: ICON } }
       : null

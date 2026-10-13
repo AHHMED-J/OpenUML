@@ -1,13 +1,27 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addOperation, addParameter, setFields } from '../../commands'
-import { createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
+import { childrenOf, createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
 import { testDiagram } from '../testUtils'
-import { writeMdj } from '../../format'
-import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, previewLayout, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
+import { readMdj, writeMdj } from '../../format'
+import { createEdgeBetween, createNodeAt, createTextAt, findDropContainer, moveSelection, previewLayout, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
 import { alignBoxes } from './alignment'
 import { hitTestDiagram, viewsInBand } from './hitTest'
 import { applyQuickEdit } from './quickEditApply'
 import { parseAttribute, parseName, parseOperation } from './quickEditSyntax'
+
+describe('moveSelection', () => {
+  it('takes the move axis from the layout the caller passes (saving a layout pass)', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 100, 60) as NodeView
+    const current = t.layout()
+    const nodes = new Map(current.nodes)
+    nodes.set(a._id, { ...(nodes.get(a._id) as NonNullable<ReturnType<typeof nodes.get>>), moveAxis: 'horz' })
+    moveSelection(t, [a._id], 30, 40, undefined, { ...current, nodes })
+    expect([a.left, a.top]).toEqual([30, 0])
+    moveSelection(t, [a._id], 10, 20, undefined, t.layout())
+    expect([a.left, a.top]).toEqual([40, 20])
+  })
+})
 
 describe('live drag preview', () => {
   it('shows exactly the layout the gesture commits, without touching the model', () => {
@@ -42,21 +56,26 @@ describe('live drag preview', () => {
     const t = testDiagram()
     const before = t.diagram.ownedViews.length
     const rect = { left: 40, top: 60, width: 160, height: 90 }
-    const preview = previewLayout(t, () => void createNodeAt(t, t.layout(), 'Class', rect, { quiet: true }), t.layout())
+    const preview = previewLayout(t, () => void createNodeAt(t, t.layout(), 'Class', rect), t.layout())
     expect(t.diagram.ownedViews).toHaveLength(before)
     const id = createNodeAt(t, t.layout(), 'Class', rect) as string
     const drawn = [...preview!.nodes.values()].map((n) => n.box)
     expect(drawn).toContainEqual(t.layout().nodes.get(id)?.box)
 
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
-      // A timing state must be placed on a lifeline.
-      expect(createNodeAt(t, t.layout(), 'TimingState', rect, { quiet: true })).toBeNull()
-      expect(warn).not.toHaveBeenCalled()
+      // A timing state must be placed on a lifeline: refused by a modeling rule, so nothing is
+      // logged; the reason goes to `onRefused` when the caller wants it.
       expect(createNodeAt(t, t.layout(), 'TimingState', rect)).toBeNull()
-      expect(warn).toHaveBeenCalledTimes(1)
+      const reasons: string[] = []
+      expect(createNodeAt(t, t.layout(), 'TimingState', rect, { onRefused: (r) => reasons.push(r) })).toBeNull()
+      expect(reasons).toEqual(['A state/condition must be placed on a lifeline'])
+      expect(warn).not.toHaveBeenCalled()
+      expect(error).not.toHaveBeenCalled()
     } finally {
       warn.mockRestore()
+      error.mockRestore()
     }
   })
 
@@ -239,5 +258,48 @@ describe('quick edit', () => {
     expect(pin['type']).toBe('Integer')
     expect(pin['multiplicity']).toBe('')
     expect(applyQuickEdit(t.engine, { kind: 'typedName', elementId: pin._id }, 'a(b')).toBe(false)
+  })
+})
+
+describe('default font size of new views', () => {
+  const fontSizes = (view: View): number[] => {
+    const sizes: number[] = []
+    const visit = (el: Elem): void => {
+      const font = el['font'] as { size: number } | undefined
+      if (font) sizes.push(font.size)
+      for (const child of childrenOf(el)) visit(child)
+    }
+    visit(view)
+    return sizes
+  }
+
+  it('gives views created by the editor the preferred size where they would take the default font', () => {
+    const t = testDiagram()
+    const before = t.node('Class', 0, 0, 100, 60)
+    const env = { ...t, defaultFontSize: 20 }
+    const id = createNodeAt(env, t.layout(), 'Class', { left: 300, top: 0, width: 0, height: 0 }) as string
+    const created = t.repository.get(id) as View
+    const sizes = fontSizes(created)
+    expect(sizes).toContain(20)
+    expect(sizes).not.toContain(13)
+    // The namespace label is drawn smaller on purpose (11.7) and keeps its size.
+    expect(sizes).toContain(11.7)
+    // Existing views keep theirs; the measured box grows with the larger name.
+    expect(fontSizes(before)).not.toContain(20)
+    const edgeId = createEdgeBetween(env, t.layout(), { kind: 'Association' }, before._id, id, { x: 0, y: 0 }) as string
+    expect(fontSizes(t.repository.get(edgeId) as View).every((s) => s === 20)).toBe(true)
+    const textId = createTextAt(env, { x: 0, y: 200 }) as string
+    expect(fontSizes(t.repository.get(textId) as View)).toEqual([20])
+    // One undo step per creation, font included.
+    t.engine.undo()
+    expect(t.repository.get(textId)).toBeUndefined()
+  })
+
+  it('leaves the default font when no size is set, and files that set no font read as 13', () => {
+    const t = testDiagram()
+    const id = createNodeAt(t, t.layout(), 'Class', { left: 0, top: 0, width: 0, height: 0 }) as string
+    expect(fontSizes(t.repository.get(id) as View)).toContain(13)
+    const { repository } = readMdj(writeMdj(t.repository.project as Elem))
+    expect(fontSizes(repository.get(id) as View)).toContain(13)
   })
 })

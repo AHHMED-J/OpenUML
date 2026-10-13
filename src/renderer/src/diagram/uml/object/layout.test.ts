@@ -6,9 +6,9 @@ import { applyQuickEdit } from '../../editor/quickEditApply'
 import type { InstanceData } from './layout'
 import { parseObject, parseSlot, slotText } from './strings'
 import { structureTest } from './testEnv'
+import { BOLD_CHAR } from '../../testUtils'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const BOLD_CHAR = 13 * 0.6 * 1.1
 
 describe('instance label and slot strings', () => {
   it('formats name: Type with the classifier name or raw string', () => {

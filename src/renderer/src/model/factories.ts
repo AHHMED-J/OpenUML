@@ -4,6 +4,7 @@
  * as one undoable operation.
  */
 import { fieldOf, isKindOf, isSubtype } from './metamodel'
+import { ModelRuleError } from './errors'
 import { walk } from './repository'
 import {
   STATEMACHINE_EDGE_KINDS,
@@ -72,12 +73,11 @@ import {
   addListCompartment,
   addRelationshipLabels,
   addSubView,
-  boundsOf,
   buildClassifierView,
   buildGeneralEdgeView,
   buildGeneralNodeView,
   buildUndirectedEdgeView,
-  centerOf,
+  defaultEdgePoints,
   createElement,
   defaultName,
   nextName
@@ -512,7 +512,7 @@ function defaultNodeOwner(req: NodeRequest): Elem {
   }
   if (req.kind === 'InputPin' || req.kind === 'OutputPin') {
     const action = req.container?.model
-    if (!isKindOf(action, 'UMLAction')) throw new Error('Pins must be created on an action view')
+    if (!isKindOf(action, 'UMLAction')) throw new ModelRuleError('A pin must be placed on an action')
     return action
   }
   const owner = req.diagram._parent
@@ -964,7 +964,7 @@ export function planEdge(req: EdgeRequest): CreationPlan {
   if (req.kind === 'Transition') return planTransition(req)
   if (req.kind === 'TimingMessage') return planTimingMessage(req)
   const spec = EDGE_KINDS[req.kind]
-  const points = req.points ? [...req.points] : defaultPoints(req.tail, req.head)
+  const points = req.points ? [...req.points] : defaultEdgePoints(req.tail, req.head)
   const insertions: Insertion[] = []
   const source = req.tail.model
   const target = req.head.model
@@ -1013,23 +1013,6 @@ export function planEdge(req: EdgeRequest): CreationPlan {
   }
   insertions.push({ owner: req.diagram, field: 'ownedViews', element: view })
   return { model, view, insertions, refAdditions: [] }
-}
-
-function defaultPoints(tail: View, head: View): Point[] {
-  const a = centerOf(tail)
-  const b = centerOf(head)
-  if (!a || !b) return []
-  if (tail === head) {
-    const box = boundsOf(tail) as Bounds
-    const right = box.left + box.width
-    return [
-      { x: right, y: a.y - 10 },
-      { x: right + 30, y: a.y - 10 },
-      { x: right + 30, y: a.y + 10 },
-      { x: right, y: a.y + 10 }
-    ]
-  }
-  return [a, b]
 }
 
 const SORTS_WITHOUT_NAME = new Set(['reply', 'createMessage', 'deleteMessage'])

@@ -13,14 +13,15 @@ OpenUML is an Electron desktop application written in TypeScript with a React re
 ## Renderer modules
 
 All renderer code lives in `src/renderer/src/`. Each module owns its directory; cross-module imports go through
-the module's `index.ts`.
+the module's `index.ts`, which is the module's public API (`npm run lint:unused` runs knip with those barrels as
+entry points, see `knip.json`).
 
 | Module | Directory | Responsibility |
 | --- | --- | --- |
 | Model | `model/` | Element types (core + UML), the `Repository` (ID index, containment, references), factories that create elements with their default views. Pure TypeScript, no React, no DOM. |
 | Format | `format/` | Reading and writing `.mdj` project files (JSON with `_type`, `_id`, `_parent`, `{"$ref": id}` references). Pure TypeScript. |
-| Commands | `commands/` | Undoable operations (each user action = one operation of field changes, insertions and removals), undo/redo stacks, the command registry (IDs → handlers + enablement), keymaps and menu definitions. |
-| Store | `store/` | Application state (open project, file path, dirty flag, active diagram, selection, preferences) exposed to React through a Zustand store. |
+| Commands | `commands/` | Undoable operations (each user action = one operation of field changes, insertions and removals), undo/redo stacks and the command registry (IDs → handlers + enablement). Keymaps and menu definitions live in the shell (`ui/keymap.ts`, `ui/menus/`). |
+| Store | `store/` | Project state (open project and its history engine, file path, dirty flag, open and active diagrams, selection) exposed to React through a Zustand store. UI-only state (preferences, zoom, panels, dialogs) lives in `ui/uiStore.ts`. |
 | Diagram | `diagram/` | View geometry, measurement and layout of node/edge views, edge routing and junctions, hit testing, SVG rendering of every notation, the interactive diagram editor (select, move, resize, create, connect, inline edit, zoom). One subfolder per diagram family: `diagram/uml/class`, `diagram/uml/usecase`, `diagram/uml/sequence`, `diagram/uml/activity` and the other UML families, `diagram/rad` (Role Activity Diagram: roles as growing containers, threads routed from element positions, soft validation) and `diagram/idef0` (IDEF0 function modeling: boxes with derived node numbers, role-derived arrow sides with orthogonal routing, boundary ports with ICOM codes, decomposition and consistency warnings). A family may register per-diagram-type editor hooks (`registerDiagramHooks`: normalizing after every edit, edge creation, reconnecting, deleting). |
 | UI | `ui/` | Application shell: model explorer, property editor, documentation editor, toolbox, diagram tabs, status bar, dialogs; panel docking (`ui/dock/`: panels rearranged between the left and right areas by long-press drag, persisted per viewer). |
 | Export | `export/` | PNG and SVG export of diagrams. |
@@ -39,4 +40,12 @@ the module's `index.ts`.
 ## Testing
 
 `npm test` runs Vitest unit tests (`*.test.ts` next to the code). Model, format, commands and diagram geometry are
-pure TypeScript and are expected to have unit tests.
+pure TypeScript and are expected to have unit tests. Tests that render React components into a document select
+happy-dom with a `// @vitest-environment happy-dom` comment; the others run in Node.
+
+## Errors
+
+Every part of the window (dock panels, toolbar, status bar, diagram tabs, dialogs, menus) has its own React
+error boundary (`ui/components/PanelBoundary.tsx`): a render error shows a "Reload panel" notice there and a
+toast, never a blank window. Edits refused by the modeling rules throw `ModelRuleError` (plain-language message);
+the diagram editor turns refused gestures into one toast each through its `onNotify` callback.

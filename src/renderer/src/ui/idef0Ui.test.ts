@@ -8,7 +8,7 @@ import { EDGE_KINDS, NODE_KINDS, Repository, createDefaultProject, isKindOf, typ
 import { projectStore } from '../store'
 import { addDiagram, addDiagramItemsFor } from './modelActions'
 import { explorerChildren, explorerLabel, typeOrder } from './explorer/tree'
-import { TypeIcon, ToolIcon } from './icons'
+import { RoleIcon, TypeIcon, ToolIcon } from './icons'
 import { CommandRegistry } from '../commands'
 import { registerIdef0Commands } from '../diagram'
 import { idef0FormatMenu, idef0Menu } from './menus/idef0Menu'
@@ -60,14 +60,14 @@ describe('Add Diagram entry', () => {
 })
 
 describe('Model Explorer', () => {
-  it('shows the decomposition tree and arrows but hides boundary ports', () => {
+  it('shows the decomposition tree, hides boundary ports and lists arrows under their boxes instead of their owner', () => {
     const ex = buildOrderExample()
     const kids = explorerChildren(ex.top)
     expect(kids.some((k) => k._type === 'IDEF0Port')).toBe(false)
     expect(kids.filter((k) => k._type === 'IDEF0Function').map((k) => k['name'])).toEqual(['Receive Order', 'Check Credit and Stock', 'Ship and Invoice'])
-    expect(kids.filter((k) => k._type === 'IDEF0Arrow')).toHaveLength(8)
+    expect(kids.filter((k) => k._type === 'IDEF0Arrow')).toHaveLength(0)
     expect(kids[0]?._type).toBe('IDEF0Diagram')
-    expect(explorerChildren(ex.model).map((k) => k._type)).toEqual(['IDEF0Diagram', 'IDEF0Function', 'IDEF0Arrow', 'IDEF0Arrow', 'IDEF0Arrow', 'IDEF0Arrow'])
+    expect(explorerChildren(ex.model).map((k) => k._type)).toEqual(['IDEF0Diagram', 'IDEF0Function'])
     expect(typeOrder(ex.model)).toBe(1004)
     expect(typeOrder(ex.top)).toBe(1211)
   })
@@ -89,6 +89,15 @@ describe('icons', () => {
       expect(renderToStaticMarkup(createElement(ToolIcon, { kind }))).toContain('<svg')
     }
     expect(renderToStaticMarkup(createElement(ToolIcon, { kind: 'IDEF0Call' }))).not.toBe(renderToStaticMarkup(createElement(ToolIcon, { kind: 'IDEF0Arrow' })))
+  })
+
+  it('draws a distinct role icon and folder per ICOM role, tagged with its role color class', () => {
+    const roles = ['input', 'control', 'output', 'mechanism', 'call']
+    const icons = roles.map((role) => renderToStaticMarkup(createElement(RoleIcon, { role })))
+    const folders = roles.map((role) => renderToStaticMarkup(createElement(RoleIcon, { role, folder: true })))
+    expect(new Set(icons).size).toBe(5)
+    expect(new Set(folders).size).toBe(5)
+    roles.forEach((role, i) => expect(icons[i]).toContain(`role-${role}`))
   })
 })
 

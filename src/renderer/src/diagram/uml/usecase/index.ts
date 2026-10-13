@@ -10,17 +10,12 @@ import { USE_CASE_EDGE_NOTATIONS } from './edges'
 import { layoutActor, layoutSubject, layoutUseCase } from './layout'
 import { ActorNode, SubjectNode, UseCaseNode } from './render'
 
-export { layoutActor, layoutSubject, layoutUseCase, stickFigure, extensionPointText, wrapNameCompartment } from './layout'
-export type { ActorData, SubjectData, UseCaseData, UseCaseCompartmentLayout } from './layout'
-export { keywordText, useCaseEdgeLabels } from './edges'
-export { StickFigure } from './render'
-
 /**
  * Subjects visually contain classifiers (actors, use cases, ...) and notes. Per spec 02 §7.5, a
  * classifier placed in a subject belongs to the subject's owner (the subject's namespace), so a
  * drop re-parents its model there; dropping it out again leaves the model where it is.
  */
-export const subjectContainer: ContainerBehavior = {
+const subjectContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel === null || isKindOf(childModel, 'UMLClassifier')
   },

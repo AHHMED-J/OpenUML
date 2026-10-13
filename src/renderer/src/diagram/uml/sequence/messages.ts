@@ -5,7 +5,7 @@
  * active bar, the head arrives at the receiver's line, the side of its new (or active) bar, or the
  * side of the created lifeline's header. Self messages loop out 30 to the right and down 20.
  */
-import { isKindOf, type EdgeView, type Elem, type View } from '../../../model'
+import { type EdgeView, type View } from '../../../model'
 import { LineStyle, SPACING, Z_INDEX, guillemets, messageNotation, type Point } from '../../core'
 import { buildEdgeLayout, placeEdgeLabels, type EdgeLabelSpec } from '../../layout/edges'
 import { stereotypeName, styleOf } from '../../layout/helpers'
@@ -27,7 +27,7 @@ function lifelineLayout(id: string | null, ctx: LayoutContext): NodeLayout<Lifel
 }
 
 /** Innermost bar on a lifeline covering `y` (excluding the bar of `excludeId`). */
-export function activeBarAt(lifeline: LifelineData, y: number, excludeId?: string): ActivationLayout | null {
+function activeBarAt(lifeline: LifelineData, y: number, excludeId?: string): ActivationLayout | null {
   let best: ActivationLayout | null = null
   for (const a of lifeline.activations) {
     if (a.messageId === excludeId) continue
@@ -50,7 +50,7 @@ function nodeEndX(view: View | null, ctx: LayoutContext, towardRight: boolean | 
 }
 
 /** Routed points of a message, or null when its ends are not laid out. */
-export function routeMessage(info: MessageInfo, ctx: LayoutContext): Point[] | null {
+function routeMessage(info: MessageInfo, ctx: LayoutContext): Point[] | null {
   const id = info.view._id
   const y = info.y
   const tl = lifelineLayout(info.tailLifeline, ctx)
@@ -101,14 +101,15 @@ export function routeMessage(info: MessageInfo, ctx: LayoutContext): Point[] | n
   ]
 }
 
-function labelSpecs(edge: EdgeView, model: Elem | null, info: MessageInfo | undefined, ctx: LayoutContext): EdgeLabelSpec[] {
+/**
+ * Name (editable with the `message` syntax), stereotype and property labels of a message edge;
+ * shared by sequence and timing messages.
+ */
+export function messageLabelSpecs(edge: EdgeView, options: { sequenceNumber: string; showSignature: boolean }): EdgeLabelSpec[] {
+  const model = edge.model
   const n = messageNotation(messageSortOf(model))
-  const st = stereotypeName(model)
-  const keyword = st || n.fixedKeyword || ''
-  const text = messageLabelText(model, {
-    sequenceNumber: info?.sequenceNumber ?? '',
-    showSignature: ctx.diagram['showSignature'] !== false
-  })
+  const keyword = stereotypeName(model) || n.fixedKeyword || ''
+  const text = messageLabelText(model, options)
   return [
     {
       field: 'nameLabel',
@@ -140,11 +141,11 @@ function labelPolyline(points: readonly Point[], self: boolean, labelWidth: numb
   return last.x < first.x ? [...points].reverse() : [...points]
 }
 
-export function layoutMessage(edge: EdgeView, ctx: LayoutContext): EdgeLayout<MessageData> {
+function layoutMessage(edge: EdgeView, ctx: LayoutContext): EdgeLayout<MessageData> {
   const model = edge.model
   const info = sequenceInfo(ctx).messages.get(edge._id)
   const n = messageNotation(messageSortOf(model))
-  const specs = labelSpecs(edge, model, info, ctx)
+  const specs = messageLabelSpecs(edge, { sequenceNumber: info?.sequenceNumber ?? '', showSignature: ctx.diagram['showSignature'] !== false })
   const points = info ? routeMessage(info, ctx) : null
   const lineStyle = edge.lineStyle === LineStyle.Curve ? LineStyle.Rectilinear : ((edge.lineStyle ?? LineStyle.Oblique) as LineStyle)
   const base = buildEdgeLayout<MessageData>(edge, ctx, {
@@ -168,7 +169,3 @@ export const messageNotationEntry: EdgeNotation<MessageData> = {
   layout: layoutMessage
 }
 
-/** True when `view` is a sequence message. */
-export function isMessageView(view: View | null | undefined): boolean {
-  return isKindOf(view, 'UMLSeqMessageView')
-}

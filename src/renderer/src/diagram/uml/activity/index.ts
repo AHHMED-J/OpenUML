@@ -10,13 +10,12 @@ import { layoutAction, layoutControlNode, layoutObjectNode, layoutPin, layoutSwi
 import { ActionNode, ControlNode, ObjectNode, PinNode, SwimlaneNode } from './render'
 
 export * from './layout'
-export { flowLabelText, flowNameLabel } from './edges'
 
 /**
  * Swimlanes visually contain activity nodes (actions, object nodes, control nodes) and notes.
  * Partition membership is visual only (spec 01 §13): the models stay in `activity.nodes`.
  */
-export const swimlaneContainer: ContainerBehavior = {
+const swimlaneContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel === null || isKindOf(childModel, 'UMLActivityNode')
   },
@@ -29,7 +28,7 @@ export const swimlaneContainer: ContainerBehavior = {
  * An action view keeps its own pins: dropping a pin back onto its action leaves it contained
  * (pins are laid out on the action's border either way).
  */
-export const actionContainer: ContainerBehavior = {
+const actionContainer: ContainerBehavior = {
   accepts(container: View, childModel: Elem | null): boolean {
     return isKindOf(childModel, 'UMLPin') && childModel !== null && container.model != null && childModel._parent === container.model
   },

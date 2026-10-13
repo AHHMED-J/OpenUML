@@ -3,6 +3,8 @@
  * name compartment, list compartments and the generic node layout skeleton.
  */
 import { isKindOf, type Elem, type NodeView, type View } from '../../model'
+// Colors come from files: only plain color syntax reaches SVG attributes.
+import { cssColorOr } from '../../format/cssColor'
 import {
   COLORS,
   DEFAULT_FONT,
@@ -24,10 +26,6 @@ import type { EditRegion, LayoutContext, NodeLayout, TextLine, ViewStyle } from 
 const PAD = SPACING.compartmentPaddingLeft
 const GAP = SPACING.compartmentItemGap
 
-function str(value: unknown, fallback: string): string {
-  return typeof value === 'string' && value !== '' ? value : fallback
-}
-
 function fontOf(view: View | null | undefined): Font {
   const f = view?.font as Font | undefined
   return f && typeof f.size === 'number' && f.size > 0 ? f : DEFAULT_FONT
@@ -38,9 +36,9 @@ export function styleOf(view: View): ViewStyle {
   let src: View = view
   while (src.parentStyle && isKindOf(src._parent, 'View')) src = src._parent
   return {
-    lineColor: str(src.lineColor, COLORS.line),
-    fillColor: str(src.fillColor, COLORS.fill),
-    fontColor: str(src.fontColor, COLORS.font),
+    lineColor: cssColorOr(src.lineColor, COLORS.line),
+    fillColor: cssColorOr(src.fillColor, COLORS.fill),
+    fontColor: cssColorOr(src.fontColor, COLORS.font),
     font: fontOf(src),
     showShadow: view.showShadow !== false
   }
