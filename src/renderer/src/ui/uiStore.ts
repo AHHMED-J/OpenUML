@@ -92,11 +92,27 @@ export interface ListRow {
   readonly onSelect?: () => void
 }
 
+/** One row of a checklist dialog: `detail` says what ticking it would cost. */
+export interface ChecklistRow {
+  readonly id: string
+  readonly label: string
+  readonly detail: string
+}
+
 /** Modal dialogs; promise-based ones carry their resolver. */
 export type ModalState =
   | { readonly kind: 'palette' }
   | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
+  | {
+      readonly kind: 'checklist'
+      readonly title: string
+      readonly message: string
+      readonly rows: readonly ChecklistRow[]
+      /** Exactly this many rows must be ticked to confirm. */
+      readonly required: number
+      readonly resolve: (ids: readonly string[] | null) => void
+    }
   | { readonly kind: 'prompt'; readonly title: string; readonly initial: string; readonly resolve: (v: string | null) => void }
   | {
       readonly kind: 'picker'
@@ -521,6 +537,11 @@ export function useUiStore<T>(selector: (state: UiState) => T): T {
 
 export function promptText(title: string, initial = ''): Promise<string | null> {
   return new Promise((resolve) => uiStore.getState().openModal({ kind: 'prompt', title, initial, resolve }))
+}
+
+/** Asks the user to tick exactly `required` of `rows`; resolves with their IDs, or null when cancelled. */
+export function chooseRows(title: string, message: string, rows: readonly ChecklistRow[], required: number): Promise<readonly string[] | null> {
+  return new Promise((resolve) => uiStore.getState().openModal({ kind: 'checklist', title, message, rows, required, resolve }))
 }
 
 export function pickElement(title: string, types: readonly string[]): Promise<string | null> {
