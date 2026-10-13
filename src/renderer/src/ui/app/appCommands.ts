@@ -11,6 +11,7 @@ import {
   type CommandDefinition,
   type CommandRegistry
 } from '../../commands'
+import { deleteIdef0Elements, getTextMeasurer } from '../../diagram'
 import { fieldOf, isKindOf, type DiagramKind, type Elem, type NodeView, type View } from '../../model'
 import { activeDiagram, projectStore, selectedModels, selectedViews } from '../../store'
 import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
@@ -234,7 +235,12 @@ export function confirmAndDeleteFromModel(elements: readonly Elem[]): Promise<vo
   const deletable = elements.filter((e) => !isKindOf(e, 'Project'))
   if (deletable.length === 0) return Promise.resolve()
   const run = (): void => {
-    deleteFromModel(ps().engine, deletable)
+    const engine = ps().engine
+    // IDEF0 arrows and ports follow the diagram's deletion rules (branches, linked boundary arrows).
+    engine.transact('Delete', () => {
+      const rest = deleteIdef0Elements(engine, deletable, getTextMeasurer())
+      if (rest.length > 0) deleteFromModel(engine, rest)
+    })
   }
   if (!bridge) {
     if (window.confirm(`Delete ${deletable.length} element(s) from the model?`)) run()

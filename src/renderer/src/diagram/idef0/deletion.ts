@@ -3,10 +3,20 @@
  * that only touched boundary ports or nothing else are removed with it, arrows that also reach
  * another box turn into boundary arrows with a new port; deleting an arrow with branches promotes
  * its first branch to the trunk.
+ *
+ * Across levels: deleting an arrow attached to a decomposed box also deletes the boundary arrows
+ * standing for it on the child diagram (their port and the arrows it feeds), level by level down.
+ * Deleting a boundary arrow (or its port) of a child diagram so that its port is left with no
+ * arrow removes the port and, when the parent box's counterpart only carried that flow (a
+ * pass-through boundary arrow nothing else uses), that counterpart too, level by level up. A
+ * counterpart still used on its own level (connected to another box, branched, or feeding other
+ * arrows) is kept: only its link to the deleted port goes.
  */
-import { deleteFromModel, type OperationBuilder } from '../../commands'
-import { IDEF0_AREA, createElement, isKindOf, portBounds, roleOf, type Elem, type Idef0Role, type NodeView, type View } from '../../model'
+import { deleteFromModel, type ModelEngine, type OperationBuilder } from '../../commands'
+import { IDEF0_AREA, createElement, diagramOfScope, isKindOf, portBounds, roleOf, type Diagram, type Elem, type Idef0Role, type NodeView, type View } from '../../model'
+import type { TextMeasurer } from '../core'
 import { withGeometry, type DiagramEnv } from '../editor/actions'
+import { childCounterparts, counterpartChain, syncLevels } from './propagation'
 
 function arrowsOf(scope: Elem): Elem[] {
   return ((scope['arrows'] as Elem[] | undefined) ?? []).filter((a) => isKindOf(a, 'IDEF0Arrow'))
@@ -98,6 +108,32 @@ function deleteFunctions(b: OperationBuilder, env: DiagramEnv, scope: Elem, func
 }
 
 /**
+ * Deletes IDEF0 arrows and ports picked outside a diagram (Model Explorer) with the same rules as
+ * the delete gesture, one diagram at a time, inside the caller's operation when there is one.
+ * Returns the elements left to the generic deletion (other types, or elements without a view).
+ */
+export function deleteIdef0Elements(engine: ModelEngine, elements: readonly Elem[], measurer: TextMeasurer): Elem[] {
+  const rest: Elem[] = []
+  const byDiagram = new Map<Diagram, View[]>()
+  for (const el of elements) {
+    const view = isKindOf(el, 'IDEF0Arrow') || isKindOf(el, 'IDEF0Port') ? engine.repository.viewsOf(el)[0] : undefined
+    const diagram = view ? engine.repository.diagramOf(view) : null
+    if (!view || !diagram || diagram._type !== 'IDEF0Diagram') {
+      rest.push(el)
+      continue
+    }
+    byDiagram.set(diagram, [...(byDiagram.get(diagram) ?? []), view])
+  }
+  engine.transact('Delete', () => {
+    for (const [diagram, views] of byDiagram) {
+      const live = views.filter((v) => engine.repository.contains(v))
+      if (live.length > 0) deleteIdef0Views({ engine, diagram, measurer }, live)
+    }
+  })
+  return rest
+}
+
+/**
  * Handles the IDEF0 part of a delete gesture. Returns the views left to the default deletion
  * (notes and text); the sheet frame is never deleted.
  */
@@ -119,19 +155,61 @@ export function deleteIdef0Views(env: DiagramEnv, views: readonly View[]): View[
       doomed.add(port)
       for (const a of arrowsOf(scope)) if (a['source'] === port || a['target'] === port) doomed.add(a)
     }
+    // Boundary ports the user deleted, or whose arrows the user deleted: candidates for the upward cascade.
+    const touchedPorts = new Set<Elem>()
+    for (const el of doomed) {
+      if (el._type === 'IDEF0Port') touchedPorts.add(el)
+      else for (const end of [el['source'], el['target']] as Array<Elem | null>) if (end && end._type === 'IDEF0Port') touchedPorts.add(end)
+    }
     deleteFunctions(b, env, scope, functions, doomed)
     for (const arrow of [...doomed]) if (isKindOf(arrow, 'IDEF0Arrow')) promoteBranches(b, env, scope, arrow, doomed)
     // Branches of a doomed arrow that could not be promoted go with it (deleteFromModel cascades references).
     const targets: Elem[] = [...functions, ...doomed]
-    // A boundary port left with no arrow and no counterpart is removed with its arrow.
-    for (const arrow of doomed) {
-      for (const end of [arrow['source'], arrow['target']] as Array<Elem | null>) {
-        if (!end || end._type !== 'IDEF0Port' || doomed.has(end) || end['corresponds']) continue
-        const stillUsed = arrowsOf(scope).some((a) => !doomed.has(a) && (a['source'] === end || a['target'] === end))
-        if (!stillUsed) targets.push(end)
+    const gone = new Set<Elem>(targets)
+    const otherLevels = new Set<Elem>()
+    // Downward: the child boundary arrows standing for a deleted arrow go with it, level by level.
+    const queue = [...doomed].filter((a) => isKindOf(a, 'IDEF0Arrow'))
+    while (queue.length > 0) {
+      const { ports, arrows } = childCounterparts(queue.shift() as Elem)
+      for (const el of [...ports, ...arrows]) {
+        if (gone.has(el)) continue
+        gone.add(el)
+        targets.push(el)
+        const diagram = diagramOfScope(el._parent)
+        if (diagram) otherLevels.add(diagram)
+        if (isKindOf(el, 'IDEF0Arrow')) queue.push(el)
+      }
+    }
+    // A boundary port left with no arrow is removed with its arrow; one with a counterpart only when
+    // that counterpart is a pass-through removed with it (upward cascade, user-deleted ports only).
+    const ends = new Set<Elem>()
+    for (const arrow of doomed) for (const end of [arrow['source'], arrow['target']] as Array<Elem | null>) if (end && end._type === 'IDEF0Port') ends.add(end)
+    for (const port of [...ends, ...touchedPorts]) {
+      const stillUsed = arrowsOf(scope).some((a) => !gone.has(a) && (a['source'] === port || a['target'] === port))
+      if (stillUsed) continue
+      if (!port['corresponds']) {
+        if (!gone.has(port)) {
+          gone.add(port)
+          targets.push(port)
+        }
+        continue
+      }
+      if (!touchedPorts.has(port)) continue
+      const chain = counterpartChain(port, gone)
+      if (chain.length === 0) continue
+      for (const el of [port, ...chain]) {
+        if (gone.has(el)) continue
+        gone.add(el)
+        targets.push(el)
+      }
+      for (const el of chain) {
+        const diagram = diagramOfScope(el._parent)
+        if (diagram) otherLevels.add(diagram)
       }
     }
     deleteFromModel(env.engine, targets)
+    otherLevels.delete(env.diagram)
+    syncLevels(b, env, otherLevels)
   })
   return rest.filter((v) => !v._type.startsWith('IDEF0'))
 }
