@@ -29,7 +29,16 @@ function stereotypeValue(repo: Repository, el: Elem, name: string | null): unkno
   return resolveByName(repo, el, name, 'UMLStereotype') ?? name
 }
 
-function typeValue(repo: Repository, el: Elem, name: string | null): unknown {
+/**
+ * Sets an element's stereotype from quick-edit text: a stereotype element resolved by name (else
+ * the text), or the plain text for string-valued stereotype fields; null/'' clears it.
+ */
+export function setStereotype(b: OperationBuilder, repo: Repository, el: Elem, name: string | null): void {
+  if (fieldOf(el, 'stereotype')) b.set(el, 'stereotype', stereotypeValue(repo, el, name))
+}
+
+/** A type field value from quick-edit text: the classifier resolved by name, else the text; null clears. */
+export function typeValue(repo: Repository, el: Elem, name: string | null): unknown {
   if (!name) return null
   return resolveByName(repo, el, name, 'UMLClassifier') ?? name
 }
@@ -42,11 +51,24 @@ export function registerRenameHook(hook: RenameHook): void {
   renameHooks.push(hook)
 }
 
+/**
+ * Renames elements in one operation and runs the rename hooks, so a rename from anywhere (Model
+ * Explorer, Property Editor) keeps dependent names in sync like an inline rename does.
+ */
+export function renameElements(engine: ModelEngine, elements: readonly Elem[], name: string, operation = 'Rename'): void {
+  engine.transact(operation, (b) => {
+    for (const el of elements) {
+      b.set(el, 'name', name)
+      for (const hook of renameHooks) hook(b, engine.repository, el)
+    }
+  })
+}
+
 function applyName(b: OperationBuilder, repo: Repository, el: Elem, parsed: ParsedName): void {
   setIfField(b, el, 'name', parsed.name)
   for (const hook of renameHooks) hook(b, repo, el)
   setIfField(b, el, 'visibility', parsed.visibility ?? 'public')
-  if (fieldOf(el, 'stereotype')) b.set(el, 'stereotype', stereotypeValue(repo, el, parsed.stereotype))
+  setStereotype(b, repo, el, parsed.stereotype)
 }
 
 /** A notation-specific quick-edit syntax (target kind `custom`). */

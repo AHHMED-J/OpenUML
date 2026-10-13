@@ -37,6 +37,16 @@
   --icon-behavior: #8a63c9;
   --icon-usecase: #2f9bb3;
   --icon-note: #e6d36a;
+
+  /* Model Explorer indent guides. */
+  --tree-guide: #c9ccd3;
+
+  /* IDEF0 arrow roles (explorer folders, arrow icons and their guide lines). */
+  --role-input: #1f5fbf;
+  --role-control: #9a6700;
+  --role-output: #1a7f37;
+  --role-mechanism: #7c4dcc;
+  --role-call: #656d76;
 }
 
 :root[data-theme='dark'] {
@@ -69,6 +79,14 @@
   --icon-behavior: #a888e0;
   --icon-usecase: #4fbad2;
   --icon-note: #e6d36a;
+
+  --tree-guide: #4a4e57;
+
+  --role-input: #6ea8fe;
+  --role-control: #e3b341;
+  --role-output: #56c271;
+  --role-mechanism: #b392f0;
+  --role-call: #9da5ae;
 }
 
 * {
@@ -392,6 +410,7 @@ textarea:focus {
 
 .tree-row,
 .list-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -427,6 +446,70 @@ textarea:focus {
 
 .tree-row.drop-target {
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Indent guides: absolutely positioned 1px lines on the indentation grid (see IndentGuides). */
+.tree-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tree-guides .guide-v,
+.tree-guides .guide-h {
+  position: absolute;
+  border-color: var(--tree-guide);
+}
+
+.tree-guides .guide-v {
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--tree-guide);
+}
+
+.tree-guides .guide-v.guide-end {
+  bottom: 50%;
+}
+
+.tree-guides .guide-h {
+  top: 50%;
+  height: 0;
+  border-top: 1px solid var(--tree-guide);
+}
+
+/* IDEF0 role colors: `role-<role>` sets --role; icons, folder labels and folder guides use it. */
+.role-input {
+  --role: var(--role-input);
+}
+
+.role-control {
+  --role: var(--role-control);
+}
+
+.role-output {
+  --role: var(--role-output);
+}
+
+.role-mechanism {
+  --role: var(--role-mechanism);
+}
+
+.role-call {
+  --role: var(--role-call);
+}
+
+.role-icon,
+.role-label {
+  color: var(--role);
+}
+
+.role-label {
+  font-weight: 600;
+}
+
+.tree-guides .guide-v[class*='role-'],
+.tree-guides .guide-h[class*='role-'] {
+  border-color: color-mix(in srgb, var(--role) 70%, transparent);
 }
 
 .twisty {
@@ -537,14 +620,26 @@ textarea:focus {
   padding: 24px;
 }
 
+/* Fallback of a panel whose content failed to render (components/PanelBoundary). */
+.panel-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 /* ---------------------------------------------------------------- toolbox */
 
 .tool-group {
   border-bottom: 1px solid var(--border);
 }
 
-.tool-group-header,
-.section-header {
+.tool-group-header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -559,8 +654,7 @@ textarea:focus {
   cursor: default;
 }
 
-.tool-group-header:hover,
-.section-header:hover {
+.tool-group-header:hover {
   background: var(--hover);
 }
 
@@ -1332,6 +1426,41 @@ body.dock-dragging * {
   transform: scale(1.02);
   box-shadow: var(--shadow-lift);
   opacity: 0.97;
+}
+
+/* Tremble confirming a completed long press (500 ms, see TREMBLE_MS); ends at the lifted scale. */
+.dock-ghost.lifted.trembling .dock-ghost-card {
+  animation: dock-tremble 500ms ease-in-out;
+}
+
+@keyframes dock-tremble {
+  0% {
+    transform: scale(1.02) rotate(0deg) translateX(0);
+  }
+  12% {
+    transform: scale(1.02) rotate(-1.4deg) translateX(-2px);
+  }
+  25% {
+    transform: scale(1.02) rotate(1.4deg) translateX(2px);
+  }
+  37% {
+    transform: scale(1.02) rotate(-1.1deg) translateX(-1.5px);
+  }
+  50% {
+    transform: scale(1.02) rotate(1.1deg) translateX(1.5px);
+  }
+  62% {
+    transform: scale(1.02) rotate(-0.7deg) translateX(-1px);
+  }
+  75% {
+    transform: scale(1.02) rotate(0.7deg) translateX(1px);
+  }
+  87% {
+    transform: scale(1.02) rotate(-0.3deg) translateX(0);
+  }
+  100% {
+    transform: scale(1.02) rotate(0deg) translateX(0);
+  }
 }
 
 .dock-ghost.settling .dock-ghost-card {

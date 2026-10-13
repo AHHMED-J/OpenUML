@@ -16,7 +16,6 @@
 import { isKindOf, type Elem, type NodeView, type UMLClassifierView } from '../../../model'
 import { ACTOR_ASPECT, MIN_SIZES, SPACING, USE_CASE_ASPECT, wrapText, type EdgeEndpoint, type Font, type Rect } from '../../core'
 import {
-  arrangeListCompartment,
   arrangeNameCompartment,
   measureListCompartment,
   nameEditText,
@@ -28,17 +27,16 @@ import {
   type NameCompartmentMeasure
 } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
-import { classifierNameMeasure, type StereotypeForm } from '../class/layout'
-import { attributeEditText, attributeText, operationEditText, operationText, type FeatureFormat } from '../class/strings'
+import { attributeRows, classifierNameMeasure, featureFormatOf, operationRows, stackCompartments, type StereotypeForm } from '../class/layout'
 
 const PAD = SPACING.compartmentPaddingLeft
 const GAP = SPACING.compartmentItemGap
 const ICON = SPACING.decorationIconSize
 const ICON_INSET = SPACING.decorationIconInset
 /** Gap between a use case ellipse and the compartments below it (spec 03 §4.3). */
-export const USE_CASE_COMPARTMENT_GAP = 5
+const USE_CASE_COMPARTMENT_GAP = 5
 /** Minimum subject size (not specified by the reference; OpenUML uses the package minimum). */
-export const SUBJECT_MIN_SIZE = MIN_SIZES.package
+const SUBJECT_MIN_SIZE = MIN_SIZES.package
 /**
  * Subjects paint between the diagram frame (−1) and ordinary views (0), so they always stay
  * behind the use cases and actors they contain (spec 03 §4.3 [R]), whatever the list order.
@@ -48,7 +46,7 @@ export const SUBJECT_Z_INDEX = -0.5
 // ---------------------------------------------------------------------------------------------
 // Shared pieces
 
-export type UseCaseCompartmentKind = 'extensionPoints' | 'attributes' | 'operations'
+type UseCaseCompartmentKind = 'extensionPoints' | 'attributes' | 'operations'
 
 export interface UseCaseCompartmentLayout {
   readonly kind: UseCaseCompartmentKind
@@ -67,13 +65,13 @@ function items(model: Elem | null, field: string): Elem[] {
 }
 
 /** Stereotype display form of a view (default `label`). */
-export function stereotypeFormOf(view: NodeView): StereotypeForm {
+function stereotypeFormOf(view: NodeView): StereotypeForm {
   const v = view['stereotypeDisplay']
   return v === 'none' || v === 'decoration' || v === 'decoration-label' || v === 'icon' || v === 'icon-label' ? v : 'label'
 }
 
 /** Text of an extension point row: `name` or `name: location`. */
-export function extensionPointText(ep: Elem): string {
+function extensionPointText(ep: Elem): string {
   const location = typeof ep['location'] === 'string' ? ep['location'].trim() : ''
   return location ? `${nameOf(ep)}: ${location}` : nameOf(ep)
 }
@@ -81,15 +79,7 @@ export function extensionPointText(ep: Elem): string {
 /** Visible list compartments: extension points (use cases, when any), attributes, operations. */
 function compartmentsOf(view: UMLClassifierView, model: Elem | null, font: Font, ctx: LayoutContext, withExtensionPoints: boolean): Compartment[] {
   if (!model) return []
-  const format: FeatureFormat = {
-    showVisibility: view.showVisibility !== false,
-    showType: view.showType !== false,
-    showMultiplicity: view.showMultiplicity !== false,
-    showProperty: view.showProperty !== false,
-    showOperationSignature: view.showOperationSignature !== false,
-    showStereotype: true
-  }
-  const classifierId = model._id
+  const format = featureFormatOf(view)
   const result: Compartment[] = []
   const add = (kind: UseCaseCompartmentKind, rows: ListRow[]): void => {
     result.push({ kind, measure: measureListCompartment(rows, ctx.measurer) })
@@ -102,45 +92,14 @@ function compartmentsOf(view: UMLClassifierView, model: Elem | null, font: Font,
       points.map((ep) => ({ text: extensionPointText(ep), font, edit: { kind: 'name', elementId: ep._id }, editText: nameEditText(ep) }))
     )
   }
-  if (view.suppressAttributes === false) {
-    add(
-      'attributes',
-      items(model, 'attributes').map((attr) => ({
-        text: attributeText(attr, format),
-        font,
-        underline: attr['isStatic'] === true,
-        edit: { kind: 'attribute', elementId: attr._id, classifierId },
-        editText: attributeEditText(attr)
-      }))
-    )
-  }
-  if (view.suppressOperations === false) {
-    add(
-      'operations',
-      items(model, 'operations').map((op) => ({
-        text: operationText(op, format),
-        font: op['isAbstract'] === true ? { ...font, style: font.style | 2 } : font,
-        underline: op['isStatic'] === true,
-        edit: { kind: 'operation', elementId: op._id, classifierId },
-        editText: operationEditText(op)
-      }))
-    )
-  }
+  if (view.suppressAttributes === false) add('attributes', attributeRows(model, format, font))
+  if (view.suppressOperations === false) add('operations', operationRows(model, format, font))
   return result
 }
 
 /** Stacks compartments from `top` across `box`; collects their rows' edit regions. */
 function arrangeCompartments(compartments: readonly Compartment[], box: Rect, top: number, regions: EditRegion[]): UseCaseCompartmentLayout[] {
-  let y = top
-  return compartments.map((c) => {
-    const rect = { left: box.left, top: y, width: box.width, height: c.measure.height }
-    y += c.measure.height
-    const rows = arrangeListCompartment(c.measure, rect)
-    for (const row of rows) {
-      if (row.edit) regions.push({ box: { ...row.box, left: rect.left, width: rect.width }, target: row.edit, text: row.editText ?? row.text, font: row.font })
-    }
-    return { kind: c.kind, rect, rows: rows.map(({ edit: _e, editText: _t, ...line }) => line) }
-  })
+  return stackCompartments(compartments, box.left, box.width, top, regions)
 }
 
 function heightOf(compartments: readonly Compartment[]): number {
@@ -155,7 +114,7 @@ function widthOf(compartments: readonly Compartment[]): number {
  * Re-measures a name compartment with the name wrapped to `maxTextWidth` (each wrapped line is
  * a name item, 2 apart). `maxTextWidth = 0` puts every word on its own line (the narrowest form).
  */
-export function wrapNameCompartment(m: NameCompartmentMeasure, maxTextWidth: number, ctx: LayoutContext): NameCompartmentMeasure {
+function wrapNameCompartment(m: NameCompartmentMeasure, maxTextWidth: number, ctx: LayoutContext): NameCompartmentMeasure {
   const name = m.items.find((i) => i.index === 1)
   if (!name || !name.text.includes(' ') || name.size.width <= maxTextWidth) return m
   const lines = wrapText(name.text, Math.max(0, maxTextWidth), name.font, ctx.measurer)
@@ -444,7 +403,7 @@ export interface SubjectData {
 }
 
 /** The element whose name a subject shows: its represented classifier, else itself. */
-export function subjectShownElement(model: Elem | null): Elem | null {
+function subjectShownElement(model: Elem | null): Elem | null {
   const represent = model?.['represent']
   return isKindOf(represent as Elem | null, 'UMLClassifier') ? (represent as Elem) : model
 }

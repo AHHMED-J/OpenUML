@@ -8,6 +8,7 @@
  * (the arranged left/top are written back), `moveAxis`, and the `interval` quick-edit syntax.
  */
 import { isKindOf, type Elem, type View } from '../../../model'
+import { Frame } from '../../render/generic'
 import { registerEdgeNotation, registerNodeNotation, type ContainerBehavior } from '../../render/registry'
 import { timeConstraintLinkNotation, timingMessageNotation } from './edges'
 import {
@@ -20,15 +21,14 @@ import {
   layoutTimingState
 } from './layout'
 import { registerTimingQuickEdit } from './quickEdit'
-import { DurationConstraintNode, TimeConstraintNode, TimeSegmentNode, TimeTickNode, TimingFrameNode, TimingLifelineNode, TimingStateNode } from './render'
+import { DurationConstraintNode, TimeConstraintNode, TimeSegmentNode, TimeTickNode, TimingLifelineNode, TimingStateNode } from './render'
 
 export * from './arrange'
 export * from './edges'
 export * from './layout'
-export { registerTimingQuickEdit } from './quickEdit'
 
 /** The timing frame contains lifeline bands, ticks, duration constraints and annotations. */
-export const timingFrameContainer: ContainerBehavior = {
+const timingFrameContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel === null || isKindOf(childModel, 'UMLLifeline') || isKindOf(childModel, 'UMLDurationConstraint')
   },
@@ -38,7 +38,7 @@ export const timingFrameContainer: ContainerBehavior = {
 }
 
 /** A lifeline band contains its state/condition rows (owned by the lifeline). */
-export const timingLifelineContainer: ContainerBehavior = {
+const timingLifelineContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel !== null && isKindOf(childModel, 'UMLConstraint') && !isKindOf(childModel, 'UMLIntervalConstraint')
   },
@@ -59,7 +59,7 @@ export const timingLifelineContainer: ContainerBehavior = {
 }
 
 /** A state/condition row contains time segments; dropping one re-links the segment to the row. */
-export const timingStateContainer: ContainerBehavior = {
+const timingStateContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel !== null && isKindOf(childModel, 'UMLStateInvariant')
   },
@@ -79,7 +79,7 @@ export const timingStateContainer: ContainerBehavior = {
 
 export function registerTimingNotations(): void {
   registerTimingQuickEdit()
-  registerNodeNotation('UMLTimingFrameView', { layout: layoutTimingFrame, Render: TimingFrameNode, container: timingFrameContainer })
+  registerNodeNotation('UMLTimingFrameView', { layout: layoutTimingFrame, Render: Frame, container: timingFrameContainer })
   registerNodeNotation('UMLTimingLifelineView', { layout: layoutTimingLifeline, Render: TimingLifelineNode, container: timingLifelineContainer })
   registerNodeNotation('UMLTimingStateView', { layout: layoutTimingState, Render: TimingStateNode, container: timingStateContainer })
   registerNodeNotation('UMLTimeSegmentView', { layout: layoutTimeSegment, Render: TimeSegmentNode })

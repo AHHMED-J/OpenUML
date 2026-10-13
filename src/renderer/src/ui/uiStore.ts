@@ -5,6 +5,7 @@
  */
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
+import { GRID, sanitizeGridSize, ZOOM } from '../diagram'
 import {
   areaOf,
   describePosition,
@@ -46,38 +47,39 @@ export interface PanelState {
 export type PanelId = 'sidebar' | 'navigator' | 'toolbar' | 'statusbar'
 /** Anything the View menu can show/hide: chrome, a dockable panel, or all three editors. */
 export type ToggleablePanel = PanelId | DockPanelId | 'editors'
-export const EDITOR_PANELS: readonly DockPanelId[] = ['styles', 'properties', 'documentation']
+const EDITOR_PANELS: readonly DockPanelId[] = ['styles', 'properties', 'documentation']
 /** The `panels` entry holding a dock area's visibility and width. */
-export const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', right: 'navigator' }
+const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', right: 'navigator' }
 
 export interface Preferences {
   readonly theme: ThemePreference
   readonly showGrid: boolean
   readonly snapToGrid: boolean
+  /** Grid step of the diagram editor in diagram units (drawing, snapping, Shift+arrow nudge). */
   readonly gridSize: number
-  /** Default font size for new views. */
+  /** Font size of views created in the diagram editor (where they would take the default font). */
   readonly defaultFontSize: number
   /** RAD: a new element placed below an open-ended element gets a state line from it. */
   readonly radAutoThread: boolean
 }
 
-export const DEFAULT_PREFERENCES: Preferences = {
+const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
   showGrid: true,
   snapToGrid: true,
-  gridSize: 8,
+  gridSize: GRID.size,
   defaultFontSize: 13,
   radAutoThread: true
 }
 
-export const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
+const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
   sidebar: { visible: true, size: 260 },
   navigator: { visible: true, size: 300 },
   toolbar: { visible: true, size: 34 },
   statusbar: { visible: true, size: 24 }
 }
 
-export interface Toast {
+interface Toast {
   readonly id: number
   readonly text: string
   readonly kind: 'info' | 'error'
@@ -135,6 +137,10 @@ export interface UiState {
   readonly showStereotype: boolean
   /** Expanded explorer nodes (ids). */
   readonly expanded: Readonly<Record<string, true>>
+  /** IDEF0 arrows of a box shown in role folders (true) or as a flat list. */
+  readonly groupArrows: boolean
+  /** Collapsed IDEF0 role folders (folder keys); folders are open by default. Persisted per viewer. */
+  readonly collapsedFolders: Readonly<Record<string, true>>
   /** Explorer node whose inline rename should start. */
   readonly renamingId: string | null
   /** Bumped to ask the explorer to scroll the selection into view and focus it. */
@@ -175,6 +181,9 @@ export interface UiState {
   setExpanded(id: string, expanded: boolean): void
   expandMany(ids: readonly string[]): void
   collapseAll(): void
+  setGroupArrows(group: boolean): void
+  /** Collapses or opens IDEF0 role folders (keys from `folderKey`). */
+  setFoldersCollapsed(keys: readonly string[], collapsed: boolean): void
   startRename(id: string | null): void
   reveal(): void
   addRecent(path: string): void
@@ -183,17 +192,15 @@ export interface UiState {
   notePaletteUse(command: string): void
   openModal(modal: ModalState | null): void
   openContextMenu(menu: ContextMenuState | null): void
+  /** Shows a brief, non-blocking message; an identical one already shown is replaced. */
   toast(text: string, kind?: Toast['kind']): void
   dismissToast(id: number): void
 }
 
-export const ZOOM_MIN = 0.1
-export const ZOOM_MAX = 3
-export const ZOOM_STEP = 0.1
-
-export function clampZoom(zoom: number): number {
-  if (!Number.isFinite(zoom)) return 1
-  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100
+/** Clamps a stored zoom to the diagram module's range, rounded to whole percents. */
+function clampZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return ZOOM.default
+  return Math.round(Math.min(ZOOM.max, Math.max(ZOOM.min, zoom)) * 100) / 100
 }
 
 interface PersistedLayout {
@@ -204,6 +211,17 @@ interface PersistedLayout {
   sortBy?: SortMode
   showStereotype?: boolean
   showAdvancedProperties?: boolean
+  groupArrows?: boolean
+}
+
+/** Most collapsed role folders remembered (oldest forgotten first). */
+const MAX_COLLAPSED_FOLDERS = 2000
+
+function loadCollapsedFolders(): Record<string, true> {
+  const value = loadJson<unknown>('explorerCollapsedFolders', [])
+  const result: Record<string, true> = {}
+  if (Array.isArray(value)) for (const key of value.slice(-MAX_COLLAPSED_FOLDERS)) if (typeof key === 'string') result[key] = true
+  return result
 }
 
 function sanitizePanels(value: Partial<Record<PanelId, PanelState>> | undefined): Record<PanelId, PanelState> {
@@ -223,8 +241,7 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
     theme: v.theme === 'dark' || v.theme === 'light' || v.theme === 'system' ? v.theme : DEFAULT_PREFERENCES.theme,
     showGrid: typeof v.showGrid === 'boolean' ? v.showGrid : DEFAULT_PREFERENCES.showGrid,
     snapToGrid: typeof v.snapToGrid === 'boolean' ? v.snapToGrid : DEFAULT_PREFERENCES.snapToGrid,
-    gridSize:
-      typeof v.gridSize === 'number' && v.gridSize >= 2 && v.gridSize <= 50 ? Math.round(v.gridSize) : DEFAULT_PREFERENCES.gridSize,
+    gridSize: sanitizeGridSize(v.gridSize),
     defaultFontSize:
       typeof v.defaultFontSize === 'number' && v.defaultFontSize >= 6 && v.defaultFontSize <= 72
         ? Math.round(v.defaultFontSize)
@@ -264,7 +281,8 @@ export function createUiStore() {
         dock: s.dock,
         sortBy: s.sortBy,
         showStereotype: s.showStereotype,
-        showAdvancedProperties: s.showAdvancedProperties
+        showAdvancedProperties: s.showAdvancedProperties,
+        groupArrows: s.groupArrows
       } satisfies PersistedLayout)
     }
     const setRecent = (recentFiles: string[]): void => {
@@ -300,6 +318,8 @@ export function createUiStore() {
       sortBy: layout.sortBy === 'name' ? 'name' : 'added',
       showStereotype: layout.showStereotype !== false,
       expanded: {},
+      groupArrows: layout.groupArrows !== false,
+      collapsedFolders: loadCollapsedFolders(),
       renamingId: null,
       revealTick: 0,
       recentFiles: sanitizeRecentFiles(loadJson<unknown>('recentFiles', [])),
@@ -425,6 +445,26 @@ export function createUiStore() {
       collapseAll() {
         set({ expanded: {} })
       },
+      setGroupArrows(groupArrows) {
+        set({ groupArrows })
+        persistLayout()
+      },
+      setFoldersCollapsed(keys, collapsed) {
+        const next = { ...get().collapsedFolders }
+        let changed = false
+        for (const key of keys) {
+          if (collapsed && !next[key]) {
+            next[key] = true
+            changed = true
+          } else if (!collapsed && next[key]) {
+            delete next[key]
+            changed = true
+          }
+        }
+        if (!changed) return
+        set({ collapsedFolders: next })
+        saveJson('explorerCollapsedFolders', Object.keys(next).slice(-MAX_COLLAPSED_FOLDERS))
+      },
       startRename(renamingId) {
         set({ renamingId })
       },
@@ -453,7 +493,10 @@ export function createUiStore() {
       },
       toast(text, kind = 'info') {
         const id = ++toastCounter
-        set({ toasts: [...get().toasts, { id, text, kind }].slice(-4) })
+        // The same message again (a repeated refused gesture) replaces the one shown, so it stays
+        // up for the full time instead of stacking.
+        const others = get().toasts.filter((t) => t.text !== text || t.kind !== kind)
+        set({ toasts: [...others, { id, text, kind }].slice(-4) })
         setTimeout(() => get().dismissToast(id), kind === 'error' ? 6000 : 3500)
       },
       dismissToast(id) {

@@ -4,10 +4,11 @@
  * processes, state markers, waits, role starts), refinements with their derived bars, and their
  * branches. Pure: reads the model and returns layout data.
  */
-import { isKindOf, type Elem, type NodeView, type View } from '../../model'
+import { isKindOf, type EdgeView, type Elem, type NodeView, type View } from '../../model'
 import { unionRects, wrapText, withFontStyle, type Font, type NodeOutline, type Rect } from '../core'
 import { nameOf, nodeLayout, storedBox, styleOf } from '../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine, ViewStyle } from '../layout/types'
+import { edgesAt } from '../layout/passIndex'
 import { nodeNotationFor } from '../render/registry'
 import { roleTitle } from './strings'
 import { radWarningsByElement, type RadWarning } from './validation'
@@ -41,7 +42,7 @@ export const RAD_GEOMETRY = {
 } as const
 
 /** Rectangles a role must contain around a symbol (its box, label, wait stub, ...). */
-export interface RadContent {
+interface RadContent {
   readonly content: readonly Rect[]
 }
 
@@ -143,12 +144,12 @@ function boxesOf(lines: readonly TextLine[]): Rect[] {
 }
 
 /** Union of text lines as one rectangle (null for no lines). */
-export function linesBounds(lines: readonly TextLine[]): Rect | null {
+function linesBounds(lines: readonly TextLine[]): Rect | null {
   return unionRects(boxesOf(lines))
 }
 
 /** Where label lines of `text` go relative to the symbol box. */
-export type LabelPlace = 'right' | 'right-above' | 'right-below' | 'above'
+type LabelPlace = 'right' | 'right-above' | 'right-below' | 'above'
 
 function placeLabel(ctx: LayoutContext, box: Rect, text: string, font: Font, wrap: number, place: LabelPlace): TextLine[] {
   const lines = wrapLines(ctx, text, wrap, font)
@@ -193,7 +194,7 @@ function positionIn(ctx: LayoutContext): (el: Elem) => { x: number; y: number } 
 }
 
 /** Warnings about `model`, computed for its process once per layout pass. */
-export function warningsOf(ctx: LayoutContext, model: Elem | null | undefined): readonly RadWarning[] {
+function warningsOf(ctx: LayoutContext, model: Elem | null | undefined): readonly RadWarning[] {
   if (!model) return []
   let process: Elem | null = model
   while (process && !isKindOf(process, 'RADProcess')) process = process._parent
@@ -214,7 +215,12 @@ function warned(ctx: LayoutContext, model: Elem | null | undefined, lines: reado
 
 /** Fixed-size copy of a view: symbols cannot be resized, only moved. */
 function fixed(view: NodeView, width: number, height: number): NodeView {
-  return { ...view, width, height, autoResize: false } as NodeView
+  // A prototype-backed overlay: copying every field of the view costs more than the layout itself.
+  const copy = Object.create(view) as NodeView
+  copy.width = width
+  copy.height = height
+  copy.autoResize = false
+  return copy
 }
 
 function nameRegions(view: NodeView, label: readonly TextLine[], box: Rect, font: Font, target: EditRegion['target'], text: string): EditRegion[] {
@@ -284,11 +290,10 @@ function boxAt(view: NodeView, width: number, height: number): Rect {
  */
 function entersFromRight(view: NodeView, ctx: LayoutContext): boolean {
   const cx = (view.left ?? 0) + (view.width ?? 0) / 2
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v._type !== 'RADStateLineView' || v.visible === false || v.model?.['loopBack'] === true || v.model?.['routing'] === 'bus') continue
-    const e = v as unknown as { tail: NodeView | null; head: View | null }
-    if (e.head !== view || !e.tail || !isKindOf(e.tail.model, 'RADBranch')) continue
-    const t = e.tail
+  for (const v of edgesAt(ctx, 'RADStateLineView').get(view) ?? []) {
+    if (v.model?.['loopBack'] === true || v.model?.['routing'] === 'bus') continue
+    if (v.head !== view || !v.tail || !isKindOf(v.tail.model, 'RADBranch')) continue
+    const t = v.tail as NodeView
     if ((t.left ?? 0) + (t.width ?? 0) / 2 > cx + 2 && (view.top ?? 0) + (view.height ?? 0) / 2 > (t.top ?? 0) + (t.height ?? 0)) return true
   }
   return false
@@ -297,11 +302,9 @@ function entersFromRight(view: NodeView, ctx: LayoutContext): boolean {
 /** The interaction link views joined to an interaction view, and the partner views. */
 function linkPartners(view: NodeView, ctx: LayoutContext): NodeView[] {
   const out: NodeView[] = []
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v._type !== 'RADInteractionLinkView' || v.visible === false) continue
-    const e = v as unknown as { tail: View | null; head: View | null }
-    if (e.tail === view && e.head && isKindOf(e.head, 'NodeView')) out.push(e.head as NodeView)
-    else if (e.head === view && e.tail && isKindOf(e.tail, 'NodeView')) out.push(e.tail as NodeView)
+  for (const v of edgesAt(ctx, 'RADInteractionLinkView').get(view) ?? []) {
+    if (v.tail === view && v.head && isKindOf(v.head, 'NodeView')) out.push(v.head as NodeView)
+    else if (v.head === view && v.tail && isKindOf(v.tail, 'NodeView')) out.push(v.tail as NodeView)
   }
   return out
 }
@@ -435,7 +438,7 @@ export function layoutRoleStart(view: NodeView, ctx: LayoutContext): NodeLayout<
 // Refinements and branches
 
 /** Branch views of a refinement view, left to right. */
-export function branchViewsOf(refinement: NodeView, ctx: LayoutContext): NodeView[] {
+function branchViewsOf(refinement: NodeView, ctx: LayoutContext): NodeView[] {
   const out: NodeView[] = []
   for (const v of ctx.diagram.ownedViews ?? []) {
     if (v._type !== 'RADBranchView' || v.visible === false || !v.model || v.model['refinement'] !== refinement.model) continue
@@ -532,8 +535,7 @@ function contentOf(child: View, ctx: LayoutContext): ChildContent | null {
 function hasLoopBack(view: NodeView, ctx: LayoutContext): boolean {
   for (const v of ctx.diagram.ownedViews ?? []) {
     if (v._type !== 'RADStateLineView' || v.model?.['loopBack'] !== true) continue
-    const e = v as unknown as { tail: View | null }
-    if (e.tail?.containerView === view) return true
+    if ((v as EdgeView).tail?.containerView === view) return true
   }
   return false
 }
@@ -636,7 +638,7 @@ export function layoutRole(view: NodeView, ctx: LayoutContext): NodeLayout<RoleD
 }
 
 /** Header rectangles of a role layout (title and goal), for export bounds and hit testing outside the box. */
-export function roleHeaderBounds(layout: NodeLayout<RoleData>): Rect[] {
+function roleHeaderBounds(layout: NodeLayout<RoleData>): Rect[] {
   const out: Rect[] = []
   const t = linesBounds(layout.data.titleLines)
   const goal = linesBounds(layout.data.goalLines)

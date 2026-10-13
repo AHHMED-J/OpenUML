@@ -21,7 +21,7 @@ import {
   type Font,
   type Points
 } from '../model'
-import { cloneJson, isElementJson, isRefJson, type Json, type JsonObject } from './json'
+import { cloneJson, isElementJson, isRefJson, isReservedName, type Json, type JsonObject } from './json'
 
 export interface WriteOptions {
   /**
@@ -170,6 +170,10 @@ export class ElementReader {
       return null
     }
     const type = json._type
+    if (isReservedName(type)) {
+      this.warnings.push(`Skipped an element with the reserved type name "${type.slice(0, 50)}"`)
+      return null
+    }
     const info = getTypeInfo(type)
     if (!info && !this.unknownTypes.has(type)) {
       this.unknownTypes.add(type)
@@ -181,6 +185,10 @@ export class ElementReader {
     if (typeof id !== 'string' || id === '') {
       id = this.newId()
       this.warnings.push(`Element of type ${type} had no _id; assigned ${id}`)
+    } else if (isReservedName(id)) {
+      const fresh = this.newId()
+      this.warnings.push(`Reserved _id ${id} (${type}); reassigned ${fresh}`)
+      id = fresh
     } else if (this.elements.has(id)) {
       const fresh = this.newId()
       this.warnings.push(`Duplicate _id ${id} (${type}); reassigned ${fresh}`)
@@ -199,6 +207,10 @@ export class ElementReader {
     const extras: FieldDef[] = []
     for (const [key, value] of Object.entries(json)) {
       if (key === '_type' || key === '_id' || key === '_parent') continue
+      if (isReservedName(key)) {
+        this.warnings.push(`Ignored the reserved field name ${el._id}.${key}`)
+        continue
+      }
       let field = info?.fieldMap.get(key)
       if (!field) {
         field = inferField(key, value)

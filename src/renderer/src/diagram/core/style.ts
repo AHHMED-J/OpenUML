@@ -27,20 +27,11 @@ export function isRectilinearStyle(style: LineStyle): boolean {
 }
 
 /** `FreelineEdgeView.lineMode` codes. */
-export const LineMode = { Solid: 0, Dot: 1, Dash: 2 } as const
-export type LineMode = (typeof LineMode)[keyof typeof LineMode]
+const LineMode = { Solid: 0, Dot: 1, Dash: 2 } as const
 
 /** `EdgeParasiticView.edgePosition` codes: the anchor an edge label is placed from. */
 export const EdgePosition = { Head: 0, Middle: 1, Tail: 2 } as const
 export type EdgePosition = (typeof EdgePosition)[keyof typeof EdgePosition]
-
-/** `horizontalAlignment` codes. */
-export const HorizontalAlignment = { Left: 0, Right: 1, Center: 2 } as const
-export type HorizontalAlignment = (typeof HorizontalAlignment)[keyof typeof HorizontalAlignment]
-
-/** `verticalAlignment` codes. */
-export const VerticalAlignment = { Top: 3, Bottom: 4, Middle: 5 } as const
-export type VerticalAlignment = (typeof VerticalAlignment)[keyof typeof VerticalAlignment]
 
 /** Font style codes used in the font string (`face;size;style`). */
 export const FontStyle = { Normal: 0, Bold: 1, Italic: 2, BoldItalic: 3 } as const
@@ -72,8 +63,8 @@ export const COLORS = {
 // Fonts
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_FONT_FACE = 'Arial'
-export const DEFAULT_FONT_SIZE = 13
+const DEFAULT_FONT_FACE = 'Arial'
+const DEFAULT_FONT_SIZE = 13
 export const DEFAULT_FONT: Readonly<Font> = Object.freeze({
   face: DEFAULT_FONT_FACE,
   size: DEFAULT_FONT_SIZE,
@@ -83,8 +74,6 @@ export const DEFAULT_FONT: Readonly<Font> = Object.freeze({
 export const FONT_SIZES: readonly number[] = [8, 9, 10, 11, 12, 13, 14, 16, 20, 24, 28, 32]
 /** Namespace text "(from X)" is drawn at this fraction of the font size. */
 export const NAMESPACE_FONT_SCALE = 0.9
-/** Optional compartment titles are drawn italic at this fraction of the font size. */
-export const COMPARTMENT_TITLE_FONT_SCALE = 0.8
 /** Generic family appended to CSS font strings as a fallback. */
 export const GENERIC_FONT_FAMILY = 'sans-serif'
 
@@ -92,7 +81,6 @@ export const GENERIC_FONT_FAMILY = 'sans-serif'
 // Lines and dashes
 // ---------------------------------------------------------------------------
 
-export const LINE_WIDTH = 1
 /** Partition (swimlane) header and lane borders. */
 export const SWIMLANE_LINE_WIDTH = 2
 
@@ -292,8 +280,12 @@ export const OBLIQUE_SIMPLIFY_TOLERANCE = 5
 export const GRID = {
   /** Snap grid size (preference default). */
   size: 8,
-  /** Grid lines are drawn every `lineEvery × size` units. */
+  /** Range of the grid size preference (diagram units). */
+  min: 2,
+  max: 64,
+  /** Grid lines are drawn every `lineEvery × size` units, but never closer than `minLineSpacing`. */
   lineEvery: 2,
+  minLineSpacing: 8,
   color: COLORS.grid,
   show: true,
   snap: true
@@ -317,5 +309,3 @@ export const EXPORT = {
   defaultPngScale: 2
 } as const
 
-/** Offset of the sequence diagram frame created with a new diagram, and its default size. */
-export const DEFAULT_SEQUENCE_FRAME = { left: 8, top: 8, width: 692, height: 592 } as const

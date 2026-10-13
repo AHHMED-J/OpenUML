@@ -51,7 +51,17 @@ export interface ParsedOperation extends ParsedName {
 /** Characters a name may not contain. */
 const NAME_FORBIDDEN = /[:()=<>]/
 
-function prefix(text: string): { stereotype: string | null; visibility: string | null; rest: string } | null {
+export interface QuickEditPrefix {
+  readonly stereotype: string | null
+  readonly visibility: string | null
+  readonly rest: string
+}
+
+/**
+ * Splits the leading `<<st>>` / `«st»` stereotype and, unless `visibility` is false, the
+ * visibility symbol off quick-edit text. Null when a stereotype is left unclosed.
+ */
+export function parseQuickEditPrefix(text: string, { visibility: withVisibility = true }: { visibility?: boolean } = {}): QuickEditPrefix | null {
   let rest = text.trim()
   let stereotype: string | null = null
   const st = /^(?:<<([^>]*)>>|«([^»]*)»)/.exec(rest)
@@ -63,7 +73,7 @@ function prefix(text: string): { stereotype: string | null; visibility: string |
   }
   let visibility: string | null = null
   const v = rest.charAt(0)
-  if (v in VISIBILITY_BY_SYMBOL) {
+  if (withVisibility && v in VISIBILITY_BY_SYMBOL) {
     visibility = VISIBILITY_BY_SYMBOL[v] ?? null
     rest = rest.slice(1).trim()
   }
@@ -72,7 +82,7 @@ function prefix(text: string): { stereotype: string | null; visibility: string |
 
 /** `[«st»] [vis] name`. The name may be empty (unnamed relationships). */
 export function parseName(text: string): ParsedName | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text)
   if (!p || NAME_FORBIDDEN.test(p.rest)) return null
   return { stereotype: p.stereotype, visibility: p.visibility, name: p.rest }
 }
@@ -112,7 +122,7 @@ function splitName(text: string): { name: string; rest: string } {
 
 /** `[«st»] [vis] name [: type] [[mult]] [= default]`; the name is required. */
 export function parseAttribute(text: string): ParsedAttribute | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text)
   if (!p) return null
   const { name, rest } = splitName(p.rest)
   if (!name || NAME_FORBIDDEN.test(name)) return null
@@ -158,7 +168,7 @@ function splitTopLevel(text: string): string[] {
 
 /** `[«st»] [vis] name ( [params] ) [: returnType] [[mult]]` */
 export function parseOperation(text: string): ParsedOperation | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text)
   if (!p) return null
   const open = p.rest.indexOf('(')
   if (open < 0) {

@@ -129,7 +129,7 @@ const NAMED_KEYS: Record<string, string> = {
  * `code` (so Shift/Alt do not change the key name); `=` with Shift becomes `plus`.
  * Returns null for lone modifier presses.
  */
-export function keystrokeFromEvent(e: KeyEventLike): Keystroke | null {
+function keystrokeFromEvent(e: KeyEventLike): Keystroke | null {
   if (['Meta', 'Control', 'Alt', 'Shift', 'OS', 'AltGraph', 'CapsLock'].includes(e.key)) return null
   let key: string | undefined
   let shift = e.shiftKey

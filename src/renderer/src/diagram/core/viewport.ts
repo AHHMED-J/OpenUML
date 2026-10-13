@@ -34,11 +34,6 @@ export function snapRect(r: Rect, gridSize: number = GRID.size, mode: SnapMode =
   return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) }
 }
 
-/** Moves a rectangle so its top-left corner is on the grid, keeping its size. */
-export function snapRectPosition(r: Rect, gridSize: number = GRID.size, mode: SnapMode = 'round'): Rect {
-  return { left: snap(r.left, gridSize, mode), top: snap(r.top, gridSize, mode), width: r.width, height: r.height }
-}
-
 /**
  * Snapping with a dead zone for drags: when the proposed coordinate is less than one grid cell
  * away from the original, the original coordinate is kept (so tiny drags do not jump).
@@ -90,11 +85,6 @@ export function screenToDiagram(p: Point, vp: Viewport): Point {
   return { x: p.x / vp.zoom - vp.origin.x, y: p.y / vp.zoom - vp.origin.y }
 }
 
-/** Converts a length in screen px (e.g. handle size) to diagram units at `zoom`. */
-export function screenToDiagramLength(lengthPx: number, zoom: number): number {
-  return lengthPx / zoom
-}
-
 /**
  * Zooms around a fixed screen point (e.g. the mouse position under Ctrl+wheel): the diagram
  * point under `screenPoint` stays under it. The resulting origin is clamped to ≤ 0.
@@ -104,6 +94,23 @@ export function zoomAt(vp: Viewport, newZoom: number, screenPoint: Point): Viewp
   const anchor = screenToDiagram(screenPoint, vp)
   const origin = clampOrigin({ x: screenPoint.x / zoom - anchor.x, y: screenPoint.y / zoom - anchor.y })
   return { origin, zoom }
+}
+
+/** A grid size preference: a whole number of diagram units in [GRID.min, GRID.max], else the default. */
+export function sanitizeGridSize(size: unknown): number {
+  if (typeof size !== 'number' || !Number.isFinite(size)) return GRID.size
+  const n = Math.round(size)
+  return n >= GRID.min && n <= GRID.max ? n : GRID.size
+}
+
+/**
+ * Distance between drawn grid lines for `gridSize`: every `GRID.lineEvery` grid steps, doubled
+ * until it is at least `GRID.minLineSpacing` so a fine grid does not fill the canvas with lines.
+ */
+export function gridLineSpacing(gridSize: number): number {
+  let step = sanitizeGridSize(gridSize) * GRID.lineEvery
+  while (step < GRID.minLineSpacing) step *= 2
+  return step
 }
 
 /** Grid line positions (diagram units) to draw inside `visible`, every `lineEvery × gridSize`. */
@@ -133,7 +140,7 @@ export function exportBounds(boxes: readonly Rect[], margin: number = EXPORT.mar
 /** Padding kept around the content when deciding whether it fits the viewport. */
 export const CANVAS_FIT_PADDING = 10
 /** Extra scroll room beyond the content once it does not fit the viewport. */
-export const CANVAS_SCROLL_MARGIN = 400
+const CANVAS_SCROLL_MARGIN = 400
 
 /**
  * Canvas extent (diagram units) along one axis for content ending at `contentEnd`: exactly the

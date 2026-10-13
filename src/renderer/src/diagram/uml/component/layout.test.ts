@@ -4,14 +4,12 @@ import { describe, expect, it } from 'vitest'
 import { createDiagram, createEdge, createNode, setFields } from '../../../commands'
 import { canConnect, isKindOf, type Elem, type EdgeView, type View } from '../../../model'
 import { DiagramContent } from '../../render/DiagramContent'
-import { testDiagram } from '../../testUtils'
+import { nameWidth, testDiagram } from '../../testUtils'
 import { computeDiagramLayout } from '../../layout/layoutDiagram'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
 import { componentGlyph, componentTabs, pageShape, type ArtifactData, type ComponentData } from './layout'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const BOLD_CHAR = 13 * 0.6 * 1.1
-const nameWidth = (n: number): number => Math.ceil(n * BOLD_CHAR) + 10
 
 function node<D>(layout: NodeLayout | undefined): NodeLayout<D> {
   if (!layout) throw new Error('no layout')

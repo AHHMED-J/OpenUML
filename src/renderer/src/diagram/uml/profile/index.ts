@@ -11,7 +11,7 @@ import { MetaClassNode } from './render'
 export * from './layout'
 
 /** Extension: solid line, flat tail, filled arrowhead at the metaclass. */
-export const extensionNotation: EdgeNotation = {
+const extensionNotation: EdgeNotation = {
   connectKind: 'Extension',
   layout(edge, ctx) {
     const flat = relationshipNotation('generalization').tail

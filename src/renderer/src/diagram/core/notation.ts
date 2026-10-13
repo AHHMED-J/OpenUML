@@ -23,9 +23,9 @@ export type RelationshipKind =
   | 'containment'
 
 /** Matches the model's `UMLNavigableKind`. */
-export type NavigableKind = 'unspecified' | 'navigable' | 'notNavigable'
+type NavigableKind = 'unspecified' | 'navigable' | 'notNavigable'
 /** Matches the model's `UMLAggregationKind`. */
-export type AggregationKind = 'none' | 'shared' | 'composite'
+type AggregationKind = 'none' | 'shared' | 'composite'
 /** Matches the model's `UMLMessageSort`. */
 export type MessageSort = 'synchCall' | 'asynchCall' | 'asynchSignal' | 'createMessage' | 'deleteMessage' | 'reply'
 

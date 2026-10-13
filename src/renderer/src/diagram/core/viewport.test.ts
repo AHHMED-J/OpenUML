@@ -7,7 +7,9 @@ import {
   clampZoom,
   diagramToScreen,
   exportBounds,
+  gridLineSpacing,
   gridLines,
+  sanitizeGridSize,
   screenToDiagram,
   snap,
   snapPoint,
@@ -70,6 +72,18 @@ describe('zoom and transform', () => {
     const after = zoomAt(vp, 2, mouse)
     expect(after.zoom).toBe(2)
     expect(screenToDiagram(mouse, after)).toEqual(before)
+  })
+
+  it('accepts whole grid sizes from 2 to 64 and falls back to the default otherwise', () => {
+    expect([2, 16, 64, 12.4].map(sanitizeGridSize)).toEqual([2, 16, 64, 12])
+    expect([1, 65, 0, -8, Number.NaN, '16', null].map(sanitizeGridSize)).toEqual(Array(7).fill(GRID.size))
+  })
+
+  it('draws grid lines every 2 grid steps, never closer than 8 units', () => {
+    expect(gridLineSpacing(8)).toBe(16)
+    expect(gridLineSpacing(20)).toBe(40)
+    expect(gridLineSpacing(2)).toBe(8)
+    expect(gridLineSpacing(64)).toBe(128)
   })
 
   it('lists grid lines every 2 x grid size', () => {

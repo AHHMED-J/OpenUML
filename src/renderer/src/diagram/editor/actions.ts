@@ -14,7 +14,10 @@ import {
 } from '../../commands'
 import {
   canConnect,
+  childrenOf,
+  DEFAULT_FONT,
   fieldOf,
+  fontWith,
   findContainment,
   isKindOf,
   NODE_KINDS,
@@ -22,6 +25,7 @@ import {
   type EdgeKind,
   type EdgeView,
   type Elem,
+  type Font,
   type NodeKind,
   type NodeView,
   type Point,
@@ -40,11 +44,17 @@ import {
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import type { DiagramLayout, NodeLayout } from '../layout/types'
 import { edgeNotationFor, nodeNotationFor, type ContainerBehavior } from '../render/registry'
+import { connectionRefusal, placementRefusal, readableName, reconnectRefusal, refusalReason, withArticle, type RefusalHandler } from './feedback'
 
 export interface DiagramEnv {
   readonly engine: ModelEngine
   readonly diagram: Diagram
   readonly measurer: TextMeasurer
+  /**
+   * Font size of the views the editor creates where they would take the default font
+   * (`DEFAULT_FONT.size`); unset = the default. Views with another size keep it.
+   */
+  readonly defaultFontSize?: number
 }
 
 /** A palette tool: a `NODE_KINDS` / `EDGE_KINDS` key plus optional message presets. */
@@ -137,10 +147,35 @@ export function previewLayout(env: DiagramEnv, change: () => void, previous?: Di
   }
 }
 
-/** Runs `change` and the geometry write-back as one operation. */
+/**
+ * Gives the views inserted by the steps from `from` on the editor's default font size, where
+ * they took the default font.
+ */
+function applyDefaultFontSize(b: OperationBuilder, env: DiagramEnv, from: number): void {
+  const size = env.defaultFontSize
+  if (size === undefined || size === DEFAULT_FONT.size || !(size > 0)) return
+  const repo = env.engine.repository
+  const visit = (el: Elem): void => {
+    const font = el['font'] as Font | undefined
+    if (isKindOf(el, 'View') && font && font.size === DEFAULT_FONT.size && fieldOf(el, 'font')) b.set(el, 'font', fontWith(font, { size }))
+    for (const child of childrenOf(el)) visit(child)
+  }
+  for (const step of b.steps.slice(from)) {
+    if (step.op !== 'I') continue
+    const el = repo.get(step.json['_id'] as string)
+    if (el) visit(el)
+  }
+}
+
+/**
+ * Runs `change` and the geometry write-back as one operation. Views the change creates take the
+ * editor's default font size (`env.defaultFontSize`).
+ */
 export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: OperationBuilder) => T): T {
   return env.engine.transact(name, (b) => {
+    const from = b.steps.length
     const result = change(b)
+    applyDefaultFontSize(b, env, from)
     hooksFor(env.diagram)?.normalize?.(b, env.diagram)
     syncGeometry(env, b)
     return result
@@ -188,6 +223,37 @@ export function findDropContainer(env: DiagramEnv, layout: DiagramLayout, p: Poi
   return null
 }
 
+/**
+ * The container under `p` that refuses `moving` when they were dropped entirely inside it
+ * (`boxes`: where they were dropped), else null. The topmost view under `p` with a container
+ * behavior (or a nested container of it) decides; views without one are looked through, as in
+ * `findDropContainer`.
+ */
+export function refusedDropHost(env: DiagramEnv, layout: DiagramLayout, p: Point, moving: readonly View[], boxes: readonly Rect[]): View | null {
+  const repo = env.engine.repository
+  const excluded = new Set<View>(moving)
+  for (const v of moving) containedClosure(v, excluded)
+  // Views already in a container may stay there whatever it accepts now.
+  const accepts = (behavior: ContainerBehavior, host: View): boolean =>
+    moving.every((m) => m.containerView === host) || moving.every((m) => behavior.accepts(host, m.model ?? null))
+  const inside = (box: Rect): boolean => boxes.length > 0 && boxes.every((b) => rectHas(box, { x: b.left, y: b.top }) && rectHas(box, { x: b.left + b.width, y: b.top + b.height }))
+  for (let i = layout.order.length - 1; i >= 0; i--) {
+    const node = layout.nodes.get(layout.order[i] as string)
+    if (!node || !rectHas(node.box, p)) continue
+    const view = repo.get(node.viewId) as View | undefined
+    if (!view || excluded.has(view)) continue
+    for (const sub of [...(node.subContainers ?? [])].reverse()) {
+      if (!rectHas(sub.box, p)) continue
+      const host = repo.get(sub.viewId) as View | undefined
+      const behavior = host ? nodeNotationFor(host).container : undefined
+      if (host && behavior) return accepts(behavior, host) || !inside(sub.box) ? null : host
+    }
+    const behavior = nodeNotationFor(view).container
+    if (behavior) return accepts(behavior, view) || !inside(node.box) ? null : view
+  }
+  return null
+}
+
 /** The nested container view (e.g. a state's region) of `node` under `p` that satisfies `accepts`. */
 function subContainerAt(
   env: DiagramEnv,
@@ -207,7 +273,7 @@ function subContainerAt(
 }
 
 /** How far outside an action's border a click still creates a pin on it. */
-export const PIN_BORDER_TOLERANCE = 12
+const PIN_BORDER_TOLERANCE = 12
 
 function inflate(r: Rect, by: number): Rect {
   return { left: r.left - by, top: r.top - by, width: r.width + 2 * by, height: r.height + 2 * by }
@@ -259,14 +325,26 @@ function recontain(b: OperationBuilder, env: DiagramEnv, nodes: readonly View[],
 // Geometry gestures
 
 /** Moves views (with their contained views and attached edges); optionally re-contains the nodes. */
-export function moveSelection(env: DiagramEnv, ids: readonly string[], dx: number, dy: number, drop?: { container: View | null }): void {
+/**
+ * Moves views by `(dx, dy)`, optionally dropping them into `drop.container`. `current` is the
+ * diagram's layout before the move when the caller has it (the editor does), which saves a
+ * layout pass.
+ */
+export function moveSelection(
+  env: DiagramEnv,
+  ids: readonly string[],
+  dx: number,
+  dy: number,
+  drop?: { container: View | null },
+  current?: DiagramLayout
+): void {
   const views = viewsById(env, ids)
   if (views.length === 0) return
   const nodes = views.filter((v) => isKindOf(v, 'NodeView'))
   const recontaining = drop !== undefined && isContainmentChange(nodes, drop.container)
   // Axis-restricted views (sequence lifelines) constrain the whole group.
   if (nodes.length > 0 && (dx !== 0 || dy !== 0)) {
-    const axis = moveAxisOf(layoutOf(env), nodes.map((v) => v._id))
+    const axis = moveAxisOf(current ?? layoutOf(env), nodes.map((v) => v._id))
     if (axis === 'horz') dy = 0
     else if (axis === 'vert') dx = 0
   }
@@ -318,19 +396,30 @@ export function setEdgeVertices(env: DiagramEnv, id: string, points: readonly Po
  * Reconnects one end of an edge to another view; the relationship's source/target (or
  * association end) is updated too. Returns false when the connection is not allowed.
  */
-export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'head', viewId: string, at?: Point): boolean {
+export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'head', viewId: string, at?: Point, onRefused?: RefusalHandler): boolean {
   const repo = env.engine.repository
   const edge = repo.get(edgeId)
   const view = repo.get(viewId)
   if (!isKindOf(edge, 'EdgeView') || !isKindOf(view, 'View')) return false
+  const unchanged = (end === 'tail' ? edge.tail : edge.head) === view
   const kind = edgeNotationFor(edge).connectKind
-  if (!kind) return false
+  if (!kind) {
+    if (!unchanged) onRefused?.(reconnectRefusal(edge))
+    return false
+  }
   const tail = end === 'tail' ? view : edge.tail
   const head = end === 'head' ? view : edge.head
-  if (!tail || !head || !canConnect(kind, tail, head)) return false
+  if (!tail || !head) return false
+  if (!canConnect(kind, tail, head)) {
+    onRefused?.(connectionRefusal(kind, tail, head))
+    return false
+  }
   const hooked = hooksFor(env.diagram)?.reconnect?.(env, edge, end, view, at)
-  if (hooked !== undefined) return hooked
-  if ((end === 'tail' ? edge.tail : edge.head) === view) return false
+  if (hooked !== undefined) {
+    if (!hooked && !unchanged) onRefused?.(connectionRefusal(kind, tail, head))
+    return hooked
+  }
+  if (unchanged) return false
   withGeometry(env, 'Reconnect', (b) => {
     b.set(edge, end, view)
     const model = edge.model
@@ -412,17 +501,24 @@ function timeConstraintHost(env: DiagramEnv, layout: DiagramLayout, p: Point): V
 
 /**
  * Creates a node of `kind` in `rect` (a zero-size rect = click: default size). Returns the new
- * view's ID, or null when the element cannot be placed there.
+ * view's ID, or null when the element cannot be placed there; `onRefused` then gets the reason
+ * (live previews pass none and stay silent).
  */
-export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeKind, rect: Rect, options: { readonly quiet?: boolean } = {}): string | null {
+export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeKind, rect: Rect, options: { readonly onRefused?: RefusalHandler } = {}): string | null {
+  const refuse = (reason: string): null => {
+    options.onRefused?.(reason)
+    return null
+  }
   const click = rect.width < 4 && rect.height < 4
   const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
   const at = click ? { x: rect.left, y: rect.top } : center
   // A time constraint annotates a message or a time segment: that view is its host.
   const host = kind === 'TimeConstraint' ? timeConstraintHost(env, layout, at) : null
-  if (kind === 'TimeConstraint' && !host) return null
+  if (kind === 'TimeConstraint' && !host) return refuse('A time constraint must be placed on a message or a time segment')
   const container = host ?? creationContainer(env, layout, kind, at)
-  if ((kind === 'InputPin' || kind === 'OutputPin' || kind === 'ConnectionPointReference') && !container) return null
+  if ((kind === 'InputPin' || kind === 'OutputPin' || kind === 'ConnectionPointReference') && !container) {
+    return refuse(kind === 'ConnectionPointReference' ? 'A connection point reference must be placed on a state' : 'A pin must be placed on an action')
+  }
   const spec = NODE_KINDS[kind]
   const probe: Elem | null = spec.modelType ? { _type: spec.modelType, _id: '', _parent: null } : null
   // A state invariant constrains the lifeline it is dropped on, and is centered on its line.
@@ -452,21 +548,39 @@ export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeK
     )
     return plan.view?._id ?? null
   } catch (err) {
-    if (!options.quiet) console.warn(`Cannot create ${kind}`, err)
+    if (options.onRefused) options.onRefused(refusalReason(err, placementRefusal(kind, container)))
     return null
   }
 }
 
+/** The name of a line tool in messages: `Found Message`, `Lost Message`, or its kind. */
+export function toolName(tool: ToolSpec): string {
+  if (tool.freeEnd) return tool.freeEnd === 'tail' ? 'Found Message' : 'Lost Message'
+  return tool.kind
+}
+
 /**
  * Creates an edge of `tool.kind` from `tailId` to `headId` (validated with `canConnect`). Returns
- * the new edge view's ID or null when the connection is invalid.
+ * the new edge view's ID or null when the connection is invalid (`onRefused` gets the reason).
  */
-export function createEdgeBetween(env: DiagramEnv, layout: DiagramLayout, tool: ToolSpec, tailId: string, headId: string, press: Point): string | null {
+export function createEdgeBetween(
+  env: DiagramEnv,
+  layout: DiagramLayout,
+  tool: ToolSpec,
+  tailId: string,
+  headId: string,
+  press: Point,
+  onRefused?: RefusalHandler
+): string | null {
   const repo = env.engine.repository
   const tail = repo.get(tailId) as View | undefined
   const head = repo.get(headId) as View | undefined
   const kind = tool.kind as EdgeKind
-  if (!tail || !head || !canConnect(kind, tail, head)) return null
+  if (!tail || !head) return null
+  if (!canConnect(kind, tail, head)) {
+    onRefused?.(connectionRefusal(toolName(tool), tail, head))
+    return null
+  }
   let points: Point[] | undefined
   // Messages route themselves (sequence: horizontal at the press y; timing: between the segments).
   if (kind !== 'Message' && kind !== 'TimingMessage') {
@@ -497,7 +611,8 @@ export function createEdgeBetween(env: DiagramEnv, layout: DiagramLayout, tool: 
     )
     return plan.view?._id ?? null
   } catch (err) {
-    console.warn(`Cannot create ${kind}`, err)
+    const reason = refusalReason(err, `Couldn't create ${withArticle(readableName(kind))}`)
+    onRefused?.(reason)
     return null
   }
 }
@@ -513,10 +628,15 @@ export function createEndpointMessage(
   tool: ToolSpec,
   lifelineId: string,
   free: Point,
-  y: number
+  y: number,
+  onRefused?: RefusalHandler
 ): string | null {
   const lifeline = env.engine.repository.get(lifelineId) as View | undefined
-  if (!lifeline || !isKindOf(lifeline, 'UMLSeqLifelineView') || !tool.freeEnd) return null
+  if (!tool.freeEnd) return null
+  if (!lifeline || !isKindOf(lifeline, 'UMLSeqLifelineView')) {
+    onRefused?.(tool.freeEnd === 'tail' ? 'A found message must end on a lifeline' : 'A lost message must start on a lifeline')
+    return null
+  }
   const size = NODE_KINDS.Endpoint.size
   try {
     const plan = withGeometry(env, tool.freeEnd === 'tail' ? 'Create Found Message' : 'Create Lost Message', () => {
@@ -538,7 +658,8 @@ export function createEndpointMessage(
     void layout
     return plan.view?._id ?? null
   } catch (err) {
-    console.warn(`Cannot create ${tool.kind}`, err)
+    const reason = refusalReason(err, `Couldn't create ${withArticle(readableName(toolName(tool)))}`)
+    onRefused?.(reason)
     return null
   }
 }

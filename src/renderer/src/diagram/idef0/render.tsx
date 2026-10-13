@@ -8,7 +8,7 @@ import type { FrameData, FunctionData, NoteData, PortData } from './layout'
 import { IDEF0_STYLE } from './geometry'
 
 /** Color of a boundary port that stands for no parent arrow. */
-export const UNLINKED_COLOR = '#d97706'
+const UNLINKED_COLOR = '#d97706'
 
 export function FunctionNode({ layout }: { layout: NodeLayout<FunctionData> }): React.JSX.Element {
   const { box, style, data } = layout

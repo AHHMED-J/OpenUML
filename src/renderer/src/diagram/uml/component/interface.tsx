@@ -10,7 +10,7 @@ import { SvgLines } from '../../render/primitives'
 import { layoutClassifier, type ClassifierData } from '../class/layout'
 import { ClassifierIcon, ClassifierNode } from '../class/render'
 
-export type LollipopKind = 'ball' | 'socket' | 'ball-and-socket'
+type LollipopKind = 'ball' | 'socket' | 'ball-and-socket'
 
 export interface InterfaceData extends ClassifierData {
   readonly lollipop: LollipopKind | null
@@ -19,7 +19,7 @@ export interface InterfaceData extends ClassifierData {
 const STRUCTURE_DIAGRAMS = new Set(['UMLComponentDiagram', 'UMLDeploymentDiagram'])
 
 /** Which parts of the lollipop to draw, from the edges ending on the interface view. */
-export function lollipopKind(view: NodeView, edges: readonly EdgeView[]): LollipopKind {
+function lollipopKind(view: NodeView, edges: readonly EdgeView[]): LollipopKind {
   let realizations = 0
   let dependencies = 0
   for (const e of edges) {

@@ -13,7 +13,6 @@ import { InstanceNode } from './render'
 export * from './containers'
 export * from './edges'
 export * from './layout'
-export { applyObject, applySlot } from './quickEdit'
 export * from './strings'
 
 export function registerObjectNotations(): void {

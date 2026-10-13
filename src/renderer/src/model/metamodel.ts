@@ -57,14 +57,19 @@ registerEnums(STATEMACHINE_ENUMS)
 registerEnums(RAD_ENUMS)
 registerEnums(IDEF0_ENUMS)
 
-function resolve(name: string, seen: Set<string> = new Set()): TypeInfo | undefined {
+// Called for every `isKindOf`/`fieldOf`: the cache hit must not allocate.
+function resolve(name: string): TypeInfo | undefined {
+  return typeInfos.get(name) ?? build(name, new Set())
+}
+
+function build(name: string, seen: Set<string>): TypeInfo | undefined {
   const cached = typeInfos.get(name)
   if (cached) return cached
   const def = typeDefs.get(name)
   if (!def) return undefined
   if (seen.has(name)) throw new Error(`Metamodel cycle at ${name}`)
   seen.add(name)
-  const parent = def.super ? resolve(def.super, seen) : undefined
+  const parent = def.super ? build(def.super, seen) : undefined
   if (def.super && !parent) throw new Error(`Unknown supertype ${def.super} of ${name}`)
   const fields: FieldDef[] = parent ? [...parent.fields] : []
   for (const field of def.fields) {
@@ -198,15 +203,40 @@ export function instantiate(type: string): Elem {
 }
 
 /** Containment fields (`obj`/`objs`) of an element, including extras. */
-export function containmentFields(el: Elem): FieldDef[] {
-  return fieldsOf(el).filter((f) => (f.kind === 'obj' || f.kind === 'objs') && !f.transient)
+export function containmentFields(el: Elem): readonly FieldDef[] {
+  return fieldGroups(el).containment
 }
 
 /** Non-owning reference fields (`ref`/`refs`/`var`), excluding `_parent`. */
-export function referenceFields(el: Elem): FieldDef[] {
-  return fieldsOf(el).filter(
-    (f) => (f.kind === 'ref' || f.kind === 'refs' || f.kind === 'var') && f.name !== '_parent' && !f.transient
-  )
+export function referenceFields(el: Elem): readonly FieldDef[] {
+  return fieldGroups(el).reference
+}
+
+interface FieldGroups {
+  readonly containment: readonly FieldDef[]
+  readonly reference: readonly FieldDef[]
+}
+
+const isContainment = (f: FieldDef): boolean => (f.kind === 'obj' || f.kind === 'objs') && !f.transient
+const isReference = (f: FieldDef): boolean =>
+  (f.kind === 'ref' || f.kind === 'refs' || f.kind === 'var') && f.name !== '_parent' && !f.transient
+
+/** Field groups per metaclass, computed once (tree walks ask for them for every element). */
+const groupsByType = new WeakMap<TypeInfo, FieldGroups>()
+const NO_GROUPS: FieldGroups = { containment: [], reference: [] }
+
+function fieldGroups(el: Elem): FieldGroups {
+  const info = resolve(el._type)
+  if (extraFields.has(el) || !info) {
+    const fields = fieldsOf(el)
+    return fields.length === 0 ? NO_GROUPS : { containment: fields.filter(isContainment), reference: fields.filter(isReference) }
+  }
+  let groups = groupsByType.get(info)
+  if (!groups) {
+    groups = { containment: info.fields.filter(isContainment), reference: info.fields.filter(isReference) }
+    groupsByType.set(info, groups)
+  }
+  return groups
 }
 
 /** Human display name of a type: the type name without the `UML` or `IDEF0` prefix. */

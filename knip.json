@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/renderer/src/{model,commands,diagram,format,export,store}/index.ts",
+    "src/shared/ipc.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}"]
+}

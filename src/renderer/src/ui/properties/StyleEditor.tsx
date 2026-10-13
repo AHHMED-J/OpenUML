@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { setFieldsOfAll } from '../../commands'
+import { FONT_SIZES } from '../../diagram'
 import { fieldOf, type Font, type View } from '../../model'
 import { projectStore } from '../../store'
 import { reportError } from '../app/commands'
@@ -18,7 +19,7 @@ interface StyleField {
   readonly widget: StyleWidget
 }
 
-export const STYLE_FIELDS: readonly StyleField[] = [
+const STYLE_FIELDS: readonly StyleField[] = [
   { field: 'fillColor', label: 'Fill Color', widget: 'color' },
   { field: 'lineColor', label: 'Line Color', widget: 'color' },
   { field: 'fontColor', label: 'Text Color', widget: 'color' },
@@ -36,17 +37,15 @@ export const STYLE_FIELDS: readonly StyleField[] = [
   { field: 'suppressLiterals', label: 'Suppress Literals', widget: 'flag' }
 ]
 
-export const LINE_STYLES: ReadonlyArray<[number, string]> = [
+const LINE_STYLES: ReadonlyArray<[number, string]> = [
   [0, 'Rectilinear'],
   [1, 'Oblique'],
   [2, 'Rounded Rectilinear'],
   [3, 'Curve']
 ]
 
-const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 20, 24, 28, 32]
-
 /** Style fields supported by every view in `views`. */
-export function styleFieldsFor(views: readonly View[]): StyleField[] {
+function styleFieldsFor(views: readonly View[]): StyleField[] {
   if (views.length === 0) return []
   return STYLE_FIELDS.filter((f) => views.every((v) => fieldOf(v, f.field) !== undefined))
 }

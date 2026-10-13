@@ -12,7 +12,7 @@ import type { EdgeNotation } from '../../render/registry'
 import { transitionLabel, transitionText } from './strings'
 
 /** The name label spec of a transition: edits the `trigger [guard] / effect` string. */
-export function transitionLabelSpec(edge: EdgeView): EdgeLabelSpec {
+function transitionLabelSpec(edge: EdgeView): EdgeLabelSpec {
   const model = edge.model
   const text = transitionLabel(model)
   if (!model) return { field: 'nameLabel', defaults: 'name', text }

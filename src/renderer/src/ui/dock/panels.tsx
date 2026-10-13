@@ -12,7 +12,7 @@ interface PanelSpec {
   readonly actions?: React.ComponentType
 }
 
-export const DOCK_PANELS: Readonly<Record<DockPanelId, PanelSpec>> = {
+const DOCK_PANELS: Readonly<Record<DockPanelId, PanelSpec>> = {
   explorer: { body: ModelExplorer, actions: ExplorerActions },
   workingDiagrams: { body: WorkingDiagrams },
   toolbox: { body: Toolbox, actions: ToolboxActions },

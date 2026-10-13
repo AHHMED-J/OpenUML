@@ -16,10 +16,8 @@ import {
   styleOf
 } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
-import { nodeNotationFor } from '../../render/registry'
+import { hostNodeLayout } from '../gluedViews'
 import { collaborationUseText, typedFeatureText } from './strings'
-
-export { PORT_SIZE }
 
 // =============================================================================================
 // Port
@@ -73,7 +71,7 @@ export interface PortData {
 }
 
 /** The view hosting a port view: its container, else the diagram view showing the port's owner. */
-export function portHostView(view: NodeView, ctx: LayoutContext): View | null {
+function portHostView(view: NodeView, ctx: LayoutContext): View | null {
   const container = view.containerView ?? null
   if (container) return container
   const owner = view.model?._parent
@@ -85,14 +83,7 @@ export function portHostView(view: NodeView, ctx: LayoutContext): View | null {
 }
 
 function hostLayout(host: View, ctx: LayoutContext): { box: Rect; outline: 'rect' | 'ellipse' } | null {
-  let laid: NodeLayout | undefined = ctx.nodeLayout(host._id)
-  if (!laid && isKindOf(host, 'NodeView')) {
-    try {
-      laid = nodeNotationFor(host).layout(host as NodeView, ctx)
-    } catch {
-      return null
-    }
-  }
+  const laid = hostNodeLayout(host, ctx)
   return laid ? { box: laid.box, outline: laid.outline === 'ellipse' ? 'ellipse' : 'rect' } : null
 }
 
@@ -198,7 +189,7 @@ export function layoutPart(view: NodeView, ctx: LayoutContext): NodeLayout<PartD
 // =============================================================================================
 // Collaboration and collaboration use
 
-export const COLLABORATION_MIN = { width: 70, height: 32 } as const
+const COLLABORATION_MIN = { width: 70, height: 32 } as const
 
 export interface CollaborationData {
   readonly form: 'ellipse' | 'box'

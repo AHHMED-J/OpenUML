@@ -15,12 +15,14 @@ import { uiStore } from '../uiStore'
 import { DOCK_PANEL_TITLES, DOCK_AREA_TITLES, areaOf, isDockAreaId, isDockPanelId, visiblePanels, type DockAreaId, type DockPanelId } from './dockModel'
 import { computeDropTarget, isNoopTarget, sameTarget, type DropTarget, type EdgeZone, type PanelSpan, type Point, type StackGeometry } from './dropTarget'
 
-export const LONG_PRESS_MS = 380
+const LONG_PRESS_MS = 380
 /** Pointer travel (px) that cancels a long press. */
-export const PRESS_TOLERANCE = 4
+const PRESS_TOLERANCE = 4
 /** Pointer travel (px) that starts a grip drag. */
-export const GRIP_THRESHOLD = 3
+const GRIP_THRESHOLD = 3
 const ANIM_MS = 180
+/** Length of the tremble that confirms a completed long press (keep in sync with styles.css). */
+const TREMBLE_MS = 500
 const COLLAPSED_HEIGHT = 29
 
 export interface DockDragSnapshot {
@@ -157,11 +159,6 @@ interface Drag {
 
 let drag: Drag | null = null
 
-/** True while a panel is lifted (used by tests of the shell and by other pointer handlers). */
-export function isDockDragging(): boolean {
-  return drag !== null
-}
-
 function startDrag(p: Press): void {
   endPress()
   const layout = uiStore.getState().dock
@@ -214,6 +211,11 @@ function startDrag(p: Press): void {
   })
   requestAnimationFrame(() => {
     ghost.classList.add('lifted')
+    // A completed long press is confirmed by a short tremble; grip drags start without it.
+    if (!p.immediate && !reducedMotion()) {
+      ghost.classList.add('trembling')
+      setTimeout(() => ghost.classList.remove('trembling'), TREMBLE_MS)
+    }
     followPointer()
   })
 }

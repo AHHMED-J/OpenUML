@@ -931,3 +931,78 @@ export function UiIcon({ name, size, title }: { name: UiIconName; size?: number;
     </Svg>
   )
 }
+
+/** Arrow glyphs of the IDEF0 roles, drawn against the box side they attach to. */
+function roleGlyph(role: string): React.ReactNode {
+  switch (role) {
+    case 'input':
+      return (
+        <>
+          <path d="M13 3.5v9" strokeWidth={1.6} />
+          <line x1={2} y1={8} x2={9.5} y2={8} />
+          <path d="M8 5.5L11 8 8 10.5z" fill="currentColor" />
+        </>
+      )
+    case 'control':
+      return (
+        <>
+          <path d="M3.5 13h9" strokeWidth={1.6} />
+          <line x1={8} y1={2} x2={8} y2={9.5} />
+          <path d="M5.5 8L8 11l2.5-3z" fill="currentColor" />
+        </>
+      )
+    case 'output':
+      return (
+        <>
+          <path d="M3 3.5v9" strokeWidth={1.6} />
+          <line x1={4.5} y1={8} x2={12} y2={8} />
+          <path d="M10.5 5.5L13.5 8 10.5 10.5z" fill="currentColor" />
+        </>
+      )
+    case 'mechanism':
+      return (
+        <>
+          <path d="M3.5 3h9" strokeWidth={1.6} />
+          <line x1={8} y1={14} x2={8} y2={6.5} />
+          <path d="M5.5 8L8 5l2.5 3z" fill="currentColor" />
+        </>
+      )
+    default:
+      return (
+        <>
+          <path d="M3.5 3h9" strokeWidth={1.6} />
+          <line x1={8} y1={4.5} x2={8} y2={12} />
+          <path d="M5.5 10.5L8 13.5l2.5-3z" fill="currentColor" />
+        </>
+      )
+  }
+}
+
+const ROLE_LETTER: Readonly<Record<string, string>> = { input: 'I', control: 'C', output: 'O', mechanism: 'M' }
+
+/**
+ * Icon of an IDEF0 role (an arrow entry of the Model Explorer), or of its role folder. Drawn in
+ * `currentColor`; the `role-<role>` class gives it the role color.
+ */
+export function RoleIcon({ role, folder = false, open = false, size }: { role: string; folder?: boolean; open?: boolean; size?: number }): React.JSX.Element {
+  const letter = ROLE_LETTER[role]
+  return (
+    <Svg size={size} className={`icon role-icon role-${role}`}>
+      {folder ? (
+        <>
+          <path d={open ? 'M2 4h4l1.2 1.5H13V7H4.5L2 13z' : 'M2 4h4l1.2 1.5H14v8H2z'} fill="currentColor" fillOpacity={0.18} />
+          {open ? <path d="M4.5 7H15l-2.5 6H2z" fill="currentColor" fillOpacity={0.3} /> : null}
+          {letter ? (
+            <text x={open ? 8.6 : 8} y={11.8} fontSize={5.6} fontWeight={700} textAnchor="middle" stroke="none" fill="currentColor">
+              {letter}
+            </text>
+          ) : (
+            <path d={open ? 'M8.6 8v3.4M7.4 10.2l1.2 1.4 1.2-1.4' : 'M8 7.5v4M6.8 10.3L8 11.7l1.2-1.4'} />
+          )}
+        </>
+      ) : (
+        roleGlyph(role)
+      )}
+    </Svg>
+  )
+}

@@ -32,6 +32,3 @@
  * Drag and drop: explorer rows carry the element id as `application/x-openuml-element`.
  */
 export { Shell } from './Shell'
-export { uiStore, useUiStore } from './uiStore'
-export type { PaletteTool, Preferences } from './uiStore'
-export { ELEMENT_DRAG_TYPE } from './explorer/ModelExplorer'

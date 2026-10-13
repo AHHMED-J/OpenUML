@@ -1,6 +1,5 @@
 /** Text of IDEF0 views: box numbers, detail references, call-arrow labels, title block strings. */
 import {
-  contextDiagramOf,
   diagramNodeNumber,
   isContextDiagram,
   isIdef0Function,
@@ -12,7 +11,6 @@ import {
 } from '../../model'
 
 export const STATUS_STAGES = ['working', 'draft', 'recommended', 'publication'] as const
-export type Idef0StatusLiteral = (typeof STATUS_STAGES)[number]
 
 export function statusLabel(status: string): string {
   return status.toUpperCase()
@@ -30,7 +28,7 @@ export function dreText(fn: Elem): string {
 }
 
 /** Node reference of a function, e.g. `OM/A21`. */
-export function referenceOf(fn: Elem): string {
+function referenceOf(fn: Elem): string {
   return nodeReference(modelOf(fn), nodeNumber(fn))
 }
 
@@ -93,5 +91,3 @@ export function titleText(diagram: Elem): string {
   if (isContextDiagram(diagram)) return ((scope['topFunction'] as Elem | null)?.['name'] as string | undefined) ?? (scope['name'] as string)
   return (scope['name'] as string | undefined) ?? ''
 }
-
-export { contextDiagramOf }

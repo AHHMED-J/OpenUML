@@ -35,6 +35,7 @@
  */
 export * from './types'
 export * from './values'
+export * from './errors'
 export { generateId } from './id'
 export * from './metamodel'
 export * from './repository'

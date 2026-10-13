@@ -24,7 +24,9 @@ import {
   type View
 } from '../../model'
 import { syncGeometry, withGeometry, type DiagramEnv } from '../editor/actions'
+import type { TextMeasurer } from '../core'
 import { getTextMeasurer } from '../layout/measurer'
+import { insertedPorts, propagateUp, removeCounterpartsUp } from './propagation'
 
 /** Decomposes `fn` into `count` boxes seeded with its arrows; returns the new child diagram. */
 export function decomposeFunction(engine: ModelEngine, fn: Elem, count = 3): Diagram {
@@ -82,21 +84,38 @@ export function renumberBoxes(engine: ModelEngine, diagram: Elem): number {
   return changes.length
 }
 
-/** Adds a boundary arrow of `role` to a function box (port aligned with the box, label to be typed). */
+/**
+ * Adds a boundary arrow of `role` to a function box (port aligned with the box, label to be
+ * typed); on a child diagram it is propagated to the parent box in the same undo step.
+ */
 export function addBoundaryArrow(env: DiagramEnv, fnView: View, role: 'input' | 'control' | 'output' | 'mechanism'): string | null {
   const plan = planBoundaryArrow(env.diagram, fnView, role)
-  withGeometry(env, 'Add Boundary Arrow', (b) => applyPlan(b, plan))
+  withGeometry(env, 'Add Boundary Arrow', (b) => {
+    applyPlan(b, plan)
+    for (const port of insertedPorts(plan)) propagateUp(b, env, port)
+  })
   return plan.view?._id ?? null
 }
 
-/** Toggles the tunnel at one end of an arrow; tunneling a port end clears the port's counterpart. */
-export function toggleTunnel(engine: ModelEngine, arrow: Elem, end: 'source' | 'target'): void {
+/**
+ * Toggles the tunnel at one end of an arrow. Tunneling a port end (the unconnected end: the flow
+ * is not needed at the parent level) unlinks the port and removes its parent counterpart when that
+ * only carried this arrow (up through every level); untunneling it propagates the arrow up again.
+ */
+export function toggleTunnel(engine: ModelEngine, arrow: Elem, end: 'source' | 'target', measurer: TextMeasurer = getTextMeasurer()): void {
   const flag = end === 'source' ? 'tunnelSource' : 'tunnelTarget'
   const next = !arrow[flag]
+  const env = { engine, measurer }
   engine.transact('Tunnel Arrow End', (b) => {
     b.set(arrow, flag, next)
     const other = arrow[end] as Elem | null
-    if (next && other && other._type === 'IDEF0Port') b.set(other, 'corresponds', null)
+    if (!other || other._type !== 'IDEF0Port') return
+    if (next) {
+      removeCounterpartsUp(b, env, other)
+      b.set(other, 'corresponds', null)
+    } else {
+      propagateUp(b, env, other)
+    }
   })
 }
 

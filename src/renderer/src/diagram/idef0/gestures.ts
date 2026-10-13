@@ -17,11 +17,12 @@ import { distancePointToPolyline, rectContainsPoint, type Point } from '../core'
 import { withGeometry, type DiagramEnv, type ToolSpec } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { nearestSide } from './geometry'
+import { insertedPorts, propagateUp } from './propagation'
 
 const ENTER_ROLE: Readonly<Partial<Record<Idef0Side, Idef0Role>>> = { left: 'input', top: 'control', bottom: 'mechanism' }
 
 /** Role of an arrow released on `side` of a box (the right side is an output side: refused). */
-export function roleForSide(side: Idef0Side): Idef0Role | null {
+function roleForSide(side: Idef0Side): Idef0Role | null {
   return ENTER_ROLE[side] ?? null
 }
 
@@ -91,6 +92,8 @@ export function createIdef0Edge(
   const plan = withGeometry(env, 'Create Arrow', (b) => {
     const plan = planIdef0Arrow({ diagram: env.diagram, tail, head, ...(role ? { role } : {}), at: tail ? release : press })
     applyPlan(b, plan)
+    // A boundary arrow drawn on a child diagram also appears on the parent box (same undo step).
+    for (const port of insertedPorts(plan)) propagateUp(b, env, port)
     return plan
   })
   return plan.view?._id ?? null

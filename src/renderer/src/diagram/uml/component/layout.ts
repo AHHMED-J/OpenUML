@@ -4,18 +4,18 @@
  */
 import type { NodeView, UMLClassifierView } from '../../../model'
 import { SPACING, type Point, type Rect } from '../../core'
-import { arrangeListCompartment, arrangeNameCompartment, nodeLayout, styleOf } from '../../layout/helpers'
+import { arrangeNameCompartment, nodeLayout, styleOf } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
-import { classifierNameMeasure, compartmentsOf, nameRegion, stereotypeForm, type CompartmentLayout, type StereotypeForm } from '../class/layout'
+import { classifierNameMeasure, compartmentsOf, nameRegion, stackCompartments, stereotypeForm, type CompartmentLayout, type StereotypeForm } from '../class/layout'
 
 const PAD = SPACING.compartmentPaddingLeft
 const ICON = SPACING.decorationIconSize
 const ICON_INSET = SPACING.decorationIconInset
 
 /** Offset of the component's main rectangle from the left edge of its box (the tabs stick out). */
-export const COMPONENT_TAB_OFFSET = 10
-export const COMPONENT_MIN = { width: 50, height: 45 } as const
-export const ARTIFACT_ICON_MIN = { width: 40, height: 50 } as const
+const COMPONENT_TAB_OFFSET = 10
+const COMPONENT_MIN = { width: 50, height: 45 } as const
+const ARTIFACT_ICON_MIN = { width: 40, height: 50 } as const
 
 export interface ComponentGlyph {
   /** The main rectangle of the component icon. */
@@ -58,32 +58,10 @@ function formOf(view: UMLClassifierView, fallback: StereotypeForm): 'label' | 'd
   return 'label'
 }
 
-export { formOf as displayFormOf }
-
 function nameForm(form: 'label' | 'decoration' | 'icon', view: UMLClassifierView): StereotypeForm {
   const raw = stereotypeForm(view)
   if (form === 'label') return raw === 'none' ? 'none' : 'label'
   return raw
-}
-
-/** Arranges the list compartments below `top` inside `x`/`width`. */
-function arrangeCompartments(
-  compartments: ReturnType<typeof compartmentsOf>,
-  x: number,
-  width: number,
-  top: number,
-  regions: EditRegion[]
-): CompartmentLayout[] {
-  let y = top
-  return compartments.map((c) => {
-    const rect = { left: x, top: y, width, height: c.measure.height }
-    y += c.measure.height
-    const rows = arrangeListCompartment(c.measure, rect)
-    for (const row of rows) {
-      if (row.edit) regions.push({ box: { ...row.box, left: rect.left, width: rect.width }, target: row.edit, text: row.editText ?? row.text, font: row.font })
-    }
-    return { kind: c.kind, rect, rows: rows.map(({ edit: _e, editText: _t, ...line }) => line) }
-  })
 }
 
 /** Component: label form (box + two tabs), decoration form (glyph top-right) and icon form. */
@@ -139,7 +117,7 @@ export function layoutComponent(view: NodeView, ctx: LayoutContext): NodeLayout<
     const nameTop = centered ? box.top + Math.max(0, (box.height - name.height) / 2) : box.top
     const nameRect = { left: nameLeft, top: nameTop, width: nameWidth, height: name.height }
     regions.push(...nameRegion(model, nameRect, name, font))
-    const laid = arrangeCompartments(compartments, main.left, main.width, box.top + name.height, regions)
+    const laid = stackCompartments(compartments, main.left, main.width, box.top + name.height, regions)
     const glyph = decoration ? componentGlyph({ left: box.left + box.width - ICON - ICON_INSET, top: box.top + ICON_INSET, width: ICON, height: ICON }) : null
     return {
       data: { form: decoration ? 'decoration' : 'label', main, tabs: decoration ? [] : componentTabs(box), nameLines: arrangeNameCompartment(name, nameRect), compartments: laid, glyph },
@@ -238,7 +216,7 @@ export function layoutArtifact(view: NodeView, ctx: LayoutContext): NodeLayout<A
   const arrange = (box: Rect): { data: ArtifactData; regions: EditRegion[] } => {
     const nameRect = { left: box.left, top: box.top, width: box.width, height: nameHeight }
     const regions: EditRegion[] = [...nameRegion(model, nameRect, name, font)]
-    const laid = arrangeCompartments(compartments, box.left, box.width, box.top + nameHeight, regions)
+    const laid = stackCompartments(compartments, box.left, box.width, box.top + nameHeight, regions)
     let page: Rect | null = null
     let polygon: Point[] = []
     let fold: Point[] = []

@@ -5,6 +5,7 @@
  */
 import { useRef, useState } from 'react'
 import type React from 'react'
+import { PanelBoundary, reportPanelError } from '../components/PanelBoundary'
 import { UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
 import { DOCK_AREA_TITLES, DOCK_PANEL_TITLES, visiblePanels, type DockAreaId, type DockPanelId, type DockPanelState } from './dockModel'
@@ -95,7 +96,9 @@ function DockPanel({ id, state, source }: { id: DockPanelId; state: DockPanelSta
           {title}
         </span>
         <span className="dock-actions" data-no-drag="">
-          <PanelActions id={id} />
+          <PanelBoundary name={`${title} actions`} fallback={() => null}>
+            <PanelActions id={id} />
+          </PanelBoundary>
         </span>
         <button
           ref={menuButton}
@@ -114,17 +117,28 @@ function DockPanel({ id, state, source }: { id: DockPanelId; state: DockPanelSta
         </button>
       </div>
       <div className="dock-body" id={bodyId} hidden={collapsed}>
-        <PanelBody id={id} />
+        <PanelBoundary name={title}>
+          <PanelBody id={id} />
+        </PanelBoundary>
       </div>
       {menu ? (
-        <PanelMenu
-          id={id}
-          at={menu}
-          onClose={(refocus) => {
+        <PanelBoundary
+          name={`${title} panel menu`}
+          fallback={() => null}
+          onError={(error, name) => {
             setMenu(null)
-            if (refocus) menuButton.current?.focus()
+            reportPanelError(error, name)
           }}
-        />
+        >
+          <PanelMenu
+            id={id}
+            at={menu}
+            onClose={(refocus) => {
+              setMenu(null)
+              if (refocus) menuButton.current?.focus()
+            }}
+          />
+        </PanelBoundary>
       ) : null}
     </section>
   )

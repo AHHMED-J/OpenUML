@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { addFeature, deleteFromModel, reorderElement, setFieldsOfAll } from '../../commands'
+import { renameElements } from '../../diagram'
 import { isElem, typeDisplayName, type Elem } from '../../model'
 import { projectStore } from '../../store'
 import { selectInExplorer } from '../app/appCommands'
@@ -19,7 +20,10 @@ const MIXED = '—'
 
 function commit(row: PropertyRow, value: unknown): void {
   try {
-    setFieldsOfAll(projectStore.getState().engine, row.targets, { [row.field]: value }, `Change ${row.label}`)
+    const engine = projectStore.getState().engine
+    // Names go through the rename hooks (linked IDEF0 arrows, diagram titles).
+    if (row.field === 'name' && typeof value === 'string') renameElements(engine, row.targets, value, `Change ${row.label}`)
+    else setFieldsOfAll(engine, row.targets, { [row.field]: value }, `Change ${row.label}`)
   } catch (err) {
     reportError(err)
   }
@@ -208,6 +212,23 @@ function ElementChip({ el }: { el: Elem }): React.JSX.Element {
   )
 }
 
+/** "…" button that picks an element of the row's type and commits it. */
+function ChooseElementButton({ row }: { row: PropertyRow }): React.JSX.Element {
+  return (
+    <button
+      className="icon-button"
+      aria-label={`Choose ${row.label}`}
+      title="Choose..."
+      onClick={async () => {
+        const picked = await pickElement(`Select ${row.label}`, [row.type])
+        if (picked) commit(row, projectStore.getState().repository.get(picked) ?? null)
+      }}
+    >
+      <UiIcon name="ellipsis" />
+    </button>
+  )
+}
+
 function RefField({ row, id }: { row: PropertyRow; id: string }): React.JSX.Element {
   const value = row.mixed ? null : isElem(row.value) ? row.value : null
   return (
@@ -215,17 +236,7 @@ function RefField({ row, id }: { row: PropertyRow; id: string }): React.JSX.Elem
       {row.mixed ? <span className="muted">{MIXED}</span> : value ? <ElementChip el={value} /> : <span className="muted">(none)</span>}
       {row.readOnly ? null : (
         <>
-          <button
-            className="icon-button"
-            aria-label={`Choose ${row.label}`}
-            title="Choose..."
-            onClick={async () => {
-              const picked = await pickElement(`Select ${row.label}`, [row.type])
-              if (picked) commit(row, projectStore.getState().repository.get(picked) ?? null)
-            }}
-          >
-            <UiIcon name="ellipsis" />
-          </button>
+          <ChooseElementButton row={row} />
           <button className="icon-button" aria-label={`Clear ${row.label}`} title="Clear" disabled={!value} onClick={() => commit(row, null)}>
             <UiIcon name="close" />
           </button>
@@ -298,17 +309,7 @@ function VariantField({ row, id }: { row: PropertyRow; id: string }): React.JSX.
           <option key={n} value={n} />
         ))}
       </datalist>
-      <button
-        className="icon-button"
-        aria-label={`Choose ${row.label}`}
-        title="Choose..."
-        onClick={async () => {
-          const picked = await pickElement(`Select ${row.label}`, [row.type])
-          if (picked) commit(row, projectStore.getState().repository.get(picked) ?? null)
-        }}
-      >
-        <UiIcon name="ellipsis" />
-      </button>
+      <ChooseElementButton row={row} />
     </div>
   )
 }

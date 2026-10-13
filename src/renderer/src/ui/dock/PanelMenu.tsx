@@ -15,7 +15,7 @@ type Action = 'up' | 'down' | `area:${DockAreaId}` | 'collapse' | 'hide' | 'rese
 
 const MOVE_TO_LABEL: Readonly<Record<DockAreaId, string>> = { left: 'Move to Left Sidebar', right: 'Move to Right Sidebar' }
 
-export function panelMenuItems(id: DockPanelId): ResolvedMenuItem[] {
+function panelMenuItems(id: DockPanelId): ResolvedMenuItem[] {
   const layout = uiStore.getState().dock
   const area = areaOf(layout, id)
   const shown = visiblePanels(layout, area)
@@ -33,7 +33,7 @@ export function panelMenuItems(id: DockPanelId): ResolvedMenuItem[] {
   ]
 }
 
-export function runPanelAction(id: DockPanelId, action: string): void {
+function runPanelAction(id: DockPanelId, action: string): void {
   const ui = uiStore.getState()
   if (action === 'up') ui.moveDockPanelBy(id, -1)
   else if (action === 'down') ui.moveDockPanelBy(id, 1)
