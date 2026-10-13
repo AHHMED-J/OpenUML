@@ -3,6 +3,7 @@ import { Component } from 'react'
 import type React from 'react'
 import { DiagramEditor } from '../../diagram'
 import { projectStore } from '../../store'
+import { PanelBoundary } from '../components/PanelBoundary'
 import { TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
 import { diagramLabel, useOpenDiagrams } from './WorkingDiagrams'
@@ -101,7 +102,9 @@ export function DiagramArea(): React.JSX.Element {
 
   return (
     <main className="diagram-area" aria-label="Diagram">
-      <DiagramTabs />
+      <PanelBoundary name="Diagram tabs">
+        <DiagramTabs />
+      </PanelBoundary>
       <div
         className="canvas-host"
         onContextMenu={(e) => {

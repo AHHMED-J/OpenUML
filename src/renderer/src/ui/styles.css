@@ -620,6 +620,19 @@ textarea:focus {
   padding: 24px;
 }
 
+/* Fallback of a panel whose content failed to render (components/PanelBoundary). */
+.panel-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 /* ---------------------------------------------------------------- toolbox */
 
 .tool-group {

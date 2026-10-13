@@ -93,7 +93,7 @@ export interface ListRow {
 }
 
 /** Modal dialogs; promise-based ones carry their resolver. */
-type ModalState =
+export type ModalState =
   | { readonly kind: 'palette' }
   | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
@@ -113,7 +113,7 @@ type ModalState =
       readonly resolve: (ids: readonly string[] | null) => void
     }
 
-interface ContextMenuState {
+export interface ContextMenuState {
   readonly x: number
   readonly y: number
   /** Which menu to show (resolved by the context-menu host). */
