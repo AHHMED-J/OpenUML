@@ -5,7 +5,7 @@
  */
 import type React from 'react'
 import { edgeEndShapes, edgePath, fmt, roundedRectPath, type Point, type Rect } from '../core'
-import type { EdgeLayout, NodeLayout, TextLine } from '../layout/types'
+import type { EdgeLayout, NodeLayout, TextLine, ViewStyle } from '../layout/types'
 import { EndDecorations, fontAttrs } from '../render/primitives'
 import type {
   ActivityData,
@@ -77,6 +77,11 @@ function ArrowRight({ x, y, color }: { x: number; y: number; color: string }): R
   return <path d={`M${fmt(x - 9)} ${fmt(y - 4.5)} L${fmt(x)} ${fmt(y)} L${fmt(x - 9)} ${fmt(y + 4.5)}`} fill="none" stroke={color} strokeWidth={SW} strokeLinejoin="miter" />
 }
 
+/** Circle inscribed in a square symbol box (waits, refinements, case branches). */
+function CircleIn({ box, style }: { box: Rect; style: ViewStyle }): React.JSX.Element {
+  return <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
+}
+
 function labelsOf(layout: NodeLayout<SymbolData>, halo = true): React.JSX.Element {
   return <Labels lines={layout.data.lines} color={layout.style.fontColor} halo={halo ? layout.data.halo : null} />
 }
@@ -143,7 +148,7 @@ export function WaitNode({ layout }: { layout: NodeLayout<WaitData> }): React.JS
     <g>
       <Line s={data.stub} color={style.lineColor} />
       <ArrowRight x={data.stub.x2} y={data.stub.y} color={style.lineColor} />
-      <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
+      <CircleIn box={box} style={style} />
       {labelsOf(layout)}
       <WarningMarks data={data} />
     </g>
@@ -184,7 +189,7 @@ export function RefinementNode({ layout }: { layout: NodeLayout<RefinementData> 
       {data.bars.map((s, i) => (
         <Line key={i} s={s} color={style.lineColor} />
       ))}
-      <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
+      <CircleIn box={box} style={style} />
       {labelsOf(layout)}
       <WarningMarks data={data} />
     </g>
@@ -204,7 +209,7 @@ export function BranchNode({ layout }: { layout: NodeLayout<BranchData> }): Reac
       {data.part ? (
         <path d={trianglePath(box)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} strokeLinejoin="miter" />
       ) : (
-        <circle cx={fmt(box.left + box.width / 2)} cy={fmt(box.top + box.height / 2)} r={fmt(box.width / 2)} fill={style.fillColor} stroke={style.lineColor} strokeWidth={SW} />
+        <CircleIn box={box} style={style} />
       )}
       {labelsOf(layout)}
       <WarningMarks data={data} />
