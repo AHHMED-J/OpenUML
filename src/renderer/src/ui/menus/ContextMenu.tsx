@@ -9,7 +9,8 @@ import { platform } from '../app/bridge'
 import { runCommand } from '../app/commands'
 import { menuContext } from '../app/lifecycle'
 import { displayKeystroke } from '../keymap'
-import { uiStore, useUiStore } from '../uiStore'
+import { PanelBoundary, reportPanelError } from '../components/PanelBoundary'
+import { uiStore, useUiStore, type ContextMenuState } from '../uiStore'
 import {
   canvasContextMenu,
   explorerContextMenu,
@@ -213,11 +214,29 @@ function menuFor(kind: string, targetId: string | undefined): MenuNode[] {
   }
 }
 
-/** Renders the open context menu from `uiStore.contextMenu`. */
+/**
+ * Renders the open context menu from `uiStore.contextMenu`. A menu that fails to build is closed
+ * and reported; the next menu opens normally.
+ */
 export function ContextMenuHost(): React.JSX.Element | null {
   const state = useUiStore((s) => s.contextMenu)
+  return (
+    <PanelBoundary
+      name="Context menu"
+      resetKey={state}
+      fallback={() => null}
+      onError={(error, name) => {
+        uiStore.getState().openContextMenu(null)
+        reportPanelError(error, name)
+      }}
+    >
+      {state ? <ContextMenuView state={state} /> : null}
+    </PanelBoundary>
+  )
+}
+
+function ContextMenuView({ state }: { state: ContextMenuState }): React.JSX.Element {
   useEffect(() => {
-    if (!state) return
     const close = (e: MouseEvent): void => {
       if (!(e.target as HTMLElement).closest?.('.menu')) uiStore.getState().openContextMenu(null)
     }
@@ -231,7 +250,6 @@ export function ContextMenuHost(): React.JSX.Element | null {
       window.removeEventListener('resize', onBlur)
     }
   }, [state])
-  if (!state) return null
   const items = resolveMenu(menuFor(state.menu, state.targetId), menuContext())
   const onClose = (): void => uiStore.getState().openContextMenu(null)
   return (
