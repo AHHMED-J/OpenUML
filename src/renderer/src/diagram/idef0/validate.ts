@@ -4,6 +4,7 @@
  */
 import {
   diagramOfScope,
+  effectiveArrowName,
   functionViewsOf,
   isContextDiagram,
   isIdef0Function,
@@ -143,11 +144,13 @@ function validateScope(scope: Elem, issues: IdefIssue[]): void {
     const label = nameOf(a)
     const branch = isBranch(a)
     const call = roleOf(a) === 'call'
-    // W05 / W07 / W13: arrow labels.
+    // W05 / W07 / W13: arrow labels. A child boundary arrow linked to a labeled parent arrow (or to
+    // an unlabeled branch of a labeled trunk) carries that label, as a branch carries its trunk's.
     if (!call) {
-      if (!label && !branch) add('W05', a, 'An arrow has no label')
+      const inherited = label || effectiveArrowName(a).trim()
+      if (!inherited && !branch) add('W05', a, 'An arrow has no label')
       else if (label && isGeneric(label)) add('W05', a, `The label "${label}" only repeats a generic word`)
-      if (!label && branch && !nameOf(rootArrow(a))) add('W07', a, 'A branch and its trunk are both unlabeled')
+      if (!inherited && branch) add('W07', a, 'A branch and its trunk are both unlabeled')
       if (label && !branch) {
         const key = label.toLowerCase()
         if (labelsSeen.has(key)) add('W13', a, `Another arrow on this diagram is also labeled "${label}"`)

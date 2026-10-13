@@ -270,7 +270,7 @@ function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> 
           defaults: 'name',
           text,
           edit: isCall ? { kind: 'custom', elementId: arrow._id, syntax: 'idef0.call' } : { kind: 'name', elementId: arrow._id },
-          editText: isCall ? callLabelText(arrow) : nameEditText(arrow)
+          editText: isCall ? callLabelText(arrow) : arrow['name'] ? nameEditText(arrow) : text
         }
       ]
     : []
