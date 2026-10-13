@@ -132,6 +132,9 @@ export * from './layout/helpers'
 export * from './layout/edges'
 export { getTextMeasurer, setTextMeasurer } from './layout/measurer'
 
+// Style constants shared with the shell (font size choices, zoom range)
+export { FONT_SIZES, ZOOM } from './core'
+
 // Rendering and the notation registry
 export * from './render/registry'
 export * from './render/primitives'

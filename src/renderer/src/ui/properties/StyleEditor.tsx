@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { setFieldsOfAll } from '../../commands'
+import { FONT_SIZES } from '../../diagram'
 import { fieldOf, type Font, type View } from '../../model'
 import { projectStore } from '../../store'
 import { reportError } from '../app/commands'
@@ -42,8 +43,6 @@ const LINE_STYLES: ReadonlyArray<[number, string]> = [
   [2, 'Rounded Rectilinear'],
   [3, 'Curve']
 ]
-
-const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 20, 24, 28, 32]
 
 /** Style fields supported by every view in `views`. */
 function styleFieldsFor(views: readonly View[]): StyleField[] {

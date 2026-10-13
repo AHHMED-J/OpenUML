@@ -1,9 +1,9 @@
 /** Preferences: theme, grid, snap, grid size, default font size. Changes apply immediately. */
 import type React from 'react'
+import { FONT_SIZES } from '../../diagram'
 import { Modal } from '../components/Modal'
 import { uiStore, useUiStore, type ThemePreference } from '../uiStore'
 
-const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 20, 24, 28, 32]
 const GRID_SIZES = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
 
 export function PreferencesDialog(): React.JSX.Element {
