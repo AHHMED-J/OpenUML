@@ -16,62 +16,10 @@ import { confirmAndDeleteFromModel, openDiagram, selectInExplorer } from '../app
 import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { dropField, elementNode, explorerLabel, hasTreeChildren, treeChildren, treeLabel, treeTooltip, type TreeNode, type TreeOptions } from './tree'
+import { dropField, explorerLabel, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
 export const ELEMENT_DRAG_TYPE = 'application/x-openuml-element'
-
-interface Row {
-  readonly node: TreeNode
-  /** The model element of the row (null for a role folder). */
-  readonly el: Elem | null
-  readonly depth: number
-  readonly parentKey: string | null
-  readonly expandable: boolean
-  readonly expanded: boolean
-}
-
-interface OpenState {
-  readonly expanded: Readonly<Record<string, true>>
-  readonly collapsedFolders: Readonly<Record<string, true>>
-}
-
-/** Element rows open when expanded; role folders are open unless collapsed. */
-function isOpen(node: TreeNode, state: OpenState): boolean {
-  return node.kind === 'folder' ? state.collapsedFolders[node.key] !== true : state.expanded[node.key] === true
-}
-
-function rowOf(node: TreeNode, depth: number, parentKey: string | null, expandable: boolean, expanded: boolean): Row {
-  return { node, el: node.kind === 'folder' ? null : node.el, depth, parentKey, expandable, expanded }
-}
-
-function flatten(root: Elem, state: OpenState, options: TreeOptions): Row[] {
-  const rows: Row[] = []
-  const visit = (node: TreeNode, depth: number, parentKey: string | null): void => {
-    const expandable = hasTreeChildren(node)
-    const open = expandable && isOpen(node, state)
-    rows.push(rowOf(node, depth, parentKey, expandable, open))
-    if (open) for (const child of treeChildren(node, options)) visit(child, depth + 1, node.key)
-  }
-  visit(elementNode(root), 0, null)
-  return rows
-}
-
-function searchRows(root: Elem, query: string, options: TreeOptions): Row[] {
-  const q = query.toLowerCase()
-  const rows: Row[] = []
-  const seen = new Set<Elem>()
-  const visit = (node: TreeNode): void => {
-    if (node.kind !== 'folder' && !seen.has(node.el)) {
-      seen.add(node.el)
-      const name = node.el['name']
-      if (node.el !== root && typeof name === 'string' && name.toLowerCase().includes(q)) rows.push(rowOf(node, 0, null, false, false))
-    }
-    if (rows.length < 200) for (const child of treeChildren(node, { ...options, groupArrows: false })) visit(child)
-  }
-  visit(elementNode(root))
-  return rows
-}
 
 function rowDomId(key: string): string {
   return `tree-${key}`
@@ -124,7 +72,7 @@ export function ModelExplorer(): React.JSX.Element {
   const rows = useMemo(
     () => {
       const options: TreeOptions = { sortBy, groupArrows }
-      return query.trim() ? searchRows(project, query.trim(), options) : flatten(project, { expanded, collapsedFolders }, options)
+      return query.trim() ? searchTree(project, query.trim(), options) : flattenTree(project, { expanded, collapsedFolders }, options)
     },
     // `version` invalidates the tree after model changes.
     [project, version, expanded, collapsedFolders, groupArrows, sortBy, query]
@@ -165,7 +113,7 @@ export function ModelExplorer(): React.JSX.Element {
     if (current) document.getElementById(rowDomId(current))?.scrollIntoView({ block: 'nearest' })
   }, [current])
 
-  const select = (row: Row, toggle = false): void => {
+  const select = (row: TreeRow, toggle = false): void => {
     setFocusId(row.node.key)
     const el = row.el
     if (!el) return
@@ -180,7 +128,7 @@ export function ModelExplorer(): React.JSX.Element {
     }
   }
 
-  const activate = (row: Row): void => {
+  const activate = (row: TreeRow): void => {
     const el = row.el
     if (!el) {
       if (row.expandable) toggle(row)
@@ -188,7 +136,7 @@ export function ModelExplorer(): React.JSX.Element {
     else if (!isKindOf(el, 'Project')) uiStore.getState().startRename(el._id)
   }
 
-  const toggle = (row: Row): void => {
+  const toggle = (row: TreeRow): void => {
     if (row.node.kind === 'folder') uiStore.getState().setFoldersCollapsed([row.node.key], row.expanded)
     else uiStore.getState().setExpanded(row.node.key, !row.expanded)
   }
@@ -369,6 +317,7 @@ export function ModelExplorer(): React.JSX.Element {
                 if (el && node.kind === 'element') onDrop(e, el)
               }}
             >
+              <IndentGuides guides={row.guides} leaf={!row.expandable} />
               <span
                 className={`twisty${row.expandable ? '' : ' empty'}`}
                 onClick={(e) => {
@@ -399,6 +348,35 @@ export function ModelExplorer(): React.JSX.Element {
         {rows.length === 0 ? <div className="empty-note">No matching elements</div> : null}
       </div>
     </div>
+  )
+}
+
+/** Center of the twisty of tree level `level` (px from the row's left edge). */
+function guideX(level: number): number {
+  return 4 + level * INDENT + INDENT / 2
+}
+
+/**
+ * The tree guide lines of a row: one vertical line per ancestor level that continues below, and
+ * a tick from the parent's line to the row (reaching the icon for leaves, the chevron otherwise).
+ */
+function IndentGuides({ guides, leaf }: { guides: readonly Guide[]; leaf: boolean }): React.JSX.Element | null {
+  if (guides.length === 0) return null
+  const tick = INDENT / 2 + (leaf ? INDENT - 3 : 1)
+  return (
+    <span className="tree-guides" aria-hidden="true">
+      {guides.map((g, level) => {
+        if (g.kind === 'none') return null
+        const roleClass = g.role ? ` role-${g.role}` : ''
+        const left = guideX(level)
+        return (
+          <span key={level}>
+            <span className={`guide-v${g.kind === 'elbow' ? ' guide-end' : ''}${roleClass}`} style={{ left }} />
+            {g.kind === 'pass' ? null : <span className={`guide-h${roleClass}`} style={{ left, width: tick }} />}
+          </span>
+        )
+      })}
+    </span>
   )
 }
 
