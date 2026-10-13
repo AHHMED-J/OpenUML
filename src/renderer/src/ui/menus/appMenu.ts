@@ -19,7 +19,7 @@ function parent() {
   return selectedModels(ps())[0] ?? ps().project
 }
 
-export function addDiagramMenu(): MenuNode {
+function addDiagramMenu(): MenuNode {
   return {
     id: 'model.add-diagram',
     label: 'Add Diagram',
@@ -34,7 +34,7 @@ export function addDiagramMenu(): MenuNode {
   }
 }
 
-export function addElementMenu(): MenuNode {
+function addElementMenu(): MenuNode {
   return {
     id: 'model.add',
     label: 'Add',
@@ -77,7 +77,7 @@ function recentMenu(): MenuNode {
   }
 }
 
-export function lineStyleMenu(): MenuNode {
+function lineStyleMenu(): MenuNode {
   return {
     id: 'format.linestyle',
     label: 'Line Style',
@@ -90,7 +90,7 @@ export function lineStyleMenu(): MenuNode {
   }
 }
 
-export function alignmentMenu(): MenuNode {
+function alignmentMenu(): MenuNode {
   return {
     id: 'format.alignment',
     label: 'Alignment',
@@ -116,7 +116,7 @@ export function alignmentMenu(): MenuNode {
   }
 }
 
-export function formatItems(): MenuNode[] {
+function formatItems(): MenuNode[] {
   return [
     lineStyleMenu(),
     { label: 'Auto Resize', command: Cmd.formatAutoResize, checkbox: true },
