@@ -5,19 +5,8 @@
  */
 import type { OperationBuilder } from '../../../commands'
 import { fieldOf, type Elem, type Repository } from '../../../model'
-import { registerQuickEditSyntax, resolveByName } from '../../editor/quickEditApply'
+import { registerQuickEditSyntax, setStereotype, typeValue } from '../../editor/quickEditApply'
 import { OBJECT_EDIT_HINTS, parseObject, parseSlot, type ParsedObject, type ParsedSlot } from './strings'
-
-function setStereotype(b: OperationBuilder, repo: Repository, el: Elem, name: string | null): void {
-  const field = fieldOf(el, 'stereotype')
-  if (!field) return
-  if (!name) b.set(el, 'stereotype', field.kind === 'prim' ? '' : null)
-  else b.set(el, 'stereotype', field.kind === 'prim' ? name : (resolveByName(repo, el, name, 'UMLStereotype') ?? name))
-}
-
-function typeValue(repo: Repository, el: Elem, name: string | null): unknown {
-  return name ? (resolveByName(repo, el, name, 'UMLClassifier') ?? name) : null
-}
 
 /** Applies a parsed object expression: the type goes to `classifier` (absent type clears it). */
 function applyObject(b: OperationBuilder, repo: Repository, instance: Elem, p: ParsedObject): void {

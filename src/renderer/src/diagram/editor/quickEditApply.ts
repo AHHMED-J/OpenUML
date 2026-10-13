@@ -29,7 +29,16 @@ function stereotypeValue(repo: Repository, el: Elem, name: string | null): unkno
   return resolveByName(repo, el, name, 'UMLStereotype') ?? name
 }
 
-function typeValue(repo: Repository, el: Elem, name: string | null): unknown {
+/**
+ * Sets an element's stereotype from quick-edit text: a stereotype element resolved by name (else
+ * the text), or the plain text for string-valued stereotype fields; null/'' clears it.
+ */
+export function setStereotype(b: OperationBuilder, repo: Repository, el: Elem, name: string | null): void {
+  if (fieldOf(el, 'stereotype')) b.set(el, 'stereotype', stereotypeValue(repo, el, name))
+}
+
+/** A type field value from quick-edit text: the classifier resolved by name, else the text; null clears. */
+export function typeValue(repo: Repository, el: Elem, name: string | null): unknown {
   if (!name) return null
   return resolveByName(repo, el, name, 'UMLClassifier') ?? name
 }
@@ -59,7 +68,7 @@ function applyName(b: OperationBuilder, repo: Repository, el: Elem, parsed: Pars
   setIfField(b, el, 'name', parsed.name)
   for (const hook of renameHooks) hook(b, repo, el)
   setIfField(b, el, 'visibility', parsed.visibility ?? 'public')
-  if (fieldOf(el, 'stereotype')) b.set(el, 'stereotype', stereotypeValue(repo, el, parsed.stereotype))
+  setStereotype(b, repo, el, parsed.stereotype)
 }
 
 /** A notation-specific quick-edit syntax (target kind `custom`). */
