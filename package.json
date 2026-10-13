@@ -13,6 +13,7 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "lint:unused": "npx -y knip@6.41.0 --no-progress",
     "dist": "electron-vite build && electron-builder"
   },
   "dependencies": {
