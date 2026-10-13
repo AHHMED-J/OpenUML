@@ -14,7 +14,7 @@ import {
   isContextDiagram,
   isKindOf,
   nextName,
-  planRenumber,
+  planCloseGaps,
   scopeOf,
   staircaseBox,
   staircaseOrder,
@@ -114,8 +114,8 @@ export function addChildBoxes(env: DiagramEnv, count: number): Elem[] {
 
 /**
  * Removes the given boxes of a decomposition (never all of them) with the delete-function rules,
- * then numbers the remaining boxes 1..n along the staircase whatever `autoNumber` says. Returns
- * the number of boxes removed.
+ * then closes the gaps in the numbers of the remaining boxes (they keep their relative order, 1..n).
+ * Returns the number of boxes removed.
  */
 export function removeChildBoxes(env: DiagramEnv, doomed: readonly Elem[]): number {
   const diagram = env.diagram
@@ -133,7 +133,7 @@ export function removeChildBoxes(env: DiagramEnv, doomed: readonly Elem[]): numb
     for (const port of (scope['ports'] as Elem[] | undefined) ?? []) if (!portsBefore.has(port)) propagateUp(b, env, port)
     const rest = staircaseOrder(functionViewsOf(diagram).filter((v) => (v.model as Elem)._parent === scope))
     if (relayout) rest.forEach((v, i) => b.setAll(v, staircaseBox(i, rest.length)))
-    for (const change of planRenumber(diagram)) b.set(change.fn, 'boxNumber', change.boxNumber)
+    for (const change of planCloseGaps((scope['functions'] as Elem[] | undefined) ?? [])) b.set(change.fn, 'boxNumber', change.boxNumber)
   })
   return victims.length
 }

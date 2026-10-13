@@ -47,7 +47,7 @@ const IDEF0_VIEW_TYPES: TypeDef[] = [
     str('author', ''),
     str('date', ''),
     str('number', ''),
-    bool('autoNumber', true),
+    bool('autoNumber', false),
     bool('showTitleBlock', true),
     bool('showWorkingBand', true)
   ]),

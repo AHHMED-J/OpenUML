@@ -16,12 +16,13 @@ function titleOf(diagram: Elem): string | null {
 }
 
 /**
- * Runs inside every geometry operation of an IDEF0 diagram: box numbers follow the staircase when
- * `autoNumber` is set, and diagram titles follow the names of the boxes they detail, so numbering
- * and titles change in the same undo step as the edit that caused them.
+ * Runs inside every geometry operation of an IDEF0 diagram: diagram titles follow the names of the
+ * boxes they detail, in the same undo step as the edit that caused them. Box numbers stay where
+ * they are (moving a box never renumbers) unless the diagram opted into `autoNumber`, which makes
+ * them follow the staircase.
  */
 function normalizeIdef0(b: OperationBuilder, diagram: Diagram): void {
-  if (diagram['autoNumber'] !== false) {
+  if (diagram['autoNumber'] === true) {
     for (const change of planRenumber(diagram)) b.set(change.fn, 'boxNumber', change.boxNumber)
   }
   syncTitles(b, diagram)

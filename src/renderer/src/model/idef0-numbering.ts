@@ -3,6 +3,7 @@
  * renumbering plan, ICOM codes of boundary ports, side slots and the node index. Nothing here
  * is stored except `IDEF0Function.boxNumber`; every other value is computed from the model.
  */
+import { ModelRuleError } from './errors'
 import { isKindOf } from './metamodel'
 import type { Elem, NodeView, Point, View } from './types'
 
@@ -162,6 +163,55 @@ export function planRenumber(diagram: Elem): BoxNumberChange[] {
   const views = functionViewsOf(diagram).filter((v) => (v['model'] as Elem)._parent === scopeOf(diagram))
   staircaseOrder(views).forEach((view, i) => {
     const fn = view['model'] as Elem
+    if (fn['boxNumber'] !== i + 1) changes.push({ fn, boxNumber: i + 1 })
+  })
+  return changes
+}
+
+/** The sibling boxes of `fn` (the functions of its owner); the top function has none. */
+function siblingBoxes(fn: Elem): Elem[] {
+  const parent = fn._parent
+  return isIdef0Function(parent) ? list(parent, 'functions') : []
+}
+
+/** Smallest box number (from 1) none of `functions` uses: a new box closes a gap or comes last. */
+export function nextFreeBoxNumber(functions: readonly Elem[]): number {
+  const used = new Set(functions.map((f) => f['boxNumber'] as number))
+  let n = 1
+  while (used.has(n)) n++
+  return n
+}
+
+/**
+ * Box number changes that give `fn` the number `boxNumber` (Properties > Box Number): the box
+ * holding that number takes the old number of `fn`, so numbers never duplicate nor open a gap.
+ * Everything else (node numbers of the sub-tree, ICOM codes, titles, labels) is derived from
+ * `boxNumber` and follows. Throws a `ModelRuleError` for the top function or a number outside
+ * 1..n (n = the boxes of the diagram, at least the largest number in use).
+ */
+export function planBoxNumberSwap(fn: Elem, boxNumber: number): BoxNumberChange[] {
+  if (!isIdef0Function(fn)) return []
+  const siblings = siblingBoxes(fn)
+  if (siblings.length === 0) throw new ModelRuleError('The box of the A-0 diagram keeps box number 0')
+  const max = Math.max(siblings.length, ...siblings.map((f) => f['boxNumber'] as number))
+  if (!Number.isInteger(boxNumber) || boxNumber < 1 || boxNumber > max) {
+    throw new ModelRuleError(`Box numbers of this diagram go from 1 to ${max}`)
+  }
+  const old = fn['boxNumber'] as number
+  if (old === boxNumber) return []
+  const changes: BoxNumberChange[] = [{ fn, boxNumber }]
+  for (const other of siblings) if (other !== fn && other['boxNumber'] === boxNumber) changes.push({ fn: other, boxNumber: old })
+  return changes
+}
+
+/**
+ * Box number changes that close the gaps left among `functions` (after boxes were removed): the
+ * boxes keep their relative order (by number, then model order) and are numbered 1..n.
+ */
+export function planCloseGaps(functions: readonly Elem[]): BoxNumberChange[] {
+  const ordered = functions.map((fn, i) => ({ fn, i })).sort((a, b) => (a.fn['boxNumber'] as number) - (b.fn['boxNumber'] as number) || a.i - b.i)
+  const changes: BoxNumberChange[] = []
+  ordered.forEach(({ fn }, i) => {
     if (fn['boxNumber'] !== i + 1) changes.push({ fn, boxNumber: i + 1 })
   })
   return changes
