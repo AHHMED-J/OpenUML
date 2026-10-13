@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readMdj, writeMdj } from '../../format'
-import { diagramNodeNumber, icomCodes, nextFreeBoxNumber, nodeNumber, planBoxNumberSwap, planCloseGaps, type Diagram, type Elem } from '../../model'
+import { diagramNodeNumber, icomCodes, idef0DiagramLabel, nextFreeBoxNumber, nodeNumber, planBoxNumberSwap, planCloseGaps, type Diagram, type Elem } from '../../model'
 import { deleteViews } from '../editor/actions'
 import { childBoxes, removeChildBoxes, addChildBoxes } from './boxCount'
 import { decomposeFunction, setBoxNumber } from './decompose'
@@ -60,6 +60,8 @@ describe('Properties > Box Number', () => {
     expect(nodeNumber(a1)).toBe('A3')
     expect(grandChildren.map(nodeNumber)).toEqual(['A11', 'A12'])
     expect(diagramNodeNumber(child as Diagram)).toBe('A1')
+    // Tabs, Working Diagrams and the explorer label the diagram by its new number.
+    expect(idef0DiagramLabel(child, child.name)).toBe('A1 Diagram: Ship and Invoice')
     // ICOM codes are positions along the parent box sides: unchanged by the swap.
     expect([...icomCodes(child).values()]).toEqual(codesBefore)
     // No duplicate or gap: W10 stays quiet.

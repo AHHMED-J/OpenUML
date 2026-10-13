@@ -106,13 +106,16 @@ export function diagramNodeNumber(diagram: Elem): string {
 }
 
 /**
- * Display label of an IDEF0 diagram: its node number before its name (`A-0 Top Function`,
- * `A0 Top Function`). A diagram is named after the function it details, so without the number the
- * explorer would show the A-0 diagram and the top function as two identical entries.
+ * Display label of an IDEF0 diagram: its node number and kind before its name
+ * (`A-0 Context diagram: Top Function`, `A0 Diagram: Top Function`, `A2 Diagram: Check Stock`).
+ * A diagram is named after the function it details, so without the kind the explorer would show
+ * the A0 diagram and the A0 function as two identical entries. Display only: the stored name is
+ * the plain name.
  */
 export function idef0DiagramLabel(diagram: Elem, name: string): string {
   const number = diagramNodeNumber(diagram)
-  return number ? `${number} ${name}` : name
+  if (!number) return name
+  return `${number} ${isContextDiagram(diagram) ? 'Context diagram' : 'Diagram'}: ${name}`
 }
 
 /** `abbreviation/nodeNumber`, just the number when the model has no abbreviation. */

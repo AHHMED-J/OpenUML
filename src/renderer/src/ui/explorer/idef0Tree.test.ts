@@ -27,9 +27,9 @@ const folder = (el: Elem, role: string): TreeNode => {
 describe('IDEF0 boxes in the Model Explorer', () => {
   it('lists the child diagram, role folders with counts and the child boxes by node number', () => {
     const ex = buildOrderExample()
-    expect(labels(childrenOf(ex.model))).toEqual(['A-0 Process Customer Order', 'A0 Process Customer Order'])
+    expect(labels(childrenOf(ex.model))).toEqual(['A-0 Context diagram: Process Customer Order', 'A0 Process Customer Order'])
     expect(labels(childrenOf(ex.top))).toEqual([
-      'A0 Process Customer Order',
+      'A0 Diagram: Process Customer Order',
       'Inputs (1)',
       'Controls (1)',
       'Outputs (1)',
