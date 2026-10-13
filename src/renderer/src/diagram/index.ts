@@ -152,6 +152,7 @@ export { ensureNotations } from './notations'
 export {
   Idef0CommandIds,
   decomposeFunction,
+  deleteIdef0Elements,
   issueItems,
   registerIdef0Commands,
   validateIdef0,
