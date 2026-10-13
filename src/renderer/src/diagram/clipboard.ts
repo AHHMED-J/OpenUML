@@ -13,7 +13,7 @@
  * The payload is JSON text so it can travel through the system clipboard.
  */
 import type { ModelEngine } from '../commands'
-import { ElementReader, isJsonObject, parseJsonText, serializeElement, type Json, type JsonObject } from '../format'
+import { ElementReader, isJsonObject, parseJsonText, remapTreeIds, serializeElement, type Json, type JsonObject } from '../format'
 import {
   findContainment,
   formatPoints,
@@ -164,23 +164,6 @@ export function parseClipboard(text: string): ViewClipboardPayload | null {
   return null
 }
 
-/** Rewrites every element ID (and every `$ref` to one) in the JSON trees; returns old → new. */
-export function remapAll(roots: readonly JsonObject[], newId: () => string): { roots: JsonObject[]; ids: Map<string, string> } {
-  const ids = new Map<string, string>()
-  for (const id of collectIds(roots)) ids.set(id, newId())
-  const rewrite = (value: Json): Json => {
-    if (Array.isArray(value)) return value.map(rewrite)
-    if (!isJsonObject(value)) return value
-    const out: JsonObject = {}
-    for (const [key, v] of Object.entries(value)) {
-      if ((key === '_id' || key === '$ref') && typeof v === 'string') out[key] = ids.get(v) ?? v
-      else out[key] = rewrite(v)
-    }
-    return out
-  }
-  return { roots: roots.map((r) => rewrite(r) as JsonObject), ids }
-}
-
 /** Translates every node box (`left`/`top`) and edge polyline (`points`) in view JSON. */
 export function shiftViewJson(roots: readonly JsonObject[], dx: number, dy: number): void {
   if (dx === 0 && dy === 0) return
@@ -244,7 +227,8 @@ export function pasteViews(engine: ModelEngine, diagram: Diagram, payload: ViewC
     const hostable = (v: JsonObject): boolean => canHost !== undefined && typeof v['_type'] === 'string' && canHost(diagram._type, v['_type'])
     if (!payload.views.every(hostable)) throw new PasteError('The copied views cannot be pasted into this kind of diagram')
   }
-  const { roots } = remapAll(payload.views, () => repo.generateId())
+  // The payload passed `parseClipboard` (parsed with the file guards); `remapTreeIds` copies it.
+  const { roots } = remapTreeIds(payload.views, () => repo.generateId())
   const b = payload.bounds
   const dx = center && b ? Math.round(center.x - (b.left + b.width / 2)) : 20
   const dy = center && b ? Math.round(center.y - (b.top + b.height / 2)) : 20
@@ -321,7 +305,7 @@ export function duplicateViews(engine: ModelEngine, diagram: Diagram, ids: reado
   dropOuterViewRefs(viewJson, collectIds(viewJson), repo)
   shiftViewJson(viewJson, offset.x, offset.y)
   const all = [...models.map((m) => m.json), ...relationships.map((r) => r.json), ...viewJson]
-  const { roots, ids: mapping } = remapAll(all, () => repo.generateId())
+  const { roots, ids: mapping } = remapTreeIds(all, () => repo.generateId())
   const elements = readAll(repo, roots)
   const modelCount = models.length
   const relCount = relationships.length
