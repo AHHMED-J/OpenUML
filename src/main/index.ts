@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { IpcChannels, type MenuItemSpec } from '../shared/ipc'
@@ -25,7 +25,8 @@ let rendererReady = false
 /** Paths the renderer may read and write (see `FileAccess`). */
 const fileAccess = new FileAccess()
 
-const devServerUrl = process.env['ELECTRON_RENDERER_URL']
+/** The Vite dev server, honored in development only (never in an installed app). */
+const devServerUrl = !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined
 const rendererRoot = join(__dirname, '../renderer')
 
 const rendererEntry = join(rendererRoot, 'index.html')
@@ -54,6 +55,9 @@ function isAppUrl(url: string): boolean {
   }
 }
 
+/** Renderer crashes (e.g. out of memory on a hostile file) reload the UI, at most a few times a minute. */
+const crashTimes: number[] = []
+
 function createWindow(): void {
   closeConfirmed = false
   isDirty = false
@@ -70,7 +74,15 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      nodeIntegrationInSubFrames: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      webviewTag: false,
+      navigateOnDragDrop: false,
+      safeDialogs: true,
+      devTools: !app.isPackaged
     }
   })
   mainWindow = window
@@ -90,12 +102,44 @@ function createWindow(): void {
     }
   })
 
-  // Never navigate away from the app or open arbitrary windows.
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  window.webContents.on('will-navigate', (event) => event.preventDefault())
+  // Never navigate away from the app, open other windows or embed web views.
+  const contents = window.webContents
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  contents.on('will-navigate', (event) => event.preventDefault())
+  contents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame || !isAppUrl(event.url)) event.preventDefault()
+  })
+  contents.on('will-redirect', (event) => {
+    if (!isAppUrl(event.url)) event.preventDefault()
+  })
+  contents.on('will-attach-webview', (event) => event.preventDefault())
+
+  contents.on('render-process-gone', (_event, details) => {
+    if (details.reason === 'clean-exit') return
+    const now = Date.now()
+    while (crashTimes.length > 0 && now - (crashTimes[0] as number) > 60_000) crashTimes.shift()
+    crashTimes.push(now)
+    rendererReady = false
+    if (crashTimes.length <= 3) contents.reload()
+  })
 
   if (devServerUrl) void window.loadURL(devServerUrl)
   else void window.loadFile(rendererEntry)
+}
+
+/** The UI needs no camera, microphone, location, notifications, etc.; only clipboard text access. */
+function restrictPermissions(): void {
+  const allowed = new Set(['clipboard-read', 'clipboard-sanitized-write'])
+  const ses = session.defaultSession
+  ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    callback(allowed.has(permission) && webContents === mainWindow?.webContents && isAppUrl(details.requestingUrl))
+  })
+  ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    return allowed.has(permission) && webContents === mainWindow?.webContents && isAppUrl(requestingOrigin)
+  })
+  ses.setDevicePermissionHandler(() => false)
+  // Downloads are never started by the app itself.
+  ses.on('will-download', (event) => event.preventDefault())
 }
 
 function toMenuTemplate(items: MenuItemSpec[]): MenuItemConstructorOptions[] {
@@ -292,6 +336,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(() => {
+    restrictPermissions()
     registerIpc()
     createWindow()
     app.on('activate', () => {
@@ -299,6 +344,12 @@ if (!app.requestSingleInstanceLock()) {
     })
   })
 }
+
+// Any other web contents (there should be none) gets the same navigation and window rules.
+app.on('web-contents-created', (_event, contents) => {
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  contents.on('will-attach-webview', (event) => event.preventDefault())
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
