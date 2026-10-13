@@ -158,6 +158,7 @@ export {
   deleteIdef0Elements,
   issueItems,
   registerIdef0Commands,
+  setBoxNumber,
   validateIdef0,
   type Idef0CommandContext,
   type Idef0ListItem,

@@ -10,6 +10,7 @@ import {
   isContextDiagram,
   isIdef0Function,
   planBoundaryArrow,
+  planBoxNumberSwap,
   planDecompose,
   planRenumber,
   rootArrow,
@@ -79,6 +80,21 @@ export function renumberBoxes(engine: ModelEngine, diagram: Elem): number {
   const changes = planRenumber(diagram)
   if (changes.length === 0) return 0
   engine.transact('Renumber Boxes', (b) => {
+    for (const change of changes) b.set(change.fn, 'boxNumber', change.boxNumber)
+  })
+  return changes.length
+}
+
+/**
+ * Gives box `fn` the number `boxNumber` (Properties > Box Number), swapping with the box that had
+ * it, in one undo step. Node numbers of its sub-tree, ICOM codes, titles and labels are derived and
+ * follow. Returns the number of boxes renumbered (0 when unchanged); throws a `ModelRuleError` for
+ * a number outside the diagram's range or the A-0 box.
+ */
+export function setBoxNumber(engine: ModelEngine, fn: Elem, boxNumber: number): number {
+  const changes = planBoxNumberSwap(fn, boxNumber)
+  if (changes.length === 0) return 0
+  engine.transact('Change Box Number', (b) => {
     for (const change of changes) b.set(change.fn, 'boxNumber', change.boxNumber)
   })
   return changes.length

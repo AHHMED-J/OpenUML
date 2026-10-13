@@ -132,7 +132,7 @@ describe('IDEF0 validation', () => {
     expect(ids(k)).not.toContain('W09')
   })
 
-  it('W10: duplicate numbers, gaps and numbers that disagree with the staircase', () => {
+  it('W10: duplicate numbers and gaps; off-staircase numbers only when the diagram follows the staircase', () => {
     const k = exampleKit()
     k.example.a3['boxNumber'] = 2
     expect(ids(k)).toContain('W10')
@@ -142,6 +142,10 @@ describe('IDEF0 validation', () => {
     const k3 = exampleKit()
     k3.example.a1['boxNumber'] = 3
     k3.example.a3['boxNumber'] = 1
+    // Numbers chosen by the user are fine...
+    expect(ids(k3)).not.toContain('W10')
+    // ...unless the diagram asks for staircase numbering.
+    k3.child['autoNumber'] = true
     expect(ids(k3)).toContain('W10')
   })
 

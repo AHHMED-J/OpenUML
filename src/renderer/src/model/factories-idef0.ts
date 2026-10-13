@@ -11,6 +11,7 @@ import {
   contextDiagramOf,
   isContextDiagram,
   isIdef0Function,
+  nextFreeBoxNumber,
   ROLE_SIDE,
   roleOf,
   slotOffsets,
@@ -280,7 +281,7 @@ export function planIdef0Node(req: NodeRequest): CreationPlan {
   if (req.kind === 'IDEF0Function') {
     requireDecomposition(req.diagram)
     const siblings = list(scope, 'functions')
-    const boxNumber = siblings.reduce((m, f) => Math.max(m, f['boxNumber'] as number), 0) + 1
+    const boxNumber = nextFreeBoxNumber(siblings)
     model = createElement('IDEF0Function', { name: req.name ?? nextName(siblings, 'New Function '), boxNumber })
     insertions.push({ owner: scope, field: 'functions', element: model })
     view = createElement<NodeView>('IDEF0FunctionView', { model, ...bounds, width: Math.max(IDEF0_BOX.minWidth, bounds.width), height: Math.max(IDEF0_BOX.minHeight, bounds.height) })
