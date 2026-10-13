@@ -529,10 +529,6 @@ export interface SwimlaneData {
   readonly name: TextLine | null
 }
 
-/** Header thickness of a swimlane: name height + 4 + 4 (21 at 13 px). */
-export function swimlaneHeaderSize(font: Font): number {
-  return font.size + SPACING.partitionHeaderPadding * 2
-}
 
 /**
  * Swimlane layout: vertical lanes have a header row across the top (name centered, 4 below the

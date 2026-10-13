@@ -58,7 +58,6 @@ function formOf(view: UMLClassifierView, fallback: StereotypeForm): 'label' | 'd
   return 'label'
 }
 
-export { formOf as displayFormOf }
 
 function nameForm(form: 'label' | 'decoration' | 'icon', view: UMLClassifierView): StereotypeForm {
   const raw = stereotypeForm(view)

@@ -5,7 +5,7 @@
  * active bar, the head arrives at the receiver's line, the side of its new (or active) bar, or the
  * side of the created lifeline's header. Self messages loop out 30 to the right and down 20.
  */
-import { isKindOf, type EdgeView, type Elem, type View } from '../../../model'
+import { type EdgeView, type Elem, type View } from '../../../model'
 import { LineStyle, SPACING, Z_INDEX, guillemets, messageNotation, type Point } from '../../core'
 import { buildEdgeLayout, placeEdgeLabels, type EdgeLabelSpec } from '../../layout/edges'
 import { stereotypeName, styleOf } from '../../layout/helpers'
@@ -168,7 +168,3 @@ export const messageNotationEntry: EdgeNotation<MessageData> = {
   layout: layoutMessage
 }
 
-/** True when `view` is a sequence message. */
-export function isMessageView(view: View | null | undefined): boolean {
-  return isKindOf(view, 'UMLSeqMessageView')
-}

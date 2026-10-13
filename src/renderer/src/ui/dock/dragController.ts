@@ -159,10 +159,6 @@ interface Drag {
 
 let drag: Drag | null = null
 
-/** True while a panel is lifted (used by tests of the shell and by other pointer handlers). */
-export function isDockDragging(): boolean {
-  return drag !== null
-}
 
 function startDrag(p: Press): void {
   endPress()

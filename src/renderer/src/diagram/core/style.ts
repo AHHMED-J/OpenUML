@@ -83,8 +83,6 @@ export const DEFAULT_FONT: Readonly<Font> = Object.freeze({
 export const FONT_SIZES: readonly number[] = [8, 9, 10, 11, 12, 13, 14, 16, 20, 24, 28, 32]
 /** Namespace text "(from X)" is drawn at this fraction of the font size. */
 export const NAMESPACE_FONT_SCALE = 0.9
-/** Optional compartment titles are drawn italic at this fraction of the font size. */
-export const COMPARTMENT_TITLE_FONT_SCALE = 0.8
 /** Generic family appended to CSS font strings as a fallback. */
 export const GENERIC_FONT_FAMILY = 'sans-serif'
 
@@ -92,7 +90,6 @@ export const GENERIC_FONT_FAMILY = 'sans-serif'
 // Lines and dashes
 // ---------------------------------------------------------------------------
 
-export const LINE_WIDTH = 1
 /** Partition (swimlane) header and lane borders. */
 export const SWIMLANE_LINE_WIDTH = 2
 
@@ -317,5 +314,3 @@ export const EXPORT = {
   defaultPngScale: 2
 } as const
 
-/** Offset of the sequence diagram frame created with a new diagram, and its default size. */
-export const DEFAULT_SEQUENCE_FRAME = { left: 8, top: 8, width: 692, height: 592 } as const

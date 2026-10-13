@@ -29,9 +29,6 @@ export const EPSILON = 1e-9
 // Points and vectors
 // ---------------------------------------------------------------------------
 
-export function pt(x: number, y: number): Point {
-  return { x, y }
-}
 
 export function pointsEqual(a: Point, b: Point, eps = EPSILON): boolean {
   return Math.abs(a.x - b.x) <= eps && Math.abs(a.y - b.y) <= eps
@@ -79,17 +76,11 @@ export function rotate(v: Point, angle: number): Point {
   return { x: v.x * c - v.y * s, y: v.x * s + v.y * c }
 }
 
-export function midpoint(a: Point, b: Point): Point {
-  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-}
 
 export function roundPoint(p: Point): Point {
   return { x: Math.round(p.x), y: Math.round(p.y) }
 }
 
-export function floorPoint(p: Point): Point {
-  return { x: Math.floor(p.x), y: Math.floor(p.y) }
-}
 
 /** Linear interpolation between `a` (t = 0) and `b` (t = 1). */
 export function lerp(a: Point, b: Point, t: number): Point {
@@ -133,9 +124,6 @@ export function inflateRect(r: Rect, dx: number, dy: number = dx): Rect {
   return { left: r.left - dx, top: r.top - dy, width: r.width + 2 * dx, height: r.height + 2 * dy }
 }
 
-export function translateRect(r: Rect, dx: number, dy: number): Rect {
-  return { left: r.left + dx, top: r.top + dy, width: r.width, height: r.height }
-}
 
 /** True when `p` is inside `r` or on its border, with an optional extra tolerance. */
 export function rectContainsPoint(r: Rect, p: Point, tolerance = 0): boolean {
@@ -196,10 +184,6 @@ export function boundsOfPoints(points: readonly Point[]): Rect | null {
   return rectFromLTRB(left, top, right, bottom)
 }
 
-/** Rounds every field of a rectangle to an integer. */
-export function roundRect(r: Rect): Rect {
-  return { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }
-}
 
 // ---------------------------------------------------------------------------
 // Segments and lines
