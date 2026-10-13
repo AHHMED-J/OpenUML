@@ -66,7 +66,7 @@ function restoreWorkingDiagrams(path: string): void {
  * If the project has unsaved changes, asks Save / Don't Save / Cancel. Resolves true when the
  * caller may proceed (saved or discarded), false when cancelled.
  */
-export async function confirmDiscardChanges(): Promise<boolean> {
+async function confirmDiscardChanges(): Promise<boolean> {
   commitPendingEdits()
   if (!ps().dirty) return true
   if (!bridge) return window.confirm('Discard unsaved changes?')
@@ -198,7 +198,7 @@ export async function handleCloseRequest(): Promise<void> {
 // Export
 
 /** File-system-safe name for a diagram (`diagram` when empty). */
-export function exportFileName(name: string): string {
+function exportFileName(name: string): string {
   const cleaned = name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').trim()
   return cleaned || 'diagram'
 }

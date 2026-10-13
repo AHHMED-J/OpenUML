@@ -10,7 +10,7 @@ export interface Point {
   readonly y: number
 }
 
-export interface Rect {
+interface Rect {
   readonly left: number
   readonly top: number
   readonly right: number
@@ -55,7 +55,7 @@ export interface DropQuery {
   readonly tolerance?: number
 }
 
-export function contains(rect: Rect, p: Point, tolerance = 0): boolean {
+function contains(rect: Rect, p: Point, tolerance = 0): boolean {
   return p.x >= rect.left - tolerance && p.x <= rect.right + tolerance && p.y >= rect.top && p.y <= rect.bottom
 }
 

@@ -33,10 +33,10 @@ import {
 const ps = () => projectStore.getState()
 const ui = () => uiStore.getState()
 
-export const PROJECT_URL = 'https://github.com/AHHMED-J/OpenUML'
+const PROJECT_URL = 'https://github.com/AHHMED-J/OpenUML'
 
 /** The element new children are added to: the first selected model, else the Project. */
-export function selectedParent(): Elem {
+function selectedParent(): Elem {
   return selectedModels(ps())[0] ?? ps().project
 }
 

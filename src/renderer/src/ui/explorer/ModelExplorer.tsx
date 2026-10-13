@@ -20,7 +20,7 @@ import { uiStore, useUiStore } from '../uiStore'
 import { dropField, explorerLabel, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
-export const ELEMENT_DRAG_TYPE = 'application/x-openuml-element'
+const ELEMENT_DRAG_TYPE = 'application/x-openuml-element'
 
 function rowDomId(key: string): string {
   return `tree-${key}`

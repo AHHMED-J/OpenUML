@@ -26,7 +26,7 @@ export interface DockLayout {
   readonly panels: Readonly<Record<DockPanelId, DockPanelState>>
 }
 
-export const DOCK_LAYOUT_VERSION = 1
+const DOCK_LAYOUT_VERSION = 1
 
 export const DOCK_PANEL_TITLES: Readonly<Record<DockPanelId, string>> = {
   explorer: 'Model Explorer',
@@ -42,8 +42,8 @@ export const DOCK_AREA_TITLES: Readonly<Record<DockAreaId, string>> = {
   right: 'right sidebar'
 }
 
-export const MIN_PANEL_SIZE = 40
-export const MAX_PANEL_SIZE = 5000
+const MIN_PANEL_SIZE = 40
+const MAX_PANEL_SIZE = 5000
 
 /** The default (factory) layout: explorer over working diagrams; toolbox over the editors. */
 export const DEFAULT_DOCK_LAYOUT: DockLayout = {
@@ -70,7 +70,7 @@ export function isDockAreaId(value: unknown): value is DockAreaId {
   return typeof value === 'string' && (DOCK_AREA_IDS as readonly string[]).includes(value)
 }
 
-export function clampPanelSize(size: number): number {
+function clampPanelSize(size: number): number {
   if (!Number.isFinite(size)) return MIN_PANEL_SIZE
   return Math.round(Math.max(MIN_PANEL_SIZE, Math.min(MAX_PANEL_SIZE, size)))
 }

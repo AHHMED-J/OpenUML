@@ -9,7 +9,7 @@
  */
 import { fieldOf, fieldsOf, getEnumLiterals, isElem, isKindOf, type Elem, type FeatureKind, type FieldDef } from '../../model'
 
-export type WidgetKind =
+type WidgetKind =
   | 'text'
   | 'textarea'
   | 'combo'
@@ -58,7 +58,7 @@ const HIDDEN = new Set([
 ])
 
 /** Containment lists editable as collections, with the feature kind that adds an item. */
-export const COLLECTION_FIELDS: Readonly<Record<string, FeatureKind>> = {
+const COLLECTION_FIELDS: Readonly<Record<string, FeatureKind>> = {
   attributes: 'Attribute',
   operations: 'Operation',
   parameters: 'Parameter',

@@ -46,9 +46,9 @@ export interface PanelState {
 export type PanelId = 'sidebar' | 'navigator' | 'toolbar' | 'statusbar'
 /** Anything the View menu can show/hide: chrome, a dockable panel, or all three editors. */
 export type ToggleablePanel = PanelId | DockPanelId | 'editors'
-export const EDITOR_PANELS: readonly DockPanelId[] = ['styles', 'properties', 'documentation']
+const EDITOR_PANELS: readonly DockPanelId[] = ['styles', 'properties', 'documentation']
 /** The `panels` entry holding a dock area's visibility and width. */
-export const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', right: 'navigator' }
+const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', right: 'navigator' }
 
 export interface Preferences {
   readonly theme: ThemePreference
@@ -61,7 +61,7 @@ export interface Preferences {
   readonly radAutoThread: boolean
 }
 
-export const DEFAULT_PREFERENCES: Preferences = {
+const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
   showGrid: true,
   snapToGrid: true,
@@ -70,14 +70,14 @@ export const DEFAULT_PREFERENCES: Preferences = {
   radAutoThread: true
 }
 
-export const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
+const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
   sidebar: { visible: true, size: 260 },
   navigator: { visible: true, size: 300 },
   toolbar: { visible: true, size: 34 },
   statusbar: { visible: true, size: 24 }
 }
 
-export interface Toast {
+interface Toast {
   readonly id: number
   readonly text: string
   readonly kind: 'info' | 'error'
@@ -91,7 +91,7 @@ export interface ListRow {
 }
 
 /** Modal dialogs; promise-based ones carry their resolver. */
-export type ModalState =
+type ModalState =
   | { readonly kind: 'palette' }
   | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
@@ -111,7 +111,7 @@ export type ModalState =
       readonly resolve: (ids: readonly string[] | null) => void
     }
 
-export interface ContextMenuState {
+interface ContextMenuState {
   readonly x: number
   readonly y: number
   /** Which menu to show (resolved by the context-menu host). */

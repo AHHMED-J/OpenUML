@@ -220,7 +220,7 @@ export interface ElementNode {
 }
 
 /** A role folder under a function box (`Inputs (2)`); never stored in the model. */
-export interface FolderNode {
+interface FolderNode {
   readonly kind: 'folder'
   readonly key: string
   readonly box: Elem
@@ -229,7 +229,7 @@ export interface FolderNode {
 }
 
 /** An arrow listed under a box it touches, with its role and position at that box. */
-export interface ArrowNode {
+interface ArrowNode {
   readonly kind: 'arrow'
   readonly key: string
   readonly el: Elem
@@ -370,7 +370,7 @@ function childCodeText(arrow: Elem, box: Elem, role: Idef0Role): string {
 }
 
 /** Full description of an arrow entry: `Input 1 of A2 · from Output 1 of A1 · ICOM I1 on A2`. */
-export function arrowTooltip(arrow: Elem, box: Elem, role: Idef0Role, position: number): string {
+function arrowTooltip(arrow: Elem, box: Elem, role: Idef0Role, position: number): string {
   const name = arrowDisplayName(arrow)
   const parts = [`${ROLE_TITLE[role]} ${position} of ${nodeNumber(box)}${name && role !== 'call' ? ` (${name})` : ''}`, otherEndText(arrow, role), childCodeText(arrow, box, role)]
   return parts.filter(Boolean).join(' · ')
@@ -487,7 +487,7 @@ export interface OpenState {
 }
 
 /** Element rows open when expanded; role folders are open unless collapsed. */
-export function isOpen(node: TreeNode, state: OpenState): boolean {
+function isOpen(node: TreeNode, state: OpenState): boolean {
   return node.kind === 'folder' ? state.collapsedFolders[node.key] !== true : state.expanded[node.key] === true
 }
 
