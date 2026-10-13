@@ -1,30 +1,39 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron'
 import { readFile } from 'node:fs/promises'
-import { extname, join, resolve } from 'node:path'
-import { IpcChannels, type FileFilter, type MenuItemSpec, type NativeEditAction } from '../shared/ipc'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { IpcChannels, type MenuItemSpec } from '../shared/ipc'
 import { FileAccess, writeFileAtomic } from './fileAccess'
+import {
+  allowedExternalUrl,
+  findFileArgument,
+  isAbsolutePath,
+  isProjectPath,
+  sanitizeFilters,
+  sanitizeMenu,
+  sanitizeMessageBox,
+  sanitizeTitle
+} from './ipcValidation'
 import appIcon from '../../resources/icon.png?asset'
 
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
 let closeConfirmed = false
 /** File to open at launch (command line or macOS open-file before the renderer asked). */
-let startupFile: string | null = findFileArgument(process.argv)
+let startupFile: string | null = findFileArgument(process.argv, process.cwd())
 /** Set once the renderer has asked for the startup file; later open-file events are forwarded. */
 let rendererReady = false
 /** Paths the renderer may read and write (see `FileAccess`). */
 const fileAccess = new FileAccess()
 
-function findFileArgument(argv: readonly string[]): string | null {
-  // Skip the executable (and, in development, the app path).
-  for (const arg of argv.slice(1)) {
-    if (!arg.startsWith('-') && extname(arg).toLowerCase() === '.mdj') return resolve(arg)
-  }
-  return null
-}
+const devServerUrl = process.env['ELECTRON_RENDERER_URL']
+const rendererRoot = join(__dirname, '../renderer')
+
+const rendererEntry = join(rendererRoot, 'index.html')
 
 /** Opens `path` in the running window (asking about unsaved changes), or at launch if not ready yet. */
 function openFile(path: string): void {
+  if (!isProjectPath(path)) return
   if (rendererReady && mainWindow) mainWindow.webContents.send(IpcChannels.openFile, path)
   else startupFile = path
 }
@@ -35,10 +44,21 @@ app.on('open-file', (event, path) => {
   openFile(path)
 })
 
+/** True for URLs of the app's own pages (the packaged origin or the development server). */
+function isAppUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol === 'file:') return parsed.pathname === pathToFileURL(rendererEntry).pathname
+    return devServerUrl !== undefined && parsed.origin === new URL(devServerUrl).origin
+  } catch {
+    return false
+  }
+}
+
 function createWindow(): void {
   closeConfirmed = false
   isDirty = false
-  mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
@@ -54,29 +74,29 @@ function createWindow(): void {
       sandbox: true
     }
   })
+  mainWindow = window
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
+  window.once('ready-to-show', () => window.show())
 
-  mainWindow.on('close', (event) => {
+  window.on('close', (event) => {
     if (isDirty && !closeConfirmed) {
       event.preventDefault()
-      mainWindow?.webContents.send(IpcChannels.closeRequested)
+      window.webContents.send(IpcChannels.closeRequested)
     }
   })
-  mainWindow.on('closed', () => {
-    mainWindow = null
-    rendererReady = false
+  window.on('closed', () => {
+    if (mainWindow === window) {
+      mainWindow = null
+      rendererReady = false
+    }
   })
 
   // Never navigate away from the app or open arbitrary windows.
-  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  window.webContents.on('will-navigate', (event) => event.preventDefault())
 
-  if (process.env['ELECTRON_RENDERER_URL']) {
-    void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  if (devServerUrl) void window.loadURL(devServerUrl)
+  else void window.loadFile(rendererEntry)
 }
 
 function toMenuTemplate(items: MenuItemSpec[]): MenuItemConstructorOptions[] {
@@ -110,19 +130,44 @@ function debugMenu(): MenuItemConstructorOptions {
 }
 
 function denied(path: unknown): Error {
-  return new Error(`Access to ${typeof path === 'string' ? path : 'this path'} is not allowed`)
+  return new Error(`Access to ${typeof path === 'string' ? path.slice(0, 300) : 'this path'} is not allowed`)
+}
+
+/** Only the app's own top-level page in the main window may use the IPC channels. */
+function isTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  const frame = event.senderFrame
+  return (
+    mainWindow !== null &&
+    event.sender === mainWindow.webContents &&
+    frame !== null &&
+    frame === event.sender.mainFrame &&
+    isAppUrl(frame.url)
+  )
+}
+
+function handle(channel: string, listener: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown): void {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) throw new Error('Untrusted sender')
+    return listener(event, ...args)
+  })
+}
+
+function on(channel: string, listener: (event: IpcMainEvent, ...args: unknown[]) => void): void {
+  ipcMain.on(channel, (event, ...args) => {
+    if (isTrustedSender(event)) listener(event, ...args)
+  })
 }
 
 function registerIpc(): void {
-  ipcMain.on(IpcChannels.setMenu, (_event, menu: MenuItemSpec[]) => {
-    const template = toMenuTemplate(menu)
+  on(IpcChannels.setMenu, (_event, menu) => {
+    const template = toMenuTemplate(sanitizeMenu(menu))
     if (!app.isPackaged) template.push(debugMenu())
     Menu.setApplicationMenu(Menu.buildFromTemplate(template))
   })
 
-  ipcMain.handle(IpcChannels.openTextFile, async (_event, filters: FileFilter[]) => {
+  handle(IpcChannels.openTextFile, async (_event, filters) => {
     if (!mainWindow) return null
-    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], filters })
+    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], filters: sanitizeFilters(filters) })
     const path = result.filePaths[0]
     if (result.canceled || !path) return null
     const content = await readFile(path, 'utf8')
@@ -130,7 +175,7 @@ function registerIpc(): void {
     return { path, content }
   })
 
-  ipcMain.handle(IpcChannels.readTextFile, async (_event, path: unknown) => {
+  handle(IpcChannels.readTextFile, async (_event, path) => {
     if (!fileAccess.canRead(path)) throw denied(path)
     const content = await readFile(path, 'utf8')
     // A project opened by path (recent files, the OS) may be saved back in place.
@@ -138,19 +183,26 @@ function registerIpc(): void {
     return content
   })
 
-  ipcMain.handle(IpcChannels.chooseSavePath, async (_event, defaultName: string, filters: FileFilter[]) => {
+  handle(IpcChannels.chooseSavePath, async (_event, defaultName, rawFilters) => {
     if (!mainWindow) return null
-    const result = await dialog.showSaveDialog(mainWindow, { defaultPath: defaultName, filters })
+    const filters = sanitizeFilters(rawFilters)
+    const result = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: typeof defaultName === 'string' ? defaultName.slice(0, 1000) : undefined,
+      filters
+    })
     if (result.canceled || !result.filePath) return null
     // The renderer appends the extension when the user typed none.
-    fileAccess.grantFile(result.filePath, filters.flatMap((f) => f.extensions))
+    fileAccess.grantFile(
+      result.filePath,
+      filters.flatMap((f) => f.extensions)
+    )
     return result.filePath
   })
 
-  ipcMain.handle(IpcChannels.chooseFolder, async (_event, title: string) => {
+  handle(IpcChannels.chooseFolder, async (_event, title) => {
     if (!mainWindow) return null
     const result = await dialog.showOpenDialog(mainWindow, {
-      title,
+      title: sanitizeTitle(title, 'Choose a folder'),
       properties: ['openDirectory', 'createDirectory']
     })
     const path = result.filePaths[0]
@@ -159,34 +211,36 @@ function registerIpc(): void {
     return path
   })
 
-  ipcMain.handle(IpcChannels.writeTextFile, (_event, path: unknown, content: unknown) => {
-    if (!fileAccess.canWrite(path) || typeof content !== 'string') throw denied(path)
+  handle(IpcChannels.writeTextFile, async (_event, path, content) => {
+    if (typeof content !== 'string' || !fileAccess.canWrite(path)) throw denied(path)
     return writeFileAtomic(path, content)
   })
 
-  ipcMain.handle(IpcChannels.writeBinaryFile, (_event, path: unknown, base64: unknown) => {
-    if (!fileAccess.canWrite(path) || typeof base64 !== 'string') throw denied(path)
+  handle(IpcChannels.writeBinaryFile, async (_event, path, base64) => {
+    if (typeof base64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) throw denied(path)
+    if (!fileAccess.canWrite(path)) throw denied(path)
     return writeFileAtomic(path, Buffer.from(base64, 'base64'))
   })
 
-  ipcMain.handle(IpcChannels.showMessageBox, async (_event, options: Electron.MessageBoxOptions) => {
-    if (!mainWindow) return 0
+  handle(IpcChannels.showMessageBox, async (_event, rawOptions) => {
+    const options = sanitizeMessageBox(rawOptions)
+    if (!mainWindow || !options) return 0
     const result = await dialog.showMessageBox(mainWindow, { ...options, title: 'OpenUML' })
     return result.response
   })
 
-  ipcMain.on(IpcChannels.setDirty, (_event, dirty: boolean, title: string) => {
-    isDirty = dirty
-    mainWindow?.setTitle(title)
-    mainWindow?.setDocumentEdited(dirty)
+  on(IpcChannels.setDirty, (_event, dirty, title) => {
+    isDirty = dirty === true
+    mainWindow?.setTitle(sanitizeTitle(title))
+    mainWindow?.setDocumentEdited(isDirty)
   })
 
-  ipcMain.on(IpcChannels.confirmClose, () => {
+  on(IpcChannels.confirmClose, () => {
     closeConfirmed = true
     mainWindow?.close()
   })
 
-  ipcMain.on(IpcChannels.nativeEdit, (event, action: NativeEditAction) => {
+  on(IpcChannels.nativeEdit, (event, action) => {
     const contents = event.sender
     switch (action) {
       case 'undo':
@@ -206,19 +260,20 @@ function registerIpc(): void {
     }
   })
 
-  ipcMain.on(IpcChannels.openExternal, (_event, url: string) => {
-    if (typeof url === 'string' && url.startsWith('https://')) void shell.openExternal(url)
+  on(IpcChannels.openExternal, (_event, url) => {
+    const allowed = allowedExternalUrl(url)
+    if (allowed) void shell.openExternal(allowed)
   })
 
-  ipcMain.on(IpcChannels.addRecentDocument, (_event, path: string) => {
-    if (typeof path === 'string' && path.length > 0) app.addRecentDocument(path)
+  on(IpcChannels.addRecentDocument, (_event, path) => {
+    if (isProjectPath(path)) app.addRecentDocument(path)
   })
 
-  ipcMain.handle(IpcChannels.takeStartupFile, () => {
+  handle(IpcChannels.takeStartupFile, () => {
     rendererReady = true
     const path = startupFile
     startupFile = null
-    return path
+    return isAbsolutePath(path) ? path : null
   })
 }
 
@@ -227,12 +282,12 @@ function registerIpc(): void {
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on('second-instance', (_event, argv) => {
+  app.on('second-instance', (_event, argv, workingDirectory) => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.focus()
     }
-    const file = findFileArgument(argv)
+    const file = findFileArgument(argv, typeof workingDirectory === 'string' && workingDirectory ? workingDirectory : process.cwd())
     if (file) openFile(file)
   })
 
