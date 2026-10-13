@@ -451,3 +451,90 @@ export function pathTo(el: Elem): Elem[] {
   for (let p: Elem | null = el; p; p = p._parent) chain.unshift(p)
   return chain
 }
+
+// ---------------------------------------------------------------------------------------------
+// Rows
+
+/**
+ * Indent guide of one tree level of a row: `pass` continues the vertical line of an ancestor that
+ * has more children below, `tee` / `elbow` connect the row to its parent (elbow for the last child,
+ * ending the line). `role` colors the lines of an IDEF0 role folder.
+ */
+export interface Guide {
+  readonly kind: 'none' | 'pass' | 'tee' | 'elbow'
+  readonly role: Idef0Role | null
+}
+
+interface Trail {
+  readonly more: boolean
+  readonly role: Idef0Role | null
+}
+
+export interface TreeRow {
+  readonly node: TreeNode
+  readonly guides: readonly Guide[]
+  /** The model element of the row (null for a role folder). */
+  readonly el: Elem | null
+  readonly depth: number
+  readonly parentKey: string | null
+  readonly expandable: boolean
+  readonly expanded: boolean
+}
+
+export interface OpenState {
+  readonly expanded: Readonly<Record<string, true>>
+  readonly collapsedFolders: Readonly<Record<string, true>>
+}
+
+/** Element rows open when expanded; role folders are open unless collapsed. */
+export function isOpen(node: TreeNode, state: OpenState): boolean {
+  return node.kind === 'folder' ? state.collapsedFolders[node.key] !== true : state.expanded[node.key] === true
+}
+
+const NO_GUIDES: readonly Guide[] = []
+
+function guidesOf(trail: readonly Trail[]): readonly Guide[] {
+  if (trail.length === 0) return NO_GUIDES
+  const last = trail.length - 1
+  return trail.map((t, level) => ({
+    kind: level === last ? (t.more ? 'tee' : 'elbow') : t.more ? 'pass' : 'none',
+    role: t.role
+  }))
+}
+
+function rowOf(node: TreeNode, trail: readonly Trail[], parentKey: string | null, expandable: boolean, expanded: boolean): TreeRow {
+  return { node, guides: guidesOf(trail), el: node.kind === 'folder' ? null : node.el, depth: trail.length, parentKey, expandable, expanded }
+}
+
+/** The visible rows of the tree under `root` (pre-order), with their indent guides. */
+export function flattenTree(root: Elem, state: OpenState, options: TreeOptions = {}): TreeRow[] {
+  const rows: TreeRow[] = []
+  const visit = (node: TreeNode, trail: readonly Trail[], parentKey: string | null): void => {
+    const expandable = hasTreeChildren(node)
+    const open = expandable && isOpen(node, state)
+    rows.push(rowOf(node, trail, parentKey, expandable, open))
+    if (!open) return
+    const children = treeChildren(node, options)
+    const role = node.kind === 'folder' ? node.role : null
+    children.forEach((child, i) => visit(child, [...trail, { more: i < children.length - 1, role }], node.key))
+  }
+  visit(elementNode(root), [], null)
+  return rows
+}
+
+/** Elements whose name contains `query` (each once, at most 200), as flat rows. */
+export function searchTree(root: Elem, query: string, options: TreeOptions = {}): TreeRow[] {
+  const q = query.toLowerCase()
+  const rows: TreeRow[] = []
+  const seen = new Set<Elem>()
+  const visit = (node: TreeNode): void => {
+    if (node.kind !== 'folder' && !seen.has(node.el)) {
+      seen.add(node.el)
+      const name = node.el['name']
+      if (node.el !== root && typeof name === 'string' && name.toLowerCase().includes(q)) rows.push(rowOf(node, [], null, false, false))
+    }
+    if (rows.length < 200) for (const child of treeChildren(node, { ...options, groupArrows: false })) visit(child)
+  }
+  visit(elementNode(root))
+  return rows
+}
