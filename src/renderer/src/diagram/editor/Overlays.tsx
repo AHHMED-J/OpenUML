@@ -29,6 +29,28 @@ function Handle({ center, zoom }: { center: Point; zoom: number }): React.JSX.El
   return <rect x={fmt(center.x - s / 2)} y={fmt(center.y - s / 2)} width={fmt(s)} height={fmt(s)} fill={SELECTION.handleFill} stroke={ACCENT} strokeWidth={1 / zoom} />
 }
 
+/** Edges highlighted because a selected edge is drawn as one with them (`EdgeLayout.highlightGroup`). */
+function highlightedEdges(layout: DiagramLayout, selected: readonly string[]): string[] {
+  const ids = new Set<string>()
+  for (const id of selected) for (const member of layout.edges.get(id)?.highlightGroup ?? []) ids.add(member)
+  return [...ids]
+}
+
+/** A soft band along a highlighted edge and around its labels. */
+function EdgeHalo({ layout, id, zoom }: { layout: DiagramLayout; id: string; zoom: number }): React.JSX.Element | null {
+  const edge = layout.edges.get(id)
+  if (!edge || edge.points.length < 2) return null
+  const pad = 2 / zoom
+  return (
+    <g>
+      <path d={polylinePath(edge.points)} fill="none" stroke={ACCENT} strokeOpacity={0.3} strokeWidth={SELECTION.bandWidth / zoom} strokeLinecap="round" strokeLinejoin="round" />
+      {edge.labels.map((l, i) => (
+        <rect key={i} x={fmt(l.box.left - pad)} y={fmt(l.box.top - pad)} width={fmt(l.box.width + 2 * pad)} height={fmt(l.box.height + 2 * pad)} fill={ACCENT} fillOpacity={SELECTION.bandAlpha} stroke={ACCENT} strokeOpacity={0.6} strokeWidth={1 / zoom} />
+      ))}
+    </g>
+  )
+}
+
 /** Selection decorations of the selected views. */
 export const SelectionOverlay = memo(function SelectionOverlay({
   layout,
@@ -43,6 +65,9 @@ export const SelectionOverlay = memo(function SelectionOverlay({
   const band = SELECTION.bandWidth / zoom
   return (
     <g pointerEvents="none">
+      {highlightedEdges(layout, selected).map((id) => (
+        <EdgeHalo key={`halo-${id}`} layout={layout} id={id} zoom={zoom} />
+      ))}
       {selected.map((id) => {
         const node = layout.nodes.get(id)
         if (node) {

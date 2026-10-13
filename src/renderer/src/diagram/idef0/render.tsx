@@ -91,20 +91,26 @@ export function FrameNode({ layout }: { layout: NodeLayout<FrameData> }): React.
   )
 }
 
+/**
+ * An arrow. The class names let the editor's style sheet highlight the line while the pointer is
+ * over the label (`.idef0-arrow:has(.idef0-arrow-label:hover)`); exported files carry no style.
+ */
 export function ArrowEdge({ layout }: { layout: EdgeLayout<ArrowData> }): React.JSX.Element {
   const { points, data, style } = layout
   const ends = edgeEndShapes(points, layout.tailEnd, layout.headEnd)
   return (
-    <g>
+    <g className="idef0-arrow">
       {points.length >= 2 && (
-        <path d={roundedPolylinePath(points, IDEF0_STYLE.bendRadius)} fill="none" stroke={style.lineColor} strokeWidth={data.lineWidth} />
+        <path className="idef0-arrow-line" d={roundedPolylinePath(points, IDEF0_STYLE.bendRadius)} fill="none" stroke={style.lineColor} strokeWidth={data.lineWidth} />
       )}
       <EndDecorations shapes={ends.tail} lineColor={style.lineColor} />
       <EndDecorations shapes={ends.head} lineColor={style.lineColor} />
       {data.tunnels.flatMap((t, i) => t.paths.map((d, j) => <path key={`${i}-${j}`} d={d} fill="none" stroke={style.lineColor} strokeWidth={data.lineWidth} />))}
       {data.squiggle && <path d={polylinePath(data.squiggle)} fill="none" stroke={style.lineColor} strokeWidth={1} />}
       {layout.labels.map((label, i) => (
-        <EdgeLabel key={label.viewId ?? i} label={label} />
+        <g key={label.viewId ?? i} className="idef0-arrow-label">
+          <EdgeLabel label={label} />
+        </g>
       ))}
     </g>
   )
