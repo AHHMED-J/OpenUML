@@ -333,7 +333,7 @@ export function ModelExplorer(): React.JSX.Element {
                 <RenameInput el={el} />
               ) : (
                 <span
-                  className="tree-label"
+                  className={`tree-label${node.kind === 'folder' ? ` role-label role-${node.role}` : ''}`}
                   // The tooltip of an arrow entry walks the model; build it when hovered.
                   onMouseEnter={(e) => {
                     e.currentTarget.title = treeTooltip(node, showStereotype)
