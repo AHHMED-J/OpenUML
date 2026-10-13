@@ -27,7 +27,7 @@ import {
   type NameCompartmentMeasure
 } from '../../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layout/types'
-import { nodeNotationFor } from '../../render/registry'
+import { hostNodeLayout, ownerHostView } from '../gluedViews'
 
 const PAD = SPACING.compartmentPaddingLeft
 
@@ -340,29 +340,6 @@ export interface PinData {
   readonly labels: readonly TextLine[]
 }
 
-/** The owning action's view of a pin view: its container view, else the action's view in the diagram. */
-function pinHostView(view: NodeView, ctx: LayoutContext): View | null {
-  const action = view.model?._parent
-  const container = view.containerView ?? null
-  if (container && (!action || container.model === action)) return container
-  if (!action) return null
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v !== view && v.model === action && isKindOf(v, 'NodeView') && v.visible !== false) return v as View
-  }
-  return null
-}
-
-function hostBox(host: View, ctx: LayoutContext): Rect | null {
-  const laid = ctx.nodeLayout(host._id)
-  if (laid) return laid.box
-  if (!isKindOf(host, 'NodeView')) return null
-  try {
-    return nodeNotationFor(host).layout(host as NodeView, ctx).box
-  } catch {
-    return null
-  }
-}
-
 /**
  * Nearest point of `r`'s border to `p` and the side it lies on (points inside snap to the
  * closest side, points outside are clamped onto the border).
@@ -463,8 +440,8 @@ export function layoutPin(view: NodeView, ctx: LayoutContext): NodeLayout<PinDat
   const size = MIN_SIZES.pin
   const input = isKindOf(model, 'UMLInputPin') || view._type === 'UMLInputPinView'
   const stored = { left: view.left ?? 0, top: view.top ?? 0, width: size.width, height: size.height }
-  const host = pinHostView(view, ctx)
-  const hb = host ? hostBox(host, ctx) : null
+  const host = ownerHostView(view, ctx)
+  const hb = host ? (hostNodeLayout(host, ctx)?.box ?? null) : null
   let box = stored
   let side: PinSide | null = null
   if (hb) {
