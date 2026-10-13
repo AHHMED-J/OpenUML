@@ -9,6 +9,7 @@
  */
 import type { Elem } from '../../../model'
 import { guillemets } from '../../core'
+import { parseQuickEditPrefix } from '../../editor/quickEditSyntax'
 import { nameOf, stereotypeName, visibilitySymbol } from '../../layout/helpers'
 import { typeText } from '../class/strings'
 
@@ -88,27 +89,7 @@ export function slotEditText(slot: Elem): string {
 // ---------------------------------------------------------------------------------------------
 // Parsers
 
-const VISIBILITY: Readonly<Record<string, string>> = { '+': 'public', '#': 'protected', '-': 'private', '~': 'package' }
 const NAME_FORBIDDEN = /[:=<>[\]()]/
-
-function prefix(text: string): { stereotype: string | null; visibility: string | null; rest: string } | null {
-  let rest = text.trim()
-  let stereotype: string | null = null
-  const st = /^(?:<<([^>]*)>>|«([^»]*)»)/.exec(rest)
-  if (st) {
-    stereotype = (st[1] ?? st[2] ?? '').trim() || null
-    rest = rest.slice(st[0].length).trim()
-  } else if (rest.startsWith('<<') || rest.startsWith('«')) {
-    return null
-  }
-  let visibility: string | null = null
-  const v = VISIBILITY[rest.charAt(0)]
-  if (v) {
-    visibility = v
-    rest = rest.slice(1).trim()
-  }
-  return { stereotype, visibility, rest }
-}
 
 export interface ParsedObject {
   readonly stereotype: string | null
@@ -121,7 +102,7 @@ export interface ParsedObject {
 
 /** `[«st»] [vis] name [: type]` */
 export function parseObject(text: string): ParsedObject | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text)
   if (!p) return null
   const colon = p.rest.indexOf(':')
   const name = (colon < 0 ? p.rest : p.rest.slice(0, colon)).trim()
@@ -138,7 +119,7 @@ export interface ParsedSlot extends ParsedObject {
 
 /** `[«st»] [vis] name [: type] [= value]` */
 export function parseSlot(text: string): ParsedSlot | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text)
   if (!p) return null
   let rest = p.rest
   let value = ''

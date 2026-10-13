@@ -9,6 +9,7 @@
  * Parsers return null on a syntax error (the edit is then rejected).
  */
 import { isKindOf, type Elem, type UMLParameter } from '../../../model'
+import { parseQuickEditPrefix } from '../../editor/quickEditSyntax'
 import { nameOf, stereotypeName, visibilitySymbol } from '../../layout/helpers'
 import { typeText } from '../class/strings'
 
@@ -114,26 +115,7 @@ export function messageEditText(message: Elem | null | undefined): string {
 // ---------------------------------------------------------------------------------------------
 // Quick-edit parsers
 
-const VISIBILITY: Readonly<Record<string, string>> = { '+': 'public', '#': 'protected', '-': 'private', '~': 'package' }
 const NAME_FORBIDDEN = /[:()=<>[\]]/
-
-function prefix(text: string): { stereotype: string | null; visibility: string | null; rest: string } | null {
-  let rest = text.trim()
-  let stereotype: string | null = null
-  const st = /^(?:<<([^>]*)>>|«([^»]*)»)/.exec(rest)
-  if (st) {
-    stereotype = (st[1] ?? st[2] ?? '').trim() || null
-    rest = rest.slice(st[0].length).trim()
-  } else if (rest.startsWith('<<') || rest.startsWith('«')) {
-    return null
-  }
-  return { stereotype, visibility: null, rest }
-}
-
-function withVisibility(p: { stereotype: string | null; visibility: string | null; rest: string }): typeof p {
-  const v = VISIBILITY[p.rest.charAt(0)]
-  return v ? { ...p, visibility: v, rest: p.rest.slice(1).trim() } : p
-}
 
 export interface ParsedLifeline {
   readonly stereotype: string | null
@@ -147,9 +129,8 @@ export interface ParsedLifeline {
 
 /** `[«st»] [vis] name [[selector]] [: Type]` */
 export function parseLifeline(text: string): ParsedLifeline | null {
-  const p0 = prefix(text)
-  if (!p0) return null
-  const p = withVisibility(p0)
+  const p = parseQuickEditPrefix(text)
+  if (!p) return null
   let rest = p.rest
   const nameMatch = /^[^[:]*/.exec(rest)
   const name = (nameMatch?.[0] ?? '').trim()
@@ -184,7 +165,7 @@ export interface ParsedMessage {
 
 /** `[«st»] [target =] name [(arguments)]` */
 export function parseMessage(text: string): ParsedMessage | null {
-  const p = prefix(text)
+  const p = parseQuickEditPrefix(text, { visibility: false })
   if (!p) return null
   let rest = p.rest
   const open = rest.indexOf('(')
