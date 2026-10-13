@@ -7,13 +7,12 @@ import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection } fro
 import { applyQuickEdit } from '../../editor/quickEditApply'
 import { computeDiagramLayout } from '../../layout/layoutDiagram'
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
-import { testDiagram } from '../../testUtils'
+import { BOLD_CHAR, testDiagram } from '../../testUtils'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../../../ui/modelActions'
 import type { ConnectionPointData, FinalStateData, PseudostateData, StateData } from './layout'
 import { internalActivityRows, internalTransitions, parseTransition, stateNameText, transitionLabel, transitionText } from './strings'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const BOLD_CHAR = 13 * 0.6 * 1.1
 
 function stateDiagram() {
   const t = testDiagram()

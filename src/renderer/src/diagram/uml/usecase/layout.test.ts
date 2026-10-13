@@ -7,14 +7,11 @@ import { createNodeAt, creationContainer, findDropContainer, moveSelection } fro
 import type { EdgeLayout, NodeLayout } from '../../layout/types'
 import { DiagramContent } from '../../render/DiagramContent'
 import { nodeNotationFor } from '../../render/registry'
-import { testDiagram } from '../../testUtils'
+import { BOLD_CHAR, CHAR, nameWidth, testDiagram } from '../../testUtils'
 import { SUBJECT_Z_INDEX, stickFigure, type ActorData, type SubjectData, type UseCaseData } from './layout'
 
 // FixedWidthTextMeasurer: char width = 0.6 × size (bold × 1.1); line height = font size (13).
-const BOLD_CHAR = 13 * 0.6 * 1.1
-const CHAR = 13 * 0.6
 /** Name compartment width of a bold one-line name: ceil(text) + 2 × 5 padding. */
-const nameWidth = (n: number): number => Math.ceil(n * BOLD_CHAR) + 10
 
 function useCase(layout: NodeLayout | undefined): NodeLayout<UseCaseData> {
   if (!layout) throw new Error('no layout')
