@@ -34,6 +34,7 @@ export function applyPlan(b: OperationBuilder, plan: CreationPlan): void {
   for (const add of plan.refAdditions) b.addRef(add.owner, add.field, add.target)
   for (const m of plan.moves ?? []) b.move(m.element, m.owner, m.field)
   for (const set of plan.sets ?? []) b.set(set.owner, set.field, set.value)
+  for (const el of plan.removals ?? []) b.remove(el)
 }
 
 function kindLabel(kind: string): string {
