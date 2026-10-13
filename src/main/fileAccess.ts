@@ -13,7 +13,7 @@ const READABLE_EXTENSIONS: ReadonlySet<string> = new Set(['.mdj'])
  * Largest project file read (256 MiB). Far above real models; it keeps a hostile or wrong file
  * from exhausting memory in the main process and the renderer, which parses the text.
  */
-export const MAX_PROJECT_BYTES = 256 * 1024 * 1024
+const MAX_PROJECT_BYTES = 256 * 1024 * 1024
 
 /**
  * The renderer may only write where the user pointed it: files chosen in a save dialog or opened
