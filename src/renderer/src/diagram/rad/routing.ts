@@ -5,6 +5,7 @@
  */
 import { isKindOf, type EdgeView, type View } from '../../model'
 import type { Point, Rect } from '../core'
+import { edgesAt } from '../layout/passIndex'
 import type { LayoutContext } from '../layout/types'
 import { RAD_GEOMETRY } from './layout'
 
@@ -66,10 +67,8 @@ function busLevel(edge: EdgeView, ctx: LayoutContext): number {
   const hb = boxOf(edge.head, ctx) as Rect
   const own = boxOf(edge.tail, ctx) as Rect
   let lowest = bottom(own)
-  for (const v of ctx.diagram.ownedViews ?? []) {
-    if (v._type !== 'RADStateLineView' || v === edge || v.visible === false) continue
-    const other = v as EdgeView
-    if (other.head !== edge.head || threadShape(other, ctx) !== 'bus') continue
+  for (const other of (edge.head && edgesAt(ctx, 'RADStateLineView').get(edge.head)) || []) {
+    if (other === edge || other.head !== edge.head || threadShape(other, ctx) !== 'bus') continue
     const ob = boxOf(other.tail, ctx)
     if (ob) lowest = Math.max(lowest, bottom(ob))
   }
