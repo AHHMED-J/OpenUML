@@ -5,7 +5,7 @@
  */
 
 /** Rows rendered beyond each edge of the viewport (smooth scrolling, keyboard steps). */
-export const OVERSCAN = 12
+const OVERSCAN = 12
 
 /** Rows rendered before the viewport size is known. */
 const INITIAL_ROWS = 60
