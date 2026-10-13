@@ -280,8 +280,12 @@ export const OBLIQUE_SIMPLIFY_TOLERANCE = 5
 export const GRID = {
   /** Snap grid size (preference default). */
   size: 8,
-  /** Grid lines are drawn every `lineEvery × size` units. */
+  /** Range of the grid size preference (diagram units). */
+  min: 2,
+  max: 64,
+  /** Grid lines are drawn every `lineEvery × size` units, but never closer than `minLineSpacing`. */
   lineEvery: 2,
+  minLineSpacing: 8,
   color: COLORS.grid,
   show: true,
   snap: true

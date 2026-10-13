@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addOperation, addParameter, setFields } from '../../commands'
-import { createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
+import { childrenOf, createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
 import { testDiagram } from '../testUtils'
-import { writeMdj } from '../../format'
-import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, previewLayout, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
+import { readMdj, writeMdj } from '../../format'
+import { createEdgeBetween, createNodeAt, createTextAt, findDropContainer, moveSelection, previewLayout, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
 import { alignBoxes } from './alignment'
 import { hitTestDiagram, viewsInBand } from './hitTest'
 import { applyQuickEdit } from './quickEditApply'
@@ -258,5 +258,48 @@ describe('quick edit', () => {
     expect(pin['type']).toBe('Integer')
     expect(pin['multiplicity']).toBe('')
     expect(applyQuickEdit(t.engine, { kind: 'typedName', elementId: pin._id }, 'a(b')).toBe(false)
+  })
+})
+
+describe('default font size of new views', () => {
+  const fontSizes = (view: View): number[] => {
+    const sizes: number[] = []
+    const visit = (el: Elem): void => {
+      const font = el['font'] as { size: number } | undefined
+      if (font) sizes.push(font.size)
+      for (const child of childrenOf(el)) visit(child)
+    }
+    visit(view)
+    return sizes
+  }
+
+  it('gives views created by the editor the preferred size where they would take the default font', () => {
+    const t = testDiagram()
+    const before = t.node('Class', 0, 0, 100, 60)
+    const env = { ...t, defaultFontSize: 20 }
+    const id = createNodeAt(env, t.layout(), 'Class', { left: 300, top: 0, width: 0, height: 0 }) as string
+    const created = t.repository.get(id) as View
+    const sizes = fontSizes(created)
+    expect(sizes).toContain(20)
+    expect(sizes).not.toContain(13)
+    // The namespace label is drawn smaller on purpose (11.7) and keeps its size.
+    expect(sizes).toContain(11.7)
+    // Existing views keep theirs; the measured box grows with the larger name.
+    expect(fontSizes(before)).not.toContain(20)
+    const edgeId = createEdgeBetween(env, t.layout(), { kind: 'Association' }, before._id, id, { x: 0, y: 0 }) as string
+    expect(fontSizes(t.repository.get(edgeId) as View).every((s) => s === 20)).toBe(true)
+    const textId = createTextAt(env, { x: 0, y: 200 }) as string
+    expect(fontSizes(t.repository.get(textId) as View)).toEqual([20])
+    // One undo step per creation, font included.
+    t.engine.undo()
+    expect(t.repository.get(textId)).toBeUndefined()
+  })
+
+  it('leaves the default font when no size is set, and files that set no font read as 13', () => {
+    const t = testDiagram()
+    const id = createNodeAt(t, t.layout(), 'Class', { left: 0, top: 0, width: 0, height: 0 }) as string
+    expect(fontSizes(t.repository.get(id) as View)).toContain(13)
+    const { repository } = readMdj(writeMdj(t.repository.project as Elem))
+    expect(fontSizes(repository.get(id) as View)).toContain(13)
   })
 })

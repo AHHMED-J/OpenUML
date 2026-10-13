@@ -96,6 +96,23 @@ export function zoomAt(vp: Viewport, newZoom: number, screenPoint: Point): Viewp
   return { origin, zoom }
 }
 
+/** A grid size preference: a whole number of diagram units in [GRID.min, GRID.max], else the default. */
+export function sanitizeGridSize(size: unknown): number {
+  if (typeof size !== 'number' || !Number.isFinite(size)) return GRID.size
+  const n = Math.round(size)
+  return n >= GRID.min && n <= GRID.max ? n : GRID.size
+}
+
+/**
+ * Distance between drawn grid lines for `gridSize`: every `GRID.lineEvery` grid steps, doubled
+ * until it is at least `GRID.minLineSpacing` so a fine grid does not fill the canvas with lines.
+ */
+export function gridLineSpacing(gridSize: number): number {
+  let step = sanitizeGridSize(gridSize) * GRID.lineEvery
+  while (step < GRID.minLineSpacing) step *= 2
+  return step
+}
+
 /** Grid line positions (diagram units) to draw inside `visible`, every `lineEvery × gridSize`. */
 export function gridLines(
   visible: Rect,

@@ -19,10 +19,12 @@ import {
   clampZoom,
   edgeAnchor,
   edgeHitCursor,
+  gridLineSpacing,
   handleCursor,
   isRectilinearStyle,
   rectFromPoints,
   resizeByHandle,
+  sanitizeGridSize,
   snap,
   snapWithDeadZone,
   stepZoom,
@@ -81,6 +83,10 @@ export interface DiagramEditorProps {
   readonly onZoomChange: (zoom: number) => void
   readonly showGrid: boolean
   readonly snapToGrid: boolean
+  /** Grid step in diagram units (drawing, snapping, Shift+arrow nudge); default `GRID.size`. */
+  readonly gridSize?: number
+  /** Font size given to new views that would take the default font (13); default 13. */
+  readonly defaultFontSize?: number
   /**
    * Shows a brief, non-blocking message to the user: why a gesture was refused (a connection the
    * rules do not allow, an element that cannot be placed there). Called at most once per gesture.
@@ -159,7 +165,8 @@ function edgeMidBox(points: readonly Point[]): Rect {
 }
 
 export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
-  const { diagramId, tool, onToolUsed, zoom: targetZoom, onZoomChange, showGrid, snapToGrid, onNotify } = props
+  const { diagramId, tool, onToolUsed, zoom: targetZoom, onZoomChange, showGrid, snapToGrid, onNotify, defaultFontSize } = props
+  const grid = sanitizeGridSize(props.gridSize ?? GRID.size)
   /** The zoom drawn: follows `targetZoom` with a short transition (see the zoom effect below). */
   const [zoom, setShownZoom] = useState(targetZoom)
   const engine = useProjectStore((s) => s.engine)
@@ -192,15 +199,18 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   )
   const selectedSet = useMemo(() => new Set(selected), [selected])
 
-  const env = useMemo<DiagramEnv | null>(() => (diagram ? { engine, diagram, measurer } : null), [engine, diagram, measurer])
+  const env = useMemo<DiagramEnv | null>(
+    () => (diagram ? { engine, diagram, measurer, ...(defaultFontSize !== undefined ? { defaultFontSize } : {}) } : null),
+    [engine, diagram, measurer, defaultFontSize]
+  )
 
   // ---- Refs for event handlers (always current values).
   const scrollRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const gesture = useRef<Gesture | null>(null)
   const spaceDown = useRef(false)
-  const live = useRef({ zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid, onNotify })
-  live.current = { zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid, onNotify }
+  const live = useRef({ zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid, grid, onNotify })
+  live.current = { zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid, grid, onNotify }
   /** Reports why a gesture was refused (see `onNotify`). */
   const notify = useCallback((reason: string): void => live.current.onNotify?.(reason), [])
 
@@ -246,7 +256,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     return r ? { x: (clientX - r.left) / z, y: (clientY - r.top) / z } : { x: 0, y: 0 }
   }, [])
 
-  const snapValue = useCallback((v: number): number => (live.current.snapToGrid ? snap(v, GRID.size) : Math.round(v)), [])
+  const snapValue = useCallback((v: number): number => (live.current.snapToGrid ? snap(v, live.current.grid) : Math.round(v)), [])
 
   // ---- Zoom keeping a screen point fixed.
   /** Set when the next zoom change must apply at once (continuous trackpad pinch). */
@@ -693,7 +703,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       updateHoverCursor(p)
       return
     }
-    const { layout: l, env: en, snapToGrid: snapOn } = live.current
+    const { layout: l, env: en, snapToGrid: snapOn, grid: gs } = live.current
     if (!l || !en) return
     switch (g.type) {
       case 'pan': {
@@ -711,9 +721,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const rawDy = p.y - g.start.y
         if (!g.moved && Math.hypot(rawDx, rawDy) * live.current.zoom < DRAG_THRESHOLD) return
         g.moved = true
-        const grid = snapOn ? GRID.size : 1
-        g.dx = g.axis === 'vert' ? 0 : snapWithDeadZone(g.primary.left, g.primary.left + rawDx, grid) - g.primary.left
-        g.dy = g.axis === 'horz' ? 0 : snapWithDeadZone(g.primary.top, g.primary.top + rawDy, grid) - g.primary.top
+        const step = snapOn ? gs : 1
+        g.dx = g.axis === 'vert' ? 0 : snapWithDeadZone(g.primary.left, g.primary.left + rawDx, step) - g.primary.left
+        g.dy = g.axis === 'horz' ? 0 : snapWithDeadZone(g.primary.top, g.primary.top + rawDy, step) - g.primary.top
         const container = findDropContainer(en, l, p, g.nodes)
         g.container = container
         g.recontain = isContainmentChange(g.nodes, container)
@@ -728,7 +738,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!g.moved && Math.abs(p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD) return
         g.moved = true
         const raw = g.divider.y + p.y - g.start.y
-        g.y = Math.min(g.divider.maxY, Math.max(g.divider.minY, snapOn ? snap(raw, GRID.size) : Math.round(raw)))
+        g.y = Math.min(g.divider.maxY, Math.max(g.divider.minY, snapOn ? snap(raw, gs) : Math.round(raw)))
         scheduleLive({ kind: 'polyline', points: [{ x: g.divider.left, y: g.y }, { x: g.divider.left + g.divider.width, y: g.y }] })
         return
       }
@@ -736,7 +746,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!g.moved && Math.abs(p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD) return
         g.moved = true
         const y0 = g.points[0]?.y ?? 0
-        g.dy = (snapOn ? snap(y0 + p.y - g.start.y, GRID.size) : Math.round(y0 + p.y - g.start.y)) - y0
+        g.dy = (snapOn ? snap(y0 + p.y - g.start.y, gs) : Math.round(y0 + p.y - g.start.y)) - y0
         scheduleLive({ kind: 'polyline', points: g.points.map((q) => ({ x: q.x, y: q.y + g.dy })) })
         return
       }
@@ -744,7 +754,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const dx = p.x - g.start.x
         const dy = p.y - g.start.y
         let r = resizeByHandle(g.box, g.handle, dx, dy, { minWidth: g.minWidth, minHeight: g.minHeight, keepRatio: g.keepRatio })
-        if (snapOn && !g.keepRatio) r = snapResized(r, g.box, g.handle, g.minWidth, g.minHeight)
+        if (snapOn && !g.keepRatio) r = snapResized(r, g.box, g.handle, g.minWidth, g.minHeight, gs)
         g.rect = r
         scheduleLive({ kind: 'boxes', rects: [r] })
         return
@@ -767,7 +777,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'vertex': {
         if (!g.moved && Math.hypot(p.x - g.start.x, p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD) return
         g.moved = true
-        const q = g.end ? p : { x: snapOn ? snap(p.x, GRID.size) : Math.round(p.x), y: snapOn ? snap(p.y, GRID.size) : Math.round(p.y) }
+        const q = g.end ? p : { x: snapOn ? snap(p.x, gs) : Math.round(p.x), y: snapOn ? snap(p.y, gs) : Math.round(p.y) }
         g.points[g.index] = q
         scheduleLive({ kind: 'polyline', points: [...g.points] })
         return
@@ -779,11 +789,11 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const a = pts[g.index] as Point
         const b = pts[g.index + 1] as Point
         if (g.orientation === 'horizontal') {
-          const y = snapOn ? snap(a.y + (p.y - g.start.y), GRID.size) : Math.round(a.y + (p.y - g.start.y))
+          const y = snapOn ? snap(a.y + (p.y - g.start.y), gs) : Math.round(a.y + (p.y - g.start.y))
           pts[g.index] = { x: a.x, y }
           pts[g.index + 1] = { x: b.x, y }
         } else {
-          const x = snapOn ? snap(a.x + (p.x - g.start.x), GRID.size) : Math.round(a.x + (p.x - g.start.x))
+          const x = snapOn ? snap(a.x + (p.x - g.start.x), gs) : Math.round(a.x + (p.x - g.start.x))
           pts[g.index] = { x, y: a.y }
           pts[g.index + 1] = { x, y: b.y }
         }
@@ -1000,7 +1010,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'ArrowUp':
       case 'ArrowDown': {
         if (selIds.length === 0) return
-        const step = e.shiftKey ? GRID.size : 1
+        const step = e.shiftKey ? live.current.grid : 1
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
         moveSelection(en, selIds, dx, dy, undefined, l)
@@ -1037,6 +1047,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
 
   const width = canvasWidth * zoom
   const height = canvasHeight * zoom
+  const lineSpacing = gridLineSpacing(grid)
   const effectiveCursor = gesture.current?.type === 'pan' ? 'grabbing' : tool ? 'crosshair' : cursor
 
   return (
@@ -1065,9 +1076,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
             {showGrid && (
               <>
                 <defs>
-                  <pattern id={gridId} width={GRID.size * GRID.lineEvery} height={GRID.size * GRID.lineEvery} patternUnits="userSpaceOnUse">
+                  <pattern id={gridId} width={lineSpacing} height={lineSpacing} patternUnits="userSpaceOnUse">
                     <path
-                      d={`M${GRID.size * GRID.lineEvery} 0 L0 0 L0 ${GRID.size * GRID.lineEvery}`}
+                      d={`M${lineSpacing} 0 L0 0 L0 ${lineSpacing}`}
                       fill="none"
                       stroke={GRID.color}
                       strokeWidth={1 / zoom}
@@ -1089,17 +1100,17 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
 }
 
 /** Snaps the moving sides of a resized box to the grid, keeping the minimum size. */
-function snapResized(r: Rect, original: Rect, handle: HandlePosition, minW: number, minH: number): Rect {
+function snapResized(r: Rect, original: Rect, handle: HandlePosition, minW: number, minH: number, grid: number): Rect {
   let left = r.left
   let top = r.top
   let right = r.left + r.width
   let bottom = r.top + r.height
   const origRight = original.left + original.width
   const origBottom = original.top + original.height
-  if (handle.includes('w')) left = Math.min(snap(left, GRID.size), origRight - minW)
-  if (handle.includes('e')) right = Math.max(snap(right, GRID.size), original.left + minW)
-  if (handle.includes('n')) top = Math.min(snap(top, GRID.size), origBottom - minH)
-  if (handle.includes('s')) bottom = Math.max(snap(bottom, GRID.size), original.top + minH)
+  if (handle.includes('w')) left = Math.min(snap(left, grid), origRight - minW)
+  if (handle.includes('e')) right = Math.max(snap(right, grid), original.left + minW)
+  if (handle.includes('n')) top = Math.min(snap(top, grid), origBottom - minH)
+  if (handle.includes('s')) bottom = Math.max(snap(bottom, grid), original.top + minH)
   return { left, top, width: right - left, height: bottom - top }
 }
 

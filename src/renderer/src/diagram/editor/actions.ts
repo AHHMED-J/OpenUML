@@ -14,7 +14,10 @@ import {
 } from '../../commands'
 import {
   canConnect,
+  childrenOf,
+  DEFAULT_FONT,
   fieldOf,
+  fontWith,
   findContainment,
   isKindOf,
   NODE_KINDS,
@@ -22,6 +25,7 @@ import {
   type EdgeKind,
   type EdgeView,
   type Elem,
+  type Font,
   type NodeKind,
   type NodeView,
   type Point,
@@ -46,6 +50,11 @@ export interface DiagramEnv {
   readonly engine: ModelEngine
   readonly diagram: Diagram
   readonly measurer: TextMeasurer
+  /**
+   * Font size of the views the editor creates where they would take the default font
+   * (`DEFAULT_FONT.size`); unset = the default. Views with another size keep it.
+   */
+  readonly defaultFontSize?: number
 }
 
 /** A palette tool: a `NODE_KINDS` / `EDGE_KINDS` key plus optional message presets. */
@@ -138,10 +147,35 @@ export function previewLayout(env: DiagramEnv, change: () => void, previous?: Di
   }
 }
 
-/** Runs `change` and the geometry write-back as one operation. */
+/**
+ * Gives the views inserted by the steps from `from` on the editor's default font size, where
+ * they took the default font.
+ */
+function applyDefaultFontSize(b: OperationBuilder, env: DiagramEnv, from: number): void {
+  const size = env.defaultFontSize
+  if (size === undefined || size === DEFAULT_FONT.size || !(size > 0)) return
+  const repo = env.engine.repository
+  const visit = (el: Elem): void => {
+    const font = el['font'] as Font | undefined
+    if (isKindOf(el, 'View') && font && font.size === DEFAULT_FONT.size && fieldOf(el, 'font')) b.set(el, 'font', fontWith(font, { size }))
+    for (const child of childrenOf(el)) visit(child)
+  }
+  for (const step of b.steps.slice(from)) {
+    if (step.op !== 'I') continue
+    const el = repo.get(step.json['_id'] as string)
+    if (el) visit(el)
+  }
+}
+
+/**
+ * Runs `change` and the geometry write-back as one operation. Views the change creates take the
+ * editor's default font size (`env.defaultFontSize`).
+ */
 export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: OperationBuilder) => T): T {
   return env.engine.transact(name, (b) => {
+    const from = b.steps.length
     const result = change(b)
+    applyDefaultFontSize(b, env, from)
     hooksFor(env.diagram)?.normalize?.(b, env.diagram)
     syncGeometry(env, b)
     return result
