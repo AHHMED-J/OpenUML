@@ -16,7 +16,7 @@ for which file to pick.
 ## Features
 
 - **Model Explorer** – the project tree with type icons, sorting by insertion order or name, search,
-  inline rename (F2 or double-click), drag-and-drop re-parenting, and context menus to add elements and diagrams.
+  double-click to open a diagram or show an element on its diagram, inline rename (F2), drag-and-drop re-parenting, and context menus to add elements and diagrams.
 - **UML diagrams** – class, object, package, component, deployment, composite structure, profile, use case,
   activity, state machine, sequence, communication, timing, interaction overview and information flow, each with
   its own toolbox, plus annotations (notes, note links, text).

@@ -1,6 +1,8 @@
 /**
- * Model Explorer: the project tree. Selection syncs with the project store; double-click opens
- * diagrams or renames other elements; F2 renames; Delete removes from the model (confirmed);
+ * Model Explorer: the project tree. Selection syncs with the project store (a click also selects
+ * the element on the open diagram when it is drawn there); double-click opens a diagram, or shows
+ * an element on the diagram that draws it (renaming it when no diagram does); F2 renames; Delete
+ * removes from the model (confirmed);
  * drag and drop re-parents; context menu offers Add / Add Diagram and edit commands.
  *
  * Rows are tree nodes (`tree.ts`): model elements plus the virtual IDEF0 role folders and arrow
@@ -13,7 +15,7 @@ import { moveElement } from '../../commands'
 import { renameElements } from '../../diagram'
 import { isKindOf, type Elem } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
-import { confirmAndDeleteFromModel, openDiagram, selectInExplorer } from '../app/appCommands'
+import { confirmAndDeleteFromModel, openDiagram, revealInDiagram, selectInExplorer } from '../app/appCommands'
 import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
@@ -167,7 +169,10 @@ export function ModelExplorer(): React.JSX.Element {
         : [...s.selectedElementIds, el._id]
       s.select({ elements: ids })
     } else {
-      s.select({ elements: [el._id] })
+      // Also select the element on the open diagram when that diagram draws it.
+      const repo = s.repository
+      const views = repo.viewsOf(el).filter((v) => repo.diagramOf(v)?._id === s.activeDiagramId).map((v) => v._id)
+      s.select({ elements: [el._id], views })
     }
   }
 
@@ -176,7 +181,8 @@ export function ModelExplorer(): React.JSX.Element {
     if (!el) {
       if (row.expandable) toggle(row)
     } else if (isKindOf(el, 'Diagram')) openDiagram(el)
-    else if (!isKindOf(el, 'Project')) uiStore.getState().startRename(el._id)
+    // Double-click shows the element on the diagram that draws it; F2 renames.
+    else if (!isKindOf(el, 'Project') && !revealInDiagram(el)) uiStore.getState().startRename(el._id)
   }
 
   const toggle = (row: TreeRow): void => {
