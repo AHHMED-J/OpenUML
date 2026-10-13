@@ -7,7 +7,7 @@
 import { deleteFromView, setFieldsOfAll, type CommandDefinition, type CommandRegistry } from '../commands'
 import { fieldOf, isKindOf, type Diagram, type View } from '../model'
 import { activeDiagram, projectStore, selectedViews } from '../store'
-import { GRID, LineStyle, stepZoom, ZOOM } from './core'
+import { LineStyle, stepZoom, ZOOM } from './core'
 import { canCopyViewsOf, copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard, type ViewClipboardPayload, type ViewHostPredicate } from './clipboard'
 import { moveSelection, type DiagramEnv } from './editor/actions'
 import { getActiveEditor } from './editor/activeEditor'
@@ -358,5 +358,3 @@ export function registerDiagramCommands(registry: CommandRegistry, ctx: DiagramC
   return () => disposers.forEach((d) => d())
 }
 
-/** Grid step used for Shift+Arrow nudging. */
-export const NUDGE_GRID_STEP = GRID.size

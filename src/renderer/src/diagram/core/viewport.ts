@@ -34,10 +34,6 @@ export function snapRect(r: Rect, gridSize: number = GRID.size, mode: SnapMode =
   return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) }
 }
 
-/** Moves a rectangle so its top-left corner is on the grid, keeping its size. */
-export function snapRectPosition(r: Rect, gridSize: number = GRID.size, mode: SnapMode = 'round'): Rect {
-  return { left: snap(r.left, gridSize, mode), top: snap(r.top, gridSize, mode), width: r.width, height: r.height }
-}
 
 /**
  * Snapping with a dead zone for drags: when the proposed coordinate is less than one grid cell
@@ -90,10 +86,6 @@ export function screenToDiagram(p: Point, vp: Viewport): Point {
   return { x: p.x / vp.zoom - vp.origin.x, y: p.y / vp.zoom - vp.origin.y }
 }
 
-/** Converts a length in screen px (e.g. handle size) to diagram units at `zoom`. */
-export function screenToDiagramLength(lengthPx: number, zoom: number): number {
-  return lengthPx / zoom
-}
 
 /**
  * Zooms around a fixed screen point (e.g. the mouse position under Ctrl+wheel): the diagram
