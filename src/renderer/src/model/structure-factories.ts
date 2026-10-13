@@ -14,12 +14,12 @@ import {
   addFloatingLabels,
   addListCompartment,
   addSubView,
-  boundsOf,
   buildClassifierView,
   buildGeneralEdgeView,
   buildGeneralNodeView,
   buildUndirectedEdgeView,
   centerOf,
+  defaultEdgePoints,
   createElement,
   defaultName,
   nextName
@@ -420,23 +420,6 @@ export function canConnectStructure(kind: StructureEdgeKind, tail: View, head: V
   }
 }
 
-function defaultPoints(tail: View, head: View): Point[] {
-  const a = centerOf(tail)
-  const b = centerOf(head)
-  if (!a || !b) return []
-  if (tail === head) {
-    const box = boundsOf(tail) as Bounds
-    const right = box.left + box.width
-    return [
-      { x: right, y: a.y - 10 },
-      { x: right + 30, y: a.y - 10 },
-      { x: right + 30, y: a.y + 10 },
-      { x: right, y: a.y + 10 }
-    ]
-  }
-  return [a, b]
-}
-
 function midpoint(points: readonly Point[]): Point {
   const n = points.length
   if (n === 0) return { x: 0, y: 0 }
@@ -483,7 +466,7 @@ export function planStructureEdge(req: EdgeRequest): CreationPlan | null {
   if (!isStructureEdgeKind(req.kind)) return null
   const kind = req.kind
   const spec = STRUCTURE_EDGE_KINDS[kind]
-  const points = req.points ? [...req.points] : defaultPoints(req.tail, req.head)
+  const points = req.points ? [...req.points] : defaultEdgePoints(req.tail, req.head)
   const insertions: Insertion[] = []
   const source = req.tail.model as Elem
   const target = req.head.model as Elem
