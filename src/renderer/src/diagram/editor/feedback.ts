@@ -26,7 +26,7 @@ export function readableName(typeOrKind: string): string {
 }
 
 /** What a view shows, by name: its model's type, else the view type without `View`. */
-export function viewName(view: View): string {
+function viewName(view: View): string {
   const model = view.model as Elem | null | undefined
   if (model) return readableName(model._type)
   return readableName(view._type.replace(/View$/, ''))
