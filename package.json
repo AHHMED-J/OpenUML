@@ -16,9 +16,6 @@
     "lint:unused": "npx -y knip@6.41.0 --no-progress",
     "dist": "electron-vite build && electron-builder"
   },
-  "dependencies": {
-    "zustand": "5.0.15"
-  },
   "devDependencies": {
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
@@ -31,7 +28,8 @@
     "react-dom": "19.3.0",
     "typescript": "5.9.3",
     "vite": "7.3.7",
-    "vitest": "5.0.3"
+    "vitest": "5.0.3",
+    "zustand": "5.0.15"
   },
   "overrides": {
     "global-agent": "4.1.3"
