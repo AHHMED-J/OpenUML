@@ -63,6 +63,7 @@ describe('IDEF0 commands', () => {
       'idef0.validate',
       'idef0.node-index',
       'idef0.tunnel-end',
+      'idef0.reset-route',
       'idef0.add-boundary-input',
       'idef0.add-boundary-control',
       'idef0.add-boundary-output',
@@ -242,5 +243,20 @@ describe('IDEF0 commands', () => {
     expect((validated.model as Elem)['tunnelTarget']).toBe(true)
     registry.execute(Idef0CommandIds.tunnelEnd, { end: 'target' })
     expect((validated.model as Elem)['tunnelTarget']).toBe(false)
+  })
+
+  it('resets the route of the selected arrows (enabled only when one has a route hint)', () => {
+    const { example, registry, repo } = setup()
+    const diagramId = example.childDiagram._id
+    ps().openDiagram(diagramId)
+    const arrow = ((repo.get(diagramId) as Elem)['ownedViews'] as View[]).find((v) => v._type === 'IDEF0ArrowView') as View
+    ps().select({ views: [arrow._id] })
+    expect(registry.isEnabled(Idef0CommandIds.resetRoute)).toBe(false)
+    ps().engine.transact('Hint', (b) => b.set(arrow, 'routeY', 400))
+    expect(registry.isEnabled(Idef0CommandIds.resetRoute)).toBe(true)
+    registry.execute(Idef0CommandIds.resetRoute)
+    expect(arrow['routeY']).toBe(-1)
+    expect(ps().engine.undoName).toBe('Reset Arrow Route')
+    expect(registry.isEnabled(Idef0CommandIds.resetRoute)).toBe(false)
   })
 })

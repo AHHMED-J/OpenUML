@@ -30,6 +30,7 @@ export function idef0Menu(): MenuNode {
       },
       { id: 'idef0.tunnel-source', label: 'Tunnel Source End', command: Idef0CommandIds.tunnelEnd, args: { end: 'source' } },
       { id: 'idef0.tunnel-target', label: 'Tunnel Target End', command: Idef0CommandIds.tunnelEnd, args: { end: 'target' } },
+      { id: 'idef0.reset-route', label: 'Reset Arrow Route', command: Idef0CommandIds.resetRoute },
       SEP,
       { id: 'idef0.validate', label: 'Validate IDEF0 Model', command: Idef0CommandIds.validate },
       { id: 'idef0.node-index', label: 'Show Node Index', command: Idef0CommandIds.nodeIndex }

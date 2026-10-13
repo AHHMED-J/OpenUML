@@ -8,6 +8,7 @@ import { activeDiagram, projectStore, selectedViews } from '../../store'
 import { getTextMeasurer } from '../layout/measurer'
 import { addChildBoxes, childBoxes, removeChildBoxes } from './boxCount'
 import { addBoundaryArrow, decomposeFunction, renumberBoxes, syncPorts, toggleTunnel } from './decompose'
+import { hasRouteHints, resetArrowRoutes } from './gestures'
 import { callTarget, childTarget, parentTarget, type DiagramTarget } from './navigation'
 import { validateIdef0, type IdefIssue } from './validate'
 import { STATUS_STAGES, statusLabel } from './strings'
@@ -22,6 +23,7 @@ export const Idef0CommandIds = {
   validate: 'idef0.validate',
   nodeIndex: 'idef0.node-index',
   tunnelEnd: 'idef0.tunnel-end',
+  resetRoute: 'idef0.reset-route',
   addBoundary: (role: string) => `idef0.add-boundary-${role}`,
   colorByRole: 'format.idef0.color-by-role',
   status: (stage: string) => `format.idef0.status.${stage}`
@@ -246,6 +248,15 @@ export function registerIdef0Commands(registry: CommandRegistry, ctx: Idef0Comma
         const end = requested ?? (isKindOf(arrow['target'] as Elem | null, 'IDEF0Arrow') || !arrow['target'] ? 'source' : 'target')
         toggleTunnel(state().engine, arrow, end)
       }
+    }
+  })
+  add({
+    id: Idef0CommandIds.resetRoute,
+    label: 'Reset Arrow Route',
+    isEnabled: () => !!idefDiagram() && hasRouteHints(selectedArrowViews()),
+    run: () => {
+      const d = idefDiagram()
+      if (d) resetArrowRoutes(envOf(d), selectedArrowViews())
     }
   })
   for (const role of ['input', 'control', 'output', 'mechanism'] as const) {
