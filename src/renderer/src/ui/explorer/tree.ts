@@ -1,16 +1,36 @@
 /**
  * Model explorer tree logic (pure): which children a node shows, their order, labels, and
  * drag-and-drop containment checks.
+ *
+ * IDEF0 arrows are presented around the function boxes they touch rather than under the scope
+ * that owns them: each box lists its arrows (virtually; the model is unchanged) in role folders
+ * (`Inputs (2)`, `Controls (1)`, ...) or, ungrouped, as a flat list, labeled `Role N: name`. A
+ * box-to-box arrow therefore shows under both boxes, with its role at each. Arrows that touch no
+ * box (a branch between a port and a trunk) stay under their owner.
  */
 import {
+  arrowDisplayName,
+  arrowRoleLabel,
+  boxArrowGroups,
   containmentFields,
+  diagramNodeNumber,
+  diagramOfScope,
   fieldOf,
+  icomCodes,
   idef0DiagramLabel,
   isElem,
+  isIdef0Function,
   isKindOf,
+  nodeNumber,
+  roleOf,
+  rolesAt,
+  rootArrow,
+  ROLE_PLURAL,
+  ROLE_TITLE,
   typeDisplayName,
   type Elem,
-  type FieldDef
+  type FieldDef,
+  type Idef0Role
 } from '../../model'
 import type { SortMode } from '../uiStore'
 
@@ -95,7 +115,19 @@ export function typeOrder(el: Elem): number {
   return 1600
 }
 
-/** Children shown under `el` in the explorer, in display order. */
+/** An IDEF0 arrow shown under the boxes it touches instead of under its owner. */
+function isBoxArrow(el: Elem): boolean {
+  if (!isKindOf(el, 'IDEF0Arrow')) return false
+  const touches = (end: unknown): boolean => isIdef0Function(end as Elem | null) && rolesAt(el, end as Elem).length > 0
+  return touches(el['source']) || touches(el['target'])
+}
+
+/** Whether `child` is listed under its owner (views and box arrows are not). */
+function listedChild(child: unknown): child is Elem {
+  return isElem(child) && !isKindOf(child, 'View') && !isBoxArrow(child)
+}
+
+/** Children shown under `el` in the explorer, in display order (IDEF0 boxes by box number). */
 export function explorerChildren(el: Elem, sortBy: SortMode = 'added'): Elem[] {
   const items: Array<{ el: Elem; order: number; index: number }> = []
   let index = 0
@@ -104,11 +136,15 @@ export function explorerChildren(el: Elem, sortBy: SortMode = 'added'): Elem[] {
     const value = el[field.name]
     const list = Array.isArray(value) ? value : value ? [value] : []
     for (const child of list) {
-      if (isElem(child) && !isKindOf(child, 'View')) items.push({ el: child, order: typeOrder(child), index: index++ })
+      if (listedChild(child)) items.push({ el: child, order: typeOrder(child), index: index++ })
     }
   }
   items.sort((a, b) => {
     if (a.order !== b.order) return a.order - b.order
+    if (isIdef0Function(a.el) && isIdef0Function(b.el)) {
+      const c = (a.el['boxNumber'] as number) - (b.el['boxNumber'] as number)
+      if (c !== 0) return c
+    }
     if (sortBy === 'name') {
       const c = nameOf(a.el).localeCompare(nameOf(b.el), undefined, { sensitivity: 'base', numeric: true })
       if (c !== 0) return c
@@ -122,7 +158,7 @@ export function hasExplorerChildren(el: Elem): boolean {
   for (const field of containmentFields(el)) {
     if (HIDDEN_FIELDS.has(field.name)) continue
     const value = el[field.name]
-    if (Array.isArray(value) ? value.some((v) => isElem(v) && !isKindOf(v, 'View')) : isElem(value)) return true
+    if (Array.isArray(value) ? value.some(listedChild) : isElem(value)) return true
   }
   return false
 }
@@ -153,6 +189,7 @@ export function explorerLabel(el: Elem, showStereotype = true): string {
     label = `(${typeDisplayName(el._type)})`
   }
   if (isKindOf(el, 'IDEF0Diagram')) label = idef0DiagramLabel(el, label)
+  else if (isIdef0Function(el)) label = `${nodeNumber(el)} ${label}`
   if (showStereotype) {
     const st = variantText(el['stereotype'])
     if (st) label = `«${st}»${label}`
@@ -160,16 +197,203 @@ export function explorerLabel(el: Elem, showStereotype = true): string {
   return label
 }
 
-/** Ids of every element with explorer children under `root` (for Expand All). */
+/** Keys of every element node with children under `root` (for Expand All). */
 export function expandableIds(root: Elem): string[] {
   const result: string[] = []
+  const visit = (node: TreeNode): void => {
+    if (node.kind !== 'element' || !hasTreeChildren(node)) return
+    result.push(node.key)
+    for (const child of treeChildren(node, { groupArrows: false })) visit(child)
+  }
+  visit(elementNode(root))
+  return result
+}
+
+// ---------------------------------------------------------------------------------------------
+// Tree nodes: elements plus the virtual IDEF0 role folders and arrow entries
+
+/** A model element at its place in the tree; its key is its id (an element is listed once). */
+export interface ElementNode {
+  readonly kind: 'element'
+  readonly key: string
+  readonly el: Elem
+}
+
+/** A role folder under a function box (`Inputs (2)`); never stored in the model. */
+export interface FolderNode {
+  readonly kind: 'folder'
+  readonly key: string
+  readonly box: Elem
+  readonly role: Idef0Role
+  readonly arrows: readonly Elem[]
+}
+
+/** An arrow listed under a box it touches, with its role and position at that box. */
+export interface ArrowNode {
+  readonly kind: 'arrow'
+  readonly key: string
+  readonly el: Elem
+  readonly box: Elem
+  readonly role: Idef0Role
+  readonly position: number
+}
+
+export type TreeNode = ElementNode | FolderNode | ArrowNode
+
+export interface TreeOptions {
+  readonly sortBy?: SortMode
+  /** Arrows of a box in role folders (default) or as a flat list. */
+  readonly groupArrows?: boolean
+}
+
+export function elementNode(el: Elem): ElementNode {
+  return { kind: 'element', key: el._id, el }
+}
+
+/** Key of the role folder of `role` under `box` (also the key of its remembered open state). */
+export function folderKey(box: Elem, role: Idef0Role): string {
+  return `${box._id}/${role}`
+}
+
+function arrowNode(box: Elem, role: Idef0Role, arrow: Elem, position: number): ArrowNode {
+  return { kind: 'arrow', key: `${box._id}/${role}/${arrow._id}`, el: arrow, box, role, position }
+}
+
+function arrowNodes(box: Elem, role: Idef0Role, arrows: readonly Elem[]): ArrowNode[] {
+  return arrows.map((a, i) => arrowNode(box, role, a, i + 1))
+}
+
+/** Children of a tree node, in display order: under a box its diagram first, then its arrows, then its child boxes. */
+export function treeChildren(node: TreeNode, options: TreeOptions = {}): TreeNode[] {
+  if (node.kind === 'arrow') return []
+  if (node.kind === 'folder') return arrowNodes(node.box, node.role, node.arrows)
+  const children: TreeNode[] = explorerChildren(node.el, options.sortBy ?? 'added').map(elementNode)
+  if (!isIdef0Function(node.el)) return children
+  const groups = boxArrowGroups(node.el)
+  if (groups.length === 0) return children
+  const arrows: TreeNode[] =
+    options.groupArrows === false
+      ? groups.flatMap((g) => arrowNodes(node.el, g.role, g.arrows))
+      : groups.map((g) => ({ kind: 'folder', key: folderKey(node.el, g.role), box: node.el, role: g.role, arrows: g.arrows }))
+  const diagrams = children.filter((c) => c.kind === 'element' && isKindOf(c.el, 'Diagram'))
+  return [...diagrams, ...arrows, ...children.slice(diagrams.length)]
+}
+
+export function hasTreeChildren(node: TreeNode): boolean {
+  if (node.kind === 'arrow') return false
+  if (node.kind === 'folder') return node.arrows.length > 0
+  if (hasExplorerChildren(node.el)) return true
+  const fn = node.el
+  if (!isIdef0Function(fn)) return false
+  const arrows = fn._parent?.['arrows']
+  return Array.isArray(arrows) && (arrows as Elem[]).some((a) => a['source'] === fn || a['target'] === fn)
+}
+
+/** The role folders of every box under `root` (for Collapse / Expand All Arrow Folders). */
+export function arrowFolderKeys(root: Elem): string[] {
+  const keys: string[] = []
   const visit = (el: Elem): void => {
-    if (!hasExplorerChildren(el)) return
-    result.push(el._id)
+    if (isIdef0Function(el)) for (const g of boxArrowGroups(el)) keys.push(folderKey(el, g.role))
     for (const child of explorerChildren(el)) visit(child)
   }
   visit(root)
-  return result
+  return keys
+}
+
+/** Row text of a node. */
+export function treeLabel(node: TreeNode, showStereotype = true): string {
+  if (node.kind === 'element') return explorerLabel(node.el, showStereotype)
+  if (node.kind === 'folder') return `${ROLE_PLURAL[node.role]} (${node.arrows.length})`
+  return arrowRoleLabel(node.role, node.position, arrowDisplayName(node.el))
+}
+
+/** Tooltip of a node: the label with the element type, or the full story of an arrow entry. */
+export function treeTooltip(node: TreeNode, showStereotype = true): string {
+  if (node.kind === 'element') return `${explorerLabel(node.el, showStereotype)} [${typeDisplayName(node.el._type)}]`
+  if (node.kind === 'folder') return `${treeLabel(node)} of ${nodeNumber(node.box)}`
+  return arrowTooltip(node.el, node.box, node.role, node.position)
+}
+
+/** The box end of `arrow` at `box` is the target end for input, control and mechanism. */
+function entersAt(role: Idef0Role): boolean {
+  return role === 'input' || role === 'control' || role === 'mechanism'
+}
+
+function positionAt(arrow: Elem, box: Elem, role: Idef0Role): number {
+  return (boxArrowGroups(box).find((g) => g.role === role)?.arrows.indexOf(arrow) ?? -1) + 1
+}
+
+function boundaryCode(port: Elem): string | undefined {
+  const diagram = diagramOfScope(port._parent)
+  return diagram ? icomCodes(diagram).get(port._id) : undefined
+}
+
+/** Where the other end of `arrow` goes, seen from its end of `role` (`from Output 1 of A1`, `from boundary I1`). */
+function otherEndText(arrow: Elem, role: Idef0Role): string {
+  if (role === 'call') {
+    const target = arrowDisplayName(arrow)
+    return target ? `calls ${target}` : 'calls no box yet'
+  }
+  const enters = entersAt(role)
+  const dir = enters ? 'from' : 'to'
+  const other = (enters ? arrow['source'] : arrow['target']) as Elem | null
+  if (isIdef0Function(other)) {
+    const otherRole: Idef0Role = enters ? 'output' : roleOf(arrow)
+    const pos = positionAt(arrow, other, otherRole)
+    return `${dir} ${ROLE_TITLE[otherRole]} ${pos || '?'} of ${nodeNumber(other)}`
+  }
+  if (other && isKindOf(other, 'IDEF0Port')) {
+    const tunneled = enters ? arrow['tunnelSource'] : arrow['tunnelTarget']
+    const code = boundaryCode(other)
+    if (code) return `${dir} boundary ${code}`
+    return `${dir} the boundary${tunneled ? ' (tunneled)' : ''}`
+  }
+  if (isKindOf(other, 'IDEF0Arrow')) {
+    const trunk = arrowDisplayName(rootArrow(arrow)) || 'an unlabeled arrow'
+    return enters ? `branch of ${trunk}` : `joins ${trunk}`
+  }
+  return ''
+}
+
+/** The ICOM code under which `arrow` appears on the child diagram of `box`, or its tunnel. */
+function childCodeText(arrow: Elem, box: Elem, role: Idef0Role): string {
+  if (role === 'call') return ''
+  const tunneled = entersAt(role) ? arrow['tunnelTarget'] : arrow['tunnelSource']
+  if (tunneled) return `tunneled at ${nodeNumber(box)}`
+  const child = box['childDiagram'] as Elem | null
+  if (!child) return ''
+  const ports = (box['ports'] as Elem[] | undefined) ?? []
+  const root = rootArrow(arrow)
+  const port = ports.find((p) => p['corresponds'] === arrow) ?? ports.find((p) => p['corresponds'] && rootArrow(p['corresponds'] as Elem) === root)
+  const code = port ? icomCodes(child).get(port._id) : undefined
+  return code ? `ICOM ${code} on ${diagramNodeNumber(child)}` : ''
+}
+
+/** Full description of an arrow entry: `Input 1 of A2 · from Output 1 of A1 · ICOM I1 on A2`. */
+export function arrowTooltip(arrow: Elem, box: Elem, role: Idef0Role, position: number): string {
+  const name = arrowDisplayName(arrow)
+  const parts = [`${ROLE_TITLE[role]} ${position} of ${nodeNumber(box)}${name && role !== 'call' ? ` (${name})` : ''}`, otherEndText(arrow, role), childCodeText(arrow, box, role)]
+  return parts.filter(Boolean).join(' · ')
+}
+
+/**
+ * Where an element is shown: the element keys to expand and the role folder to open so that its
+ * row becomes visible. A box arrow is revealed under the box it enters (else the one it leaves).
+ */
+export function revealPath(el: Elem, options: TreeOptions = {}): { expand: string[]; folder: string | null } {
+  const ancestorsOf = (e: Elem): string[] => {
+    const ids: string[] = []
+    for (let p = e._parent; p; p = p._parent) ids.push(p._id)
+    return ids
+  }
+  if (isBoxArrow(el)) {
+    const target = el['target'] as Elem | null
+    const enters = isIdef0Function(target) ? rolesAt(el, target)[0] : undefined
+    const box = enters ? (target as Elem) : (el['source'] as Elem)
+    const role = enters ?? (rolesAt(el, box)[0] as Idef0Role)
+    return { expand: [...ancestorsOf(box), box._id], folder: options.groupArrows === false ? null : folderKey(box, role) }
+  }
+  return { expand: ancestorsOf(el), folder: null }
 }
 
 /**

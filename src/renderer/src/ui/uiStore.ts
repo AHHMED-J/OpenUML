@@ -135,6 +135,10 @@ export interface UiState {
   readonly showStereotype: boolean
   /** Expanded explorer nodes (ids). */
   readonly expanded: Readonly<Record<string, true>>
+  /** IDEF0 arrows of a box shown in role folders (true) or as a flat list. */
+  readonly groupArrows: boolean
+  /** Collapsed IDEF0 role folders (folder keys); folders are open by default. Persisted per viewer. */
+  readonly collapsedFolders: Readonly<Record<string, true>>
   /** Explorer node whose inline rename should start. */
   readonly renamingId: string | null
   /** Bumped to ask the explorer to scroll the selection into view and focus it. */
@@ -175,6 +179,9 @@ export interface UiState {
   setExpanded(id: string, expanded: boolean): void
   expandMany(ids: readonly string[]): void
   collapseAll(): void
+  setGroupArrows(group: boolean): void
+  /** Collapses or opens IDEF0 role folders (keys from `folderKey`). */
+  setFoldersCollapsed(keys: readonly string[], collapsed: boolean): void
   startRename(id: string | null): void
   reveal(): void
   addRecent(path: string): void
@@ -204,6 +211,17 @@ interface PersistedLayout {
   sortBy?: SortMode
   showStereotype?: boolean
   showAdvancedProperties?: boolean
+  groupArrows?: boolean
+}
+
+/** Most collapsed role folders remembered (oldest forgotten first). */
+const MAX_COLLAPSED_FOLDERS = 2000
+
+function loadCollapsedFolders(): Record<string, true> {
+  const value = loadJson<unknown>('explorerCollapsedFolders', [])
+  const result: Record<string, true> = {}
+  if (Array.isArray(value)) for (const key of value.slice(-MAX_COLLAPSED_FOLDERS)) if (typeof key === 'string') result[key] = true
+  return result
 }
 
 function sanitizePanels(value: Partial<Record<PanelId, PanelState>> | undefined): Record<PanelId, PanelState> {
@@ -264,7 +282,8 @@ export function createUiStore() {
         dock: s.dock,
         sortBy: s.sortBy,
         showStereotype: s.showStereotype,
-        showAdvancedProperties: s.showAdvancedProperties
+        showAdvancedProperties: s.showAdvancedProperties,
+        groupArrows: s.groupArrows
       } satisfies PersistedLayout)
     }
     const setRecent = (recentFiles: string[]): void => {
@@ -300,6 +319,8 @@ export function createUiStore() {
       sortBy: layout.sortBy === 'name' ? 'name' : 'added',
       showStereotype: layout.showStereotype !== false,
       expanded: {},
+      groupArrows: layout.groupArrows !== false,
+      collapsedFolders: loadCollapsedFolders(),
       renamingId: null,
       revealTick: 0,
       recentFiles: sanitizeRecentFiles(loadJson<unknown>('recentFiles', [])),
@@ -424,6 +445,26 @@ export function createUiStore() {
       },
       collapseAll() {
         set({ expanded: {} })
+      },
+      setGroupArrows(groupArrows) {
+        set({ groupArrows })
+        persistLayout()
+      },
+      setFoldersCollapsed(keys, collapsed) {
+        const next = { ...get().collapsedFolders }
+        let changed = false
+        for (const key of keys) {
+          if (collapsed && !next[key]) {
+            next[key] = true
+            changed = true
+          } else if (!collapsed && next[key]) {
+            delete next[key]
+            changed = true
+          }
+        }
+        if (!changed) return
+        set({ collapsedFolders: next })
+        saveJson('explorerCollapsedFolders', Object.keys(next).slice(-MAX_COLLAPSED_FOLDERS))
       },
       startRename(renamingId) {
         set({ renamingId })

@@ -90,6 +90,9 @@ export const Cmd = {
   explorerShowStereotype: 'explorer.show-stereotype-text',
   explorerExpandAll: 'explorer.expand-all',
   explorerCollapseAll: 'explorer.collapse-all',
+  explorerGroupArrows: 'explorer.group-arrows-by-role',
+  explorerCollapseArrowFolders: 'explorer.collapse-arrow-folders',
+  explorerExpandArrowFolders: 'explorer.expand-arrow-folders',
   // Toolbox
   toolSelect: 'tool.select'
 } as const

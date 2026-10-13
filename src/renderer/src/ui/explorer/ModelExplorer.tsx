@@ -2,55 +2,85 @@
  * Model Explorer: the project tree. Selection syncs with the project store; double-click opens
  * diagrams or renames other elements; F2 renames; Delete removes from the model (confirmed);
  * drag and drop re-parents; context menu offers Add / Add Diagram and edit commands.
+ *
+ * Rows are tree nodes (`tree.ts`): model elements plus the virtual IDEF0 role folders and arrow
+ * entries under function boxes. Rows are identified by node key, since one arrow can be listed
+ * under two boxes; selection is by element, so both entries of an arrow highlight together.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { moveElement, rename } from '../../commands'
-import { isKindOf, typeDisplayName, type Elem } from '../../model'
+import { isKindOf, type Elem } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
 import { confirmAndDeleteFromModel, openDiagram, selectInExplorer } from '../app/appCommands'
 import { reportError } from '../app/commands'
-import { TypeIcon, UiIcon } from '../icons'
+import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { dropField, explorerChildren, explorerLabel, hasExplorerChildren } from './tree'
+import { dropField, elementNode, explorerLabel, hasTreeChildren, treeChildren, treeLabel, treeTooltip, type TreeNode, type TreeOptions } from './tree'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
 export const ELEMENT_DRAG_TYPE = 'application/x-openuml-element'
 
 interface Row {
-  readonly el: Elem
+  readonly node: TreeNode
+  /** The model element of the row (null for a role folder). */
+  readonly el: Elem | null
   readonly depth: number
+  readonly parentKey: string | null
   readonly expandable: boolean
   readonly expanded: boolean
 }
 
-function flatten(root: Elem, expanded: Readonly<Record<string, true>>, sortBy: 'added' | 'name'): Row[] {
+interface OpenState {
+  readonly expanded: Readonly<Record<string, true>>
+  readonly collapsedFolders: Readonly<Record<string, true>>
+}
+
+/** Element rows open when expanded; role folders are open unless collapsed. */
+function isOpen(node: TreeNode, state: OpenState): boolean {
+  return node.kind === 'folder' ? state.collapsedFolders[node.key] !== true : state.expanded[node.key] === true
+}
+
+function rowOf(node: TreeNode, depth: number, parentKey: string | null, expandable: boolean, expanded: boolean): Row {
+  return { node, el: node.kind === 'folder' ? null : node.el, depth, parentKey, expandable, expanded }
+}
+
+function flatten(root: Elem, state: OpenState, options: TreeOptions): Row[] {
   const rows: Row[] = []
-  const visit = (el: Elem, depth: number): void => {
-    const expandable = hasExplorerChildren(el)
-    const isOpen = expandable && expanded[el._id] === true
-    rows.push({ el, depth, expandable, expanded: isOpen })
-    if (isOpen) for (const child of explorerChildren(el, sortBy)) visit(child, depth + 1)
+  const visit = (node: TreeNode, depth: number, parentKey: string | null): void => {
+    const expandable = hasTreeChildren(node)
+    const open = expandable && isOpen(node, state)
+    rows.push(rowOf(node, depth, parentKey, expandable, open))
+    if (open) for (const child of treeChildren(node, options)) visit(child, depth + 1, node.key)
   }
-  visit(root, 0)
+  visit(elementNode(root), 0, null)
   return rows
 }
 
-function searchRows(root: Elem, query: string, sortBy: 'added' | 'name'): Row[] {
+function searchRows(root: Elem, query: string, options: TreeOptions): Row[] {
   const q = query.toLowerCase()
   const rows: Row[] = []
-  const visit = (el: Elem): void => {
-    const name = el['name']
-    if (el !== root && typeof name === 'string' && name.toLowerCase().includes(q)) {
-      rows.push({ el, depth: 0, expandable: false, expanded: false })
+  const seen = new Set<Elem>()
+  const visit = (node: TreeNode): void => {
+    if (node.kind !== 'folder' && !seen.has(node.el)) {
+      seen.add(node.el)
+      const name = node.el['name']
+      if (node.el !== root && typeof name === 'string' && name.toLowerCase().includes(q)) rows.push(rowOf(node, 0, null, false, false))
     }
-    if (rows.length < 200) for (const child of explorerChildren(el, sortBy)) visit(child)
+    if (rows.length < 200) for (const child of treeChildren(node, { ...options, groupArrows: false })) visit(child)
   }
-  visit(root)
+  visit(elementNode(root))
   return rows
+}
+
+function rowDomId(key: string): string {
+  return `tree-${key}`
 }
 
 let draggedId: string | null = null
+
+/** Indentation per tree level (px); the guide lines are drawn on the same grid. */
+const INDENT = 14
 
 /** Model Explorer header action: the explorer options menu. */
 export function ExplorerActions(): React.JSX.Element {
@@ -74,6 +104,8 @@ export function ModelExplorer(): React.JSX.Element {
   const project = useProjectStore((s) => s.project)
   const selectedIds = useProjectStore((s) => s.selectedElementIds)
   const expanded = useUiStore((s) => s.expanded)
+  const collapsedFolders = useUiStore((s) => s.collapsedFolders)
+  const groupArrows = useUiStore((s) => s.groupArrows)
   const sortBy = useUiStore((s) => s.sortBy)
   const showStereotype = useUiStore((s) => s.showStereotype)
   const renamingId = useUiStore((s) => s.renamingId)
@@ -90,12 +122,28 @@ export function ModelExplorer(): React.JSX.Element {
   }, [project])
 
   const rows = useMemo(
-    () => (query.trim() ? searchRows(project, query.trim(), sortBy) : flatten(project, expanded, sortBy)),
+    () => {
+      const options: TreeOptions = { sortBy, groupArrows }
+      return query.trim() ? searchRows(project, query.trim(), options) : flatten(project, { expanded, collapsedFolders }, options)
+    },
     // `version` invalidates the tree after model changes.
-    [project, version, expanded, sortBy, query]
+    [project, version, expanded, collapsedFolders, groupArrows, sortBy, query]
   )
+  const rowsRef = useRef(rows)
+  rowsRef.current = rows
   const selected = useMemo(() => new Set(selectedIds), [selectedIds])
-  const current = focusId && rows.some((r) => r.el._id === focusId) ? focusId : (selectedIds[0] ?? rows[0]?.el._id ?? null)
+  // The focused row: the last clicked/navigated one, else the first row of the selection.
+  const current =
+    focusId && rows.some((r) => r.node.key === focusId)
+      ? focusId
+      : ((selectedIds[0] ? rows.find((r) => r.el?._id === selectedIds[0])?.node.key : undefined) ?? rows[0]?.node.key ?? null)
+  const currentRow = rows.find((r) => r.node.key === current)
+  // The row that shows the inline rename of `renamingId`: the focused one when it is that element.
+  const renameKey = renamingId
+    ? currentRow?.el?._id === renamingId
+      ? currentRow.node.key
+      : rows.find((r) => r.el?._id === renamingId)?.node.key
+    : undefined
 
   // Reveal: scroll the selection into view and focus the tree.
   useEffect(() => {
@@ -103,19 +151,24 @@ export function ModelExplorer(): React.JSX.Element {
     const id = projectStore.getState().selectedElementIds[0]
     if (!id) return
     setQuery('')
-    setFocusId(id)
     requestAnimationFrame(() => {
-      document.getElementById(`tree-${id}`)?.scrollIntoView({ block: 'nearest' })
+      const row = rowsRef.current.find((r) => r.el?._id === id)
+      if (row) {
+        setFocusId(row.node.key)
+        document.getElementById(rowDomId(row.node.key))?.scrollIntoView({ block: 'nearest' })
+      }
       treeRef.current?.focus()
     })
   }, [revealTick])
 
   useEffect(() => {
-    if (current) document.getElementById(`tree-${current}`)?.scrollIntoView({ block: 'nearest' })
+    if (current) document.getElementById(rowDomId(current))?.scrollIntoView({ block: 'nearest' })
   }, [current])
 
-  const select = (el: Elem, toggle = false): void => {
-    setFocusId(el._id)
+  const select = (row: Row, toggle = false): void => {
+    setFocusId(row.node.key)
+    const el = row.el
+    if (!el) return
     const s = projectStore.getState()
     if (toggle) {
       const ids = s.selectedElementIds.includes(el._id)
@@ -127,22 +180,28 @@ export function ModelExplorer(): React.JSX.Element {
     }
   }
 
-  const activate = (el: Elem): void => {
-    if (isKindOf(el, 'Diagram')) openDiagram(el)
+  const activate = (row: Row): void => {
+    const el = row.el
+    if (!el) {
+      if (row.expandable) toggle(row)
+    } else if (isKindOf(el, 'Diagram')) openDiagram(el)
     else if (!isKindOf(el, 'Project')) uiStore.getState().startRename(el._id)
   }
 
-  const toggle = (row: Row): void => uiStore.getState().setExpanded(row.el._id, !row.expanded)
+  const toggle = (row: Row): void => {
+    if (row.node.kind === 'folder') uiStore.getState().setFoldersCollapsed([row.node.key], row.expanded)
+    else uiStore.getState().setExpanded(row.node.key, !row.expanded)
+  }
 
   const openMenuAt = (x: number, y: number): void => uiStore.getState().openContextMenu({ x, y, menu: 'explorer' })
 
   const onKeyDown = (e: React.KeyboardEvent): void => {
     if (renamingId) return
-    const index = rows.findIndex((r) => r.el._id === current)
+    const index = rows.findIndex((r) => r.node.key === current)
     const row = rows[index]
     const go = (i: number): void => {
       const target = rows[Math.max(0, Math.min(rows.length - 1, i))]
-      if (target) select(target.el)
+      if (target) select(target)
     }
     const mod = e.metaKey || e.ctrlKey
     switch (e.key) {
@@ -168,18 +227,17 @@ export function ModelExplorer(): React.JSX.Element {
       case 'ArrowLeft':
         if (!row) return
         if (row.expanded) toggle(row)
-        else if (row.el._parent) {
-          const parentId = row.el._parent._id
-          const parent = rows.find((r) => r.el._id === parentId)
-          if (parent) select(parent.el)
+        else if (row.parentKey) {
+          const parent = rows.find((r) => r.node.key === row.parentKey)
+          if (parent) select(parent)
         }
         break
       case 'Enter':
-        if (row) activate(row.el)
+        if (row) activate(row)
         break
       case 'F2':
-        if (row && !isKindOf(row.el, 'Project')) {
-          select(row.el)
+        if (row?.el && !isKindOf(row.el, 'Project')) {
+          select(row)
           uiStore.getState().startRename(row.el._id)
         }
         break
@@ -190,13 +248,13 @@ export function ModelExplorer(): React.JSX.Element {
         break
       }
       case 'ContextMenu': {
-        const rect = document.getElementById(`tree-${current}`)?.getBoundingClientRect()
+        const rect = current ? document.getElementById(rowDomId(current))?.getBoundingClientRect() : undefined
         if (rect) openMenuAt(rect.left + 24, rect.bottom)
         break
       }
       default:
         if (e.key === 'F10' && e.shiftKey) {
-          const rect = document.getElementById(`tree-${current}`)?.getBoundingClientRect()
+          const rect = current ? document.getElementById(rowDomId(current))?.getBoundingClientRect() : undefined
           if (rect) openMenuAt(rect.left + 24, rect.bottom)
           break
         }
@@ -252,7 +310,7 @@ export function ModelExplorer(): React.JSX.Element {
         aria-label="Model"
         aria-multiselectable="true"
         tabIndex={0}
-        aria-activedescendant={current ? `tree-${current}` : undefined}
+        aria-activedescendant={current ? rowDomId(current) : undefined}
         onKeyDown={onKeyDown}
         onContextMenu={(e) => {
           e.preventDefault()
@@ -261,26 +319,29 @@ export function ModelExplorer(): React.JSX.Element {
         }}
       >
         {rows.map((row) => {
-          const { el } = row
-          const isSelected = selected.has(el._id)
-          const renaming = renamingId === el._id
+          const { el, node } = row
+          const key = node.key
+          const isSelected = el !== null && selected.has(el._id)
+          const renaming = el !== null && key === renameKey
+          const label = treeLabel(node, showStereotype)
           return (
             <div
-              key={el._id}
-              id={`tree-${el._id}`}
-              className={`tree-row${isSelected ? ' selected' : ''}${current === el._id ? ' focused' : ''}${dropTarget === el._id ? ' drop-target' : ''}`}
+              key={key}
+              id={rowDomId(key)}
+              className={`tree-row${isSelected ? ' selected' : ''}${current === key ? ' focused' : ''}${dropTarget === key ? ' drop-target' : ''}${node.kind === 'folder' ? ' tree-folder' : ''}`}
               role="treeitem"
               aria-level={row.depth + 1}
               aria-selected={isSelected}
               aria-expanded={row.expandable ? row.expanded : undefined}
-              style={{ paddingLeft: 4 + row.depth * 14 }}
-              draggable={!renaming && !isKindOf(el, 'Project')}
+              style={{ paddingLeft: 4 + row.depth * INDENT }}
+              draggable={el !== null && !renaming && !isKindOf(el, 'Project')}
               onMouseDown={(e) => {
-                if (e.button === 2 && !selected.has(el._id)) select(el)
+                if (e.button === 2 && el && !selected.has(el._id)) select(row)
               }}
-              onClick={(e) => select(el, e.metaKey || e.ctrlKey)}
-              onDoubleClick={() => activate(el)}
+              onClick={(e) => select(row, e.metaKey || e.ctrlKey)}
+              onDoubleClick={() => activate(row)}
               onDragStart={(e) => {
+                if (!el) return
                 draggedId = el._id
                 e.dataTransfer.setData(ELEMENT_DRAG_TYPE, el._id)
                 e.dataTransfer.setData('text/plain', explorerLabel(el, false))
@@ -293,18 +354,20 @@ export function ModelExplorer(): React.JSX.Element {
               onDragOver={(e) => {
                 const source = draggedId ? projectStore.getState().repository.get(draggedId) : undefined
                 if (!source) return
-                if (!dropField(el, source)) {
+                if (!el || node.kind !== 'element' || !dropField(el, source)) {
                   // Invalid target: not-allowed cursor and no highlight.
                   e.dataTransfer.dropEffect = 'none'
-                  if (dropTarget === el._id) setDropTarget(null)
+                  if (dropTarget === key) setDropTarget(null)
                   return
                 }
                 e.preventDefault()
                 e.dataTransfer.dropEffect = 'move'
-                if (dropTarget !== el._id) setDropTarget(el._id)
+                if (dropTarget !== key) setDropTarget(key)
               }}
-              onDragLeave={() => dropTarget === el._id && setDropTarget(null)}
-              onDrop={(e) => onDrop(e, el)}
+              onDragLeave={() => dropTarget === key && setDropTarget(null)}
+              onDrop={(e) => {
+                if (el && node.kind === 'element') onDrop(e, el)
+              }}
             >
               <span
                 className={`twisty${row.expandable ? '' : ' empty'}`}
@@ -316,12 +379,18 @@ export function ModelExplorer(): React.JSX.Element {
               >
                 {row.expandable ? <UiIcon name={row.expanded ? 'chevron-down' : 'chevron-right'} size={12} /> : null}
               </span>
-              <TypeIcon type={el._type} />
-              {renaming ? (
+              <NodeIcon node={node} open={row.expanded} />
+              {renaming && el ? (
                 <RenameInput el={el} />
               ) : (
-                <span className="tree-label" title={`${explorerLabel(el, showStereotype)} [${typeDisplayName(el._type)}]`}>
-                  {explorerLabel(el, showStereotype)}
+                <span
+                  className="tree-label"
+                  // The tooltip of an arrow entry walks the model; build it when hovered.
+                  onMouseEnter={(e) => {
+                    e.currentTarget.title = treeTooltip(node, showStereotype)
+                  }}
+                >
+                  {label}
                 </span>
               )}
             </div>
@@ -331,6 +400,13 @@ export function ModelExplorer(): React.JSX.Element {
       </div>
     </div>
   )
+}
+
+/** Icon of a row: the element type, or the role of an IDEF0 folder or arrow entry. */
+function NodeIcon({ node, open }: { node: TreeNode; open: boolean }): React.JSX.Element {
+  if (node.kind === 'element') return <TypeIcon type={node.el._type} />
+  if (node.kind === 'folder') return <RoleIcon role={node.role} folder open={open} />
+  return <RoleIcon role={node.role} />
 }
 
 function RenameInput({ el }: { el: Elem }): React.JSX.Element {
