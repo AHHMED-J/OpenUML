@@ -4,6 +4,7 @@
  * as one undoable operation.
  */
 import { fieldOf, isKindOf, isSubtype } from './metamodel'
+import { ModelRuleError } from './errors'
 import { walk } from './repository'
 import {
   STATEMACHINE_EDGE_KINDS,
@@ -511,7 +512,7 @@ function defaultNodeOwner(req: NodeRequest): Elem {
   }
   if (req.kind === 'InputPin' || req.kind === 'OutputPin') {
     const action = req.container?.model
-    if (!isKindOf(action, 'UMLAction')) throw new Error('Pins must be created on an action view')
+    if (!isKindOf(action, 'UMLAction')) throw new ModelRuleError('A pin must be placed on an action')
     return action
   }
   const owner = req.diagram._parent

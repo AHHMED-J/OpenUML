@@ -5,6 +5,7 @@
  * Called from `factories.ts`. Node kinds other than `RADRole` always live in a role.
  */
 import { isKindOf } from './metamodel'
+import { ModelRuleError } from './errors'
 import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest, RefAddition } from './factories'
 import type { Bounds, Diagram, Elem, NodeView, Point, View } from './types'
 import {
@@ -168,7 +169,7 @@ export function radNodeOwner(req: NodeRequest): Elem {
     return process
   }
   const host = req.owner ?? req.container?.model
-  if (!isKindOf(host, 'RADRole')) throw new Error('Place this element inside a role')
+  if (!isKindOf(host, 'RADRole')) throw new ModelRuleError('Place this element inside a role')
   return host as Elem
 }
 

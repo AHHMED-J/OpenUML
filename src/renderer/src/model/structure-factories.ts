@@ -7,6 +7,7 @@
  * This module imports only types from `factories.ts` (the dependency is one-way at run time).
  */
 import { isKindOf } from './metamodel'
+import { ModelRuleError } from './errors'
 import type { Bounds, Diagram, EdgeView, Elem, NodeView, Point, View } from './types'
 import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest, RefAddition } from './factories'
 import {
@@ -288,7 +289,7 @@ export function planStructureNode(req: NodeRequest): CreationPlan | null {
     case 'Part': {
       const host = req.owner ?? structureHostOf(req.container) ?? (kind === 'Part' && isKindOf(diagramOwner, 'UMLClassifier') ? diagramOwner : null)
       if (!host) {
-        throw new Error(
+        throw new ModelRuleError(
           req.container && isKindOf(req.container.model, 'UMLAttribute')
             ? 'Type should be assigned to have Ports'
             : kind === 'Port'
@@ -340,7 +341,7 @@ export function planStructureNode(req: NodeRequest): CreationPlan | null {
     case 'InteractionUseInOverview':
     case 'InteractionInOverview': {
       const activity = req.owner ?? diagramOwner
-      if (!isKindOf(activity, 'UMLActivity')) throw new Error('Interaction overview nodes must be created in an activity')
+      if (!isKindOf(activity, 'UMLActivity')) throw new ModelRuleError('Interaction overview nodes must be created in an activity')
       const owning = isKindOf(activity._parent, 'UMLInteraction') ? activity._parent : null
       // The referenced interaction lives next to the interaction that owns the activity.
       const home = owning?._parent ?? activity._parent

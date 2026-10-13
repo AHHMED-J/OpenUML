@@ -4,6 +4,7 @@
  * ports, fork/join branches, call arrows) and the connection rules. Called from `factories.ts`.
  */
 import { isKindOf } from './metamodel'
+import { ModelRuleError } from './errors'
 import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest, RefAddition } from './factories'
 import {
   attachedArrows,
@@ -118,10 +119,10 @@ function arrowView(model: Elem, tail: View | null, head: View | null): View {
  */
 export function planIdef0Diagram(owner: Elem, name?: string): DiagramPlan {
   if (isIdef0Function(owner)) {
-    if (owner['childDiagram']) throw new Error('The function already has a child diagram')
+    if (owner['childDiagram']) throw new ModelRuleError('The function already has a child diagram')
     return planDecompose(owner, 3, name)
   }
-  if (isKindOf(owner, 'IDEF0Model')) throw new Error('The model already has an A-0 context diagram')
+  if (isKindOf(owner, 'IDEF0Model')) throw new ModelRuleError('The model already has an A-0 context diagram')
   const model = createElement('IDEF0Model', { name: nextName(ownedElementsOf(owner), 'IDEF0 Model ') })
   const top = createElement('IDEF0Function', { name: 'Top Function', boxNumber: 0, _parent: model })
   const diagram = createElement<Diagram>('IDEF0Diagram', { name: name ?? (top['name'] as string), diagramKind: 'context', _parent: model })
@@ -171,8 +172,8 @@ interface BoxSlot {
  * forked to every box, mechanisms to the first box, outputs from the last box.
  */
 export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
-  if (!isIdef0Function(fn)) throw new Error('Only a function can be decomposed')
-  if (fn['childDiagram']) throw new Error('The function already has a child diagram')
+  if (!isIdef0Function(fn)) throw new ModelRuleError('Only a function can be decomposed')
+  if (fn['childDiagram']) throw new ModelRuleError('The function already has a child diagram')
   const n = Math.max(1, Math.min(6, Math.round(count)))
   const diagram = createElement<Diagram>('IDEF0Diagram', { name: name ?? (fn['name'] as string), diagramKind: 'decomposition' })
   diagram.ownedViews.push(frameView(diagram))
@@ -259,7 +260,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
 
 /** Throws unless `req` is a legal place for an IDEF0 node. */
 function requireDecomposition(diagram: Diagram): void {
-  if (isContextDiagram(diagram)) throw new Error('The A-0 diagram holds exactly one box')
+  if (isContextDiagram(diagram)) throw new ModelRuleError('The A-0 diagram holds exactly one box')
 }
 
 export function planIdef0Node(req: NodeRequest): CreationPlan {
@@ -383,7 +384,7 @@ export function planIdef0Arrow(req: Idef0ArrowRequest): CreationPlan {
   let tail = req.tail
   let head = req.head
   const role: Idef0Role = req.call ? 'call' : (req.role ?? defaultRole(tail, head))
-  if (!tail && !head) throw new Error('An arrow needs at least one end on a box')
+  if (!tail && !head) throw new ModelRuleError('An arrow needs at least one end on a box')
   const at = req.at ?? { x: 0, y: 0 }
   const addPort = (portRole: Idef0Role, along: number): View => {
     const port = createElement('IDEF0Port', { role: portRole })
