@@ -9,6 +9,20 @@ import { hitTestDiagram, viewsInBand } from './hitTest'
 import { applyQuickEdit } from './quickEditApply'
 import { parseAttribute, parseName, parseOperation } from './quickEditSyntax'
 
+describe('moveSelection', () => {
+  it('takes the move axis from the layout the caller passes (saving a layout pass)', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 100, 60) as NodeView
+    const current = t.layout()
+    const nodes = new Map(current.nodes)
+    nodes.set(a._id, { ...(nodes.get(a._id) as NonNullable<ReturnType<typeof nodes.get>>), moveAxis: 'horz' })
+    moveSelection(t, [a._id], 30, 40, undefined, { ...current, nodes })
+    expect([a.left, a.top]).toEqual([30, 0])
+    moveSelection(t, [a._id], 10, 20, undefined, t.layout())
+    expect([a.left, a.top]).toEqual([40, 20])
+  })
+})
+
 describe('live drag preview', () => {
   it('shows exactly the layout the gesture commits, without touching the model', () => {
     const t = testDiagram()
