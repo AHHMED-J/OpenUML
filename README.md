@@ -126,6 +126,7 @@ python3 build/icon-src/make_icons.py
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the process and module structure and
 [docs/PROGRESS.md](docs/PROGRESS.md) for the development log.
+[CONTRIBUTING.md](CONTRIBUTING.md) describes the checks to run and the commit message convention.
 
 ## License
 
