@@ -21,7 +21,7 @@ export type TimingNodeKind = 'TimingLifeline' | 'TimingState' | 'TimeSegment' | 
 export type TimingEdgeKind = 'TimingMessage'
 
 /** Height of a time segment and minimum height of a state row. */
-export const TIMING_ROW_HEIGHT = 25
+const TIMING_ROW_HEIGHT = 25
 /** Grid cell used for the minimum width of segments and ticks. */
 const GRID_CELL = 12
 

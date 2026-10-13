@@ -235,7 +235,7 @@ function enclosingRegions(vertex: Elem | null | undefined): Elem[] {
 }
 
 /** The lowest region containing both vertices (the owner of a new transition between them). */
-export function lowestCommonRegion(a: Elem | null | undefined, b: Elem | null | undefined): Elem | null {
+function lowestCommonRegion(a: Elem | null | undefined, b: Elem | null | undefined): Elem | null {
   const chainB = enclosingRegions(b)
   for (const r of enclosingRegions(a)) if (chainB.includes(r)) return r
   return null
