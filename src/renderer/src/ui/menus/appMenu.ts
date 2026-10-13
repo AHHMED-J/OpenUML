@@ -118,6 +118,7 @@ function alignmentMenu(): MenuNode {
       { label: 'Set Width Equally', command: Cmd.alignSameWidth },
       { label: 'Set Height Equally', command: Cmd.alignSameHeight },
       { label: 'Set Size Equally', command: Cmd.alignSameSize },
+      { label: 'Make Same Size', command: Cmd.alignMakeSameSize },
       SEP,
       { label: 'Bring to Front', command: Cmd.alignBringToFront },
       { label: 'Send to Back', command: Cmd.alignSendToBack }

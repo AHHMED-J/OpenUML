@@ -54,6 +54,7 @@ export const Cmd = {
   alignSameWidth: 'alignment.set-width-equally',
   alignSameHeight: 'alignment.set-height-equally',
   alignSameSize: 'alignment.set-size-equally',
+  alignMakeSameSize: 'alignment.make-same-size',
   alignSendToBack: 'alignment.send-to-back',
   alignBringToFront: 'alignment.bring-to-front',
   // Model

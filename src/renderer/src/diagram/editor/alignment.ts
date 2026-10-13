@@ -19,6 +19,7 @@ export type AlignOp =
   | 'set-width-equally'
   | 'set-height-equally'
   | 'set-size-equally'
+  | 'make-same-size'
 
 export const ALIGN_OPS: readonly AlignOp[] = [
   'align-left',
@@ -31,7 +32,8 @@ export const ALIGN_OPS: readonly AlignOp[] = [
   'space-equally-vertically',
   'set-width-equally',
   'set-height-equally',
-  'set-size-equally'
+  'set-size-equally',
+  'make-same-size'
 ]
 
 /** Target boxes for `op` (same order as `boxes`). Pure. */
@@ -99,6 +101,15 @@ export function alignBoxes(op: AlignOp, boxes: readonly Rect[]): Rect[] {
         b.height = maxH
       })
       break
+    case 'make-same-size': {
+      // The first box (the primary selection) gives the size; positions stay.
+      const first = boxes[0] as Rect
+      out.forEach((b) => {
+        b.width = first.width
+        b.height = first.height
+      })
+      break
+    }
   }
   return out
 }
@@ -114,7 +125,8 @@ const OP_NAMES: Record<AlignOp, string> = {
   'space-equally-vertically': 'Space Equally',
   'set-width-equally': 'Set Width Equally',
   'set-height-equally': 'Set Height Equally',
-  'set-size-equally': 'Set Size Equally'
+  'set-size-equally': 'Set Size Equally',
+  'make-same-size': 'Make Same Size'
 }
 
 function selectedNodes(env: DiagramEnv, ids: readonly string[]): NodeView[] {
