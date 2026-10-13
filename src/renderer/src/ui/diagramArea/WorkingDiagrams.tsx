@@ -1,6 +1,6 @@
 /** Working Diagrams: the list of open diagrams (bound to the same state as the tab strip). */
 import type React from 'react'
-import { isKindOf, type Diagram } from '../../model'
+import { idef0DiagramLabel, isKindOf, type Diagram } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
 import { TypeIcon, UiIcon } from '../icons'
 import { uiStore } from '../uiStore'
@@ -15,7 +15,8 @@ export function useOpenDiagrams(): { diagrams: Diagram[]; activeId: string | nul
 }
 
 export function diagramLabel(d: Diagram): string {
-  return d.name || `(${d._type.replace(/^UML/, '')})`
+  const name = d.name || `(${d._type.replace(/^UML/, '')})`
+  return isKindOf(d, 'IDEF0Diagram') ? idef0DiagramLabel(d, name) : name
 }
 
 /** Working Diagrams body (the panel chrome and header come from the dock). */

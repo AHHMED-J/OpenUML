@@ -53,3 +53,4 @@ Each milestone is recorded with an ISO-8601 timestamp (local time, with UTC offs
 | 2026-10-12T20:50:41-07:00 | Merged the new-diagram QA fixes onto main (PR #4, 884 tests green); first run of the release workflow started to build the macOS, Windows and Linux installers |
 | 2026-10-12T20:55:22-07:00 | First release workflow run succeeded on all three platforms (not published); macOS arm64 dmg verified: OpenUML.app 0.1.0, panther icon, .mdj association, ad-hoc signature |
 | 2026-10-12T21:08:33-07:00 | OpenUML v0.1.0 published on GitHub Releases (macOS arm64/x64 dmg+zip, Windows installer, Linux AppImage, checksums) after the user confirmed the macOS app works; README updated with all diagram types and a download guide |
+| 2026-10-12T21:20:03-07:00 | IDEF0 diagram labels show their node number (A-0, A0, A1…) so the A-0 diagram is no longer confused with the top function; version 0.1.1 |

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addAttribute, ModelEngine } from '../../commands'
-import { createDefaultProject, createElement, Repository, type Elem } from '../../model'
+import { createDefaultProject, createElement, Repository, type Diagram, type Elem } from '../../model'
+import { diagramLabel } from '../diagramArea/WorkingDiagrams'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addDiagramItemsFor, addItemsFor, addModelElement } from '../modelActions'
 import { canOwn, dropField, expandableIds, explorerChildren, explorerLabel, hasExplorerChildren, pathTo } from './tree'
 
@@ -125,6 +126,24 @@ describe('explorer tree', () => {
     const cls = addModelElement(engine, model, item('class'))
     expect(pathTo(cls)).toEqual([project, model, cls])
     expect(expandableIds(project)).toEqual([project._id, model._id])
+  })
+})
+
+describe('IDEF0 explorer labels', () => {
+  it('prefixes IDEF0 diagrams with their node number so the A-0 diagram and top function differ', () => {
+    const { engine, model } = setup()
+    const a0Context = addDiagram(engine, model, 'IDEF0Diagram')
+    const idef0Model = a0Context._parent as Elem
+    const top = idef0Model['topFunction'] as Elem
+    expect(top['name']).toBe(a0Context['name'])
+    expect(explorerLabel(top)).toBe(top['name'])
+    expect(explorerLabel(a0Context)).toBe(`A-0 ${a0Context['name'] as string}`)
+    expect(diagramLabel(a0Context as Diagram)).toBe(`A-0 ${a0Context['name'] as string}`)
+
+    const child = addDiagram(engine, top, 'IDEF0Diagram')
+    expect(explorerLabel(child)).toBe(`A0 ${child['name'] as string}`)
+    // The prefix is display only: the stored name is unchanged.
+    expect(child['name']).toBe(top['name'])
   })
 })
 
