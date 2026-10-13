@@ -55,7 +55,9 @@ const IDEF0_VIEW_TYPES: TypeDef[] = [
   t('IDEF0FrameView', 'NodeView'),
   t('IDEF0FunctionView', 'NodeView', [bool('showDre', true)]),
   t('IDEF0PortView', 'NodeView'),
-  t('IDEF0ArrowView', 'EdgeView', [emb('nameLabel', 'EdgeLabelView'), bool('showSquiggle', true)], { inits: { lineStyle: 2 } }),
+  // `routeX` / `routeY`: the user's position of the arrow's draggable vertical / horizontal run
+  // (fork bus, channel, feedback lane), -1 = routed automatically.
+  t('IDEF0ArrowView', 'EdgeView', [emb('nameLabel', 'EdgeLabelView'), bool('showSquiggle', true), int('routeX', -1), int('routeY', -1)], { inits: { lineStyle: 2 } }),
   t('IDEF0NoteView', 'NodeView')
 ]
 
