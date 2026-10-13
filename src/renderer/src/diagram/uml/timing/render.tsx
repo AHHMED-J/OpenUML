@@ -2,22 +2,11 @@
 import type React from 'react'
 import { fmt } from '../../core'
 import type { NodeLayout } from '../../layout/types'
-import { FrameLabel } from '../../render/generic'
 import { StyledRect, SvgText } from '../../render/primitives'
-import type { DurationConstraintData, TimeConstraintData, TimeSegmentData, TimeTickData, TimingFrameData, TimingLifelineData, TimingStateData } from './layout'
+import type { DurationConstraintData, TimeConstraintData, TimeSegmentData, TimeTickData, TimingLifelineData, TimingStateData } from './layout'
 
 function Line({ x1, y1, x2, y2, color }: { x1: number; y1: number; x2: number; y2: number; color: string }): React.JSX.Element {
   return <line x1={fmt(x1)} y1={fmt(y1)} x2={fmt(x2)} y2={fmt(y2)} stroke={color} strokeWidth={1} />
-}
-
-export function TimingFrameNode({ layout }: { layout: NodeLayout<TimingFrameData> }): React.JSX.Element {
-  const { box, style } = layout
-  return (
-    <g>
-      <rect x={fmt(box.left)} y={fmt(box.top)} width={fmt(box.width)} height={fmt(box.height)} fill="none" stroke={style.lineColor} strokeWidth={1} />
-      <FrameLabel label={layout.data.label} fill={style.fillColor} line={style.lineColor} color={style.fontColor} />
-    </g>
-  )
 }
 
 export function TimingLifelineNode({ layout }: { layout: NodeLayout<TimingLifelineData> }): React.JSX.Element {

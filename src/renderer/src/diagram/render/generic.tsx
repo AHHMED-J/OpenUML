@@ -307,7 +307,8 @@ function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<FrameData> 
   return { ...layout, hitAreas: frameHitAreas(layout.box, layout.data.label) }
 }
 
-function Frame({ layout }: { layout: NodeLayout<FrameData> }): React.JSX.Element {
+/** A diagram frame: its border and pentagon label (also used by the timing frame). */
+export function Frame({ layout }: { layout: NodeLayout<FrameData> }): React.JSX.Element {
   const { box, style } = layout
   return (
     <g>

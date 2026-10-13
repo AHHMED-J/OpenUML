@@ -8,6 +8,7 @@
  * (the arranged left/top are written back), `moveAxis`, and the `interval` quick-edit syntax.
  */
 import { isKindOf, type Elem, type View } from '../../../model'
+import { Frame } from '../../render/generic'
 import { registerEdgeNotation, registerNodeNotation, type ContainerBehavior } from '../../render/registry'
 import { timeConstraintLinkNotation, timingMessageNotation } from './edges'
 import {
@@ -20,7 +21,7 @@ import {
   layoutTimingState
 } from './layout'
 import { registerTimingQuickEdit } from './quickEdit'
-import { DurationConstraintNode, TimeConstraintNode, TimeSegmentNode, TimeTickNode, TimingFrameNode, TimingLifelineNode, TimingStateNode } from './render'
+import { DurationConstraintNode, TimeConstraintNode, TimeSegmentNode, TimeTickNode, TimingLifelineNode, TimingStateNode } from './render'
 
 export * from './arrange'
 export * from './edges'
@@ -78,7 +79,7 @@ const timingStateContainer: ContainerBehavior = {
 
 export function registerTimingNotations(): void {
   registerTimingQuickEdit()
-  registerNodeNotation('UMLTimingFrameView', { layout: layoutTimingFrame, Render: TimingFrameNode, container: timingFrameContainer })
+  registerNodeNotation('UMLTimingFrameView', { layout: layoutTimingFrame, Render: Frame, container: timingFrameContainer })
   registerNodeNotation('UMLTimingLifelineView', { layout: layoutTimingLifeline, Render: TimingLifelineNode, container: timingLifelineContainer })
   registerNodeNotation('UMLTimingStateView', { layout: layoutTimingState, Render: TimingStateNode, container: timingStateContainer })
   registerNodeNotation('UMLTimeSegmentView', { layout: layoutTimeSegment, Render: TimeSegmentNode })
