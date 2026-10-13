@@ -38,6 +38,12 @@ export function readMdj(text: string): ReadResult {
   const root = reader.read(json) as Project
   reader.resolve()
   const warnings = [...reader.warnings]
+  // The project is the top of the containment tree. A `_parent` on it would make every walk up
+  // the owner chain loop forever (a hostile file can point it at one of its own descendants).
+  if (root._parent !== null) {
+    root._parent = null
+    warnings.push('Ignored the _parent of the project')
+  }
   repairModel(root, reader.missingParent, warnings)
   migrateDocument(root, warnings)
   return { repository: new Repository(root), project: root, warnings }
