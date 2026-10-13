@@ -191,6 +191,7 @@ export interface UiState {
   notePaletteUse(command: string): void
   openModal(modal: ModalState | null): void
   openContextMenu(menu: ContextMenuState | null): void
+  /** Shows a brief, non-blocking message; an identical one already shown is replaced. */
   toast(text: string, kind?: Toast['kind']): void
   dismissToast(id: number): void
 }
@@ -492,7 +493,10 @@ export function createUiStore() {
       },
       toast(text, kind = 'info') {
         const id = ++toastCounter
-        set({ toasts: [...get().toasts, { id, text, kind }].slice(-4) })
+        // The same message again (a repeated refused gesture) replaces the one shown, so it stays
+        // up for the full time instead of stacking.
+        const others = get().toasts.filter((t) => t.text !== text || t.kind !== kind)
+        set({ toasts: [...others, { id, text, kind }].slice(-4) })
         setTimeout(() => get().dismissToast(id), kind === 'error' ? 6000 : 3500)
       },
       dismissToast(id) {
