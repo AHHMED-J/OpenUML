@@ -12,7 +12,7 @@ import { standardEdgeLabels } from '../../render/generic'
 import type { EdgeNotation } from '../../render/registry'
 import { endPropertyText, roleNameText } from '../class/strings'
 
-export function endInfo(end: Elem | null | undefined): AssociationEndInfo {
+function endInfo(end: Elem | null | undefined): AssociationEndInfo {
   if (!end) return {}
   return {
     navigable: (end['navigable'] as AssociationEndInfo['navigable']) ?? 'unspecified',
@@ -21,7 +21,7 @@ export function endInfo(end: Elem | null | undefined): AssociationEndInfo {
 }
 
 /** Role name / property / multiplicity labels of one end of an association-style edge. */
-export function endLabelSpecs(edge: EdgeView, end: Elem | null | undefined, side: 'tail' | 'head'): EdgeLabelSpec[] {
+function endLabelSpecs(edge: EdgeView, end: Elem | null | undefined, side: 'tail' | 'head'): EdgeLabelSpec[] {
   if (!end) return []
   return [
     {

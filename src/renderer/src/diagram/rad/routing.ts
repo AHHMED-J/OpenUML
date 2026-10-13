@@ -8,7 +8,7 @@ import type { Point, Rect } from '../core'
 import type { LayoutContext } from '../layout/types'
 import { RAD_GEOMETRY } from './layout'
 
-export const RAD_ROUTING = {
+const RAD_ROUTING = {
   /** The bus runs this far above the top of its target. */
   busOffset: 28,
   /** ... and at least this far below the lowest source it collects. */
@@ -62,7 +62,7 @@ export function loopLaneX(view: View | null | undefined, ctx: LayoutContext): nu
 }
 
 /** The y of the bus collecting every forward line that ends at `edge.head`. */
-export function busLevel(edge: EdgeView, ctx: LayoutContext): number {
+function busLevel(edge: EdgeView, ctx: LayoutContext): number {
   const hb = boxOf(edge.head, ctx) as Rect
   const own = boxOf(edge.tail, ctx) as Rect
   let lowest = bottom(own)

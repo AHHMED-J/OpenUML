@@ -11,7 +11,7 @@ import { standardEdgeLabels } from '../../render/generic'
 import type { EdgeNotation } from '../../render/registry'
 
 /** The keyword always shown on an information flow. */
-export const FLOW_KEYWORD = 'flow'
+const FLOW_KEYWORD = 'flow'
 
 /** Conveyed classifier names joined with `, `. */
 export function conveyedText(flow: Elem | null | undefined): string {

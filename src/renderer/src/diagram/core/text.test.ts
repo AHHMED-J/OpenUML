@@ -33,6 +33,30 @@ describe('CanvasTextMeasurer', () => {
     expect(calls).toBe(2)
   })
 
+  it('keeps a working set larger than one generation cached and bounds its size', () => {
+    let calls = 0
+    const ctx = {
+      font: '',
+      measureText(text: string) {
+        calls++
+        return { width: text.length }
+      }
+    }
+    const cm = new CanvasTextMeasurer(ctx, 10)
+    const f: Font = { face: 'Arial', size: 13, style: FontStyle.Normal }
+    const pass = (n: number): void => {
+      for (let i = 0; i < n; i++) cm.measure(`t${i}`, f)
+    }
+    // 8 strings per pass fit one generation: after the first pass every lookup hits.
+    pass(8)
+    pass(8)
+    pass(8)
+    expect(calls).toBe(8)
+    // Many distinct strings: memory stays within two generations.
+    pass(100)
+    expect(cm.cacheSize).toBeLessThanOrEqual(20)
+  })
+
   it('falls back to the fixed-width measurer without a canvas', () => {
     expect(createTextMeasurer()).toBeInstanceOf(FixedWidthTextMeasurer)
   })

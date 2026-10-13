@@ -27,7 +27,7 @@ function lifelineLayout(id: string | null, ctx: LayoutContext): NodeLayout<Lifel
 }
 
 /** Innermost bar on a lifeline covering `y` (excluding the bar of `excludeId`). */
-export function activeBarAt(lifeline: LifelineData, y: number, excludeId?: string): ActivationLayout | null {
+function activeBarAt(lifeline: LifelineData, y: number, excludeId?: string): ActivationLayout | null {
   let best: ActivationLayout | null = null
   for (const a of lifeline.activations) {
     if (a.messageId === excludeId) continue
@@ -50,7 +50,7 @@ function nodeEndX(view: View | null, ctx: LayoutContext, towardRight: boolean | 
 }
 
 /** Routed points of a message, or null when its ends are not laid out. */
-export function routeMessage(info: MessageInfo, ctx: LayoutContext): Point[] | null {
+function routeMessage(info: MessageInfo, ctx: LayoutContext): Point[] | null {
   const id = info.view._id
   const y = info.y
   const tl = lifelineLayout(info.tailLifeline, ctx)
@@ -140,7 +140,7 @@ function labelPolyline(points: readonly Point[], self: boolean, labelWidth: numb
   return last.x < first.x ? [...points].reverse() : [...points]
 }
 
-export function layoutMessage(edge: EdgeView, ctx: LayoutContext): EdgeLayout<MessageData> {
+function layoutMessage(edge: EdgeView, ctx: LayoutContext): EdgeLayout<MessageData> {
   const model = edge.model
   const info = sequenceInfo(ctx).messages.get(edge._id)
   const n = messageNotation(messageSortOf(model))

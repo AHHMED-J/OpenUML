@@ -27,7 +27,7 @@ export function isRectilinearStyle(style: LineStyle): boolean {
 }
 
 /** `FreelineEdgeView.lineMode` codes. */
-export const LineMode = { Solid: 0, Dot: 1, Dash: 2 } as const
+const LineMode = { Solid: 0, Dot: 1, Dash: 2 } as const
 export type LineMode = (typeof LineMode)[keyof typeof LineMode]
 
 /** `EdgeParasiticView.edgePosition` codes: the anchor an edge label is placed from. */
@@ -35,11 +35,11 @@ export const EdgePosition = { Head: 0, Middle: 1, Tail: 2 } as const
 export type EdgePosition = (typeof EdgePosition)[keyof typeof EdgePosition]
 
 /** `horizontalAlignment` codes. */
-export const HorizontalAlignment = { Left: 0, Right: 1, Center: 2 } as const
+const HorizontalAlignment = { Left: 0, Right: 1, Center: 2 } as const
 export type HorizontalAlignment = (typeof HorizontalAlignment)[keyof typeof HorizontalAlignment]
 
 /** `verticalAlignment` codes. */
-export const VerticalAlignment = { Top: 3, Bottom: 4, Middle: 5 } as const
+const VerticalAlignment = { Top: 3, Bottom: 4, Middle: 5 } as const
 export type VerticalAlignment = (typeof VerticalAlignment)[keyof typeof VerticalAlignment]
 
 /** Font style codes used in the font string (`face;size;style`). */
@@ -72,8 +72,8 @@ export const COLORS = {
 // Fonts
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_FONT_FACE = 'Arial'
-export const DEFAULT_FONT_SIZE = 13
+const DEFAULT_FONT_FACE = 'Arial'
+const DEFAULT_FONT_SIZE = 13
 export const DEFAULT_FONT: Readonly<Font> = Object.freeze({
   face: DEFAULT_FONT_FACE,
   size: DEFAULT_FONT_SIZE,

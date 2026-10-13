@@ -34,10 +34,9 @@ export * from './analysis'
 export * from './layout'
 export * from './messages'
 export * from './strings'
-export { applyLifeline, applyMessage } from './quickEdit'
 
 /** Combined fragments visually contain nested fragments and annotations (no model re-parenting). */
-export const fragmentContainer: ContainerBehavior = {
+const fragmentContainer: ContainerBehavior = {
   accepts(_container: View, childModel: Elem | null): boolean {
     return childModel === null || isKindOf(childModel, 'UMLCombinedFragment')
   },

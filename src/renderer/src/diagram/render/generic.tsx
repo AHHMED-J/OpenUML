@@ -30,8 +30,8 @@ import {
   stereotypeName,
   styleOf
 } from '../layout/helpers'
-import type { EdgeLayout, LayoutContext, NodeLayout, TextLine } from '../layout/types'
-import { EdgeShape, Shadow, StyledRect, SvgLines, SvgText, rectPath } from './primitives'
+import type { LayoutContext, NodeLayout, TextLine } from '../layout/types'
+import { StyledRect, SvgLines, SvgText } from './primitives'
 import { registerEdgeNotation, registerNodeNotation, setFallbackNotations, type EdgeNotation, type NodeNotation } from './registry'
 
 // =============================================================================================
@@ -66,7 +66,7 @@ function FallbackNode({ layout }: { layout: NodeLayout<BoxData> }): React.JSX.El
   )
 }
 
-export const fallbackNodeNotation: NodeNotation<BoxData> = { layout: layoutFallbackNode, Render: FallbackNode }
+const fallbackNodeNotation: NodeNotation<BoxData> = { layout: layoutFallbackNode, Render: FallbackNode }
 
 // =============================================================================================
 // Generic relationship edges
@@ -329,6 +329,3 @@ export function registerGenericNotations(): void {
   registerEdgeNotation('UMLContainmentView', relationshipEdgeNotation('containment'))
   registerEdgeNotation('UMLGeneralEdgeView', fallbackEdgeNotation)
 }
-
-export { EdgeShape, Shadow, rectPath }
-export type { EdgeLayout }

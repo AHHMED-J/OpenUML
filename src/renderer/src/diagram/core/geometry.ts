@@ -46,7 +46,7 @@ export function scale(a: Point, k: number): Point {
   return { x: a.x * k, y: a.y * k }
 }
 
-export function dot(a: Point, b: Point): number {
+function dot(a: Point, b: Point): number {
   return a.x * b.x + a.y * b.y
 }
 
@@ -55,7 +55,7 @@ export function cross(a: Point, b: Point): number {
   return a.x * b.y - a.y * b.x
 }
 
-export function length(a: Point): number {
+function length(a: Point): number {
   return Math.hypot(a.x, a.y)
 }
 
@@ -83,7 +83,7 @@ export function roundPoint(p: Point): Point {
 
 
 /** Linear interpolation between `a` (t = 0) and `b` (t = 1). */
-export function lerp(a: Point, b: Point, t: number): Point {
+function lerp(a: Point, b: Point, t: number): Point {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
 }
 
@@ -115,7 +115,7 @@ export function rectFromPoints(a: Point, b: Point): Rect {
 }
 
 /** Builds a rectangle from its edges. */
-export function rectFromLTRB(left: number, top: number, right: number, bottom: number): Rect {
+function rectFromLTRB(left: number, top: number, right: number, bottom: number): Rect {
   return { left, top, width: right - left, height: bottom - top }
 }
 

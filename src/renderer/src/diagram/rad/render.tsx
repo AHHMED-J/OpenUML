@@ -22,7 +22,7 @@ import type {
 
 const SW = 1.5
 const THICK = 3
-export const WARNING_COLOR = '#e08a00'
+const WARNING_COLOR = '#e08a00'
 
 export interface RadEdgeData {
   readonly strokeWidth: number
@@ -151,7 +151,7 @@ export function WaitNode({ layout }: { layout: NodeLayout<WaitData> }): React.JS
 }
 
 /** Pentagon pointing right: flat left half, the right half converges to a tip at mid height. */
-export function pentagonPath(box: Rect): string {
+function pentagonPath(box: Rect): string {
   const { left, top, width, height } = box
   const mid = left + width / 2
   return `M${fmt(left)} ${fmt(top)} H${fmt(mid)} L${fmt(left + width)} ${fmt(top + height / 2)} L${fmt(mid)} ${fmt(top + height)} H${fmt(left)} Z`
@@ -192,7 +192,7 @@ export function RefinementNode({ layout }: { layout: NodeLayout<RefinementData> 
 }
 
 /** Upward-pointing triangle (apex up) filling `box`. */
-export function trianglePath(box: Rect): string {
+function trianglePath(box: Rect): string {
   const cx = box.left + box.width / 2
   return `M${fmt(cx)} ${fmt(box.top)} L${fmt(box.left + box.width)} ${fmt(box.top + box.height)} L${fmt(box.left)} ${fmt(box.top + box.height)} Z`
 }

@@ -4,7 +4,7 @@
  * views hosting ports and parts) without replacing their layout or drawing.
  */
 import { isKindOf, type Elem, type View } from '../../../model'
-import { hasNodeNotation, nodeNotationFor, registerNodeNotation, type ContainerBehavior, type NodeNotation } from '../../render/registry'
+import { nodeNotationFor, registerNodeNotation, type ContainerBehavior, type NodeNotation } from '../../render/registry'
 
 /** The registered notation of `viewType` (itself or its nearest registered supertype), if any. */
 function currentNotation(viewType: string): NodeNotation | null {
@@ -47,5 +47,3 @@ export const instanceContainer: ContainerBehavior = {
     return { owner, field: 'ownedElements' }
   }
 }
-
-export { hasNodeNotation }

@@ -19,7 +19,6 @@ import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../../layo
 import { nodeNotationFor } from '../../render/registry'
 import { collaborationUseText, typedFeatureText } from './strings'
 
-export { PORT_SIZE }
 
 // =============================================================================================
 // Port
@@ -73,7 +72,7 @@ export interface PortData {
 }
 
 /** The view hosting a port view: its container, else the diagram view showing the port's owner. */
-export function portHostView(view: NodeView, ctx: LayoutContext): View | null {
+function portHostView(view: NodeView, ctx: LayoutContext): View | null {
   const container = view.containerView ?? null
   if (container) return container
   const owner = view.model?._parent
@@ -198,7 +197,7 @@ export function layoutPart(view: NodeView, ctx: LayoutContext): NodeLayout<PartD
 // =============================================================================================
 // Collaboration and collaboration use
 
-export const COLLABORATION_MIN = { width: 70, height: 32 } as const
+const COLLABORATION_MIN = { width: 70, height: 32 } as const
 
 export interface CollaborationData {
   readonly form: 'ellipse' | 'box'

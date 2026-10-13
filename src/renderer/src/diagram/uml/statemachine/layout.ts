@@ -23,16 +23,16 @@ import { nearestBorderPoint } from '../activity/layout'
 import { internalActivityRows, internalTransitions, stateNameText, transitionLabel } from './strings'
 
 /** Minimum size of a simple state. */
-export const STATE_MIN = { width: 60, height: 40 } as const
+const STATE_MIN = { width: 60, height: 40 } as const
 /** Minimum height of a region view. */
-export const REGION_MIN_HEIGHT = 50
+const REGION_MIN_HEIGHT = 50
 /** Extra minimum height of a state that refers to a submachine (room for the mark). */
-export const SUBMACHINE_EXTRA = 16
+const SUBMACHINE_EXTRA = 16
 
 // ---------------------------------------------------------------------------------------------
 // State
 
-export interface StateRegionLayout {
+interface StateRegionLayout {
   /** The region view (null when the region has no view yet). */
   readonly viewId: string | null
   readonly elementId: string
@@ -41,7 +41,7 @@ export interface StateRegionLayout {
   readonly dashedTop: boolean
 }
 
-export interface SubmachineMark {
+interface SubmachineMark {
   readonly left: { readonly cx: number; readonly cy: number }
   readonly right: { readonly cx: number; readonly cy: number }
   readonly radius: number
@@ -72,7 +72,7 @@ function regionViewOf(view: NodeView, region: Elem): NodeView | null {
 }
 
 /** Mark of a submachine state: two small circles joined by a line in the bottom-right corner. */
-export function submachineMark(box: Rect): SubmachineMark {
+function submachineMark(box: Rect): SubmachineMark {
   const right = box.left + box.width
   const bottom = box.top + box.height
   return {
@@ -223,7 +223,7 @@ export function layoutState(view: NodeView, ctx: LayoutContext): NodeLayout<Stat
 // ---------------------------------------------------------------------------------------------
 // Pseudostates and final state
 
-export type PseudostateShape =
+type PseudostateShape =
   | 'initial'
   | 'history'
   | 'bar'
@@ -257,7 +257,7 @@ const MIN_BY_KIND: Readonly<Record<string, { width: number; height: number }>> =
   terminate: { width: 26, height: 26 }
 }
 
-export function pseudostateKindOf(model: Elem | null | undefined): string {
+function pseudostateKindOf(model: Elem | null | undefined): string {
   const kind = model?.['kind']
   return typeof kind === 'string' && kind in MIN_BY_KIND ? kind : 'initial'
 }
@@ -276,7 +276,7 @@ function shapeOfKind(kind: string): PseudostateShape {
 }
 
 /** Half-extent of the X arms of an exit point / terminate of the given width: `round(√2·width/4)`. */
-export function exitArm(width: number): number {
+function exitArm(width: number): number {
   return Math.round((Math.SQRT2 * width) / 4)
 }
 
@@ -350,7 +350,7 @@ function namesOf(list: unknown): string[] {
 }
 
 /** Names of the referenced entry and exit points, comma separated. */
-export function connectionPointText(model: Elem | null | undefined): string {
+function connectionPointText(model: Elem | null | undefined): string {
   return [...namesOf(model?.['entry']), ...namesOf(model?.['exit'])].join(', ')
 }
 
@@ -366,7 +366,7 @@ function hostBox(host: View, ctx: LayoutContext): Rect | null {
 }
 
 /** The state view a connection point reference is glued to. */
-export function connectionPointHost(view: NodeView, ctx: LayoutContext): View | null {
+function connectionPointHost(view: NodeView, ctx: LayoutContext): View | null {
   const state = view.model?._parent
   const container = view.containerView ?? null
   if (container && (!state || container.model === state)) return container

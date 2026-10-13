@@ -10,7 +10,7 @@ function Line({ x1, y1, x2, y2, color }: { x1: number; y1: number; x2: number; y
 }
 
 /** Page glyph: a rectangle with a folded top-right corner. */
-export function PageIcon({ rect, style }: { rect: Rect; style: ViewStyle }): React.JSX.Element {
+function PageIcon({ rect, style }: { rect: Rect; style: ViewStyle }): React.JSX.Element {
   const fold = Math.min(rect.width, rect.height) / 3
   const r = rect.left + rect.width
   const b = rect.top + rect.height

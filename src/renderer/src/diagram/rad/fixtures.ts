@@ -12,7 +12,7 @@ import type { RadNodeKind } from '../../model'
 import { FixedWidthTextMeasurer } from '../core'
 import { ensureNotations } from '../notations'
 
-export const GRID = { col: 190, row: 70, left: 52, top: 42 } as const
+const GRID = { col: 190, row: 70, left: 52, top: 42 } as const
 
 export interface RadRoleSpec {
   readonly left: number

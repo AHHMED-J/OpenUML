@@ -60,10 +60,10 @@ function lifelineModel(view: View): Elem | null {
 }
 
 /** Free line length kept below the lowest message so a lower message can be added without lengthening. */
-export const LIFELINE_SLACK = 40
+const LIFELINE_SLACK = 40
 
 /** Bottom of the diagram's frame view (null when the diagram has none). */
-export function lifelineFrameBottom(ctx: LayoutContext): number | null {
+function lifelineFrameBottom(ctx: LayoutContext): number | null {
   const frame = (ctx.diagram.ownedViews ?? []).find((v) => isKindOf(v, 'UMLFrameView') && v.visible !== false) as NodeView | undefined
   return frame && typeof frame.top === 'number' && typeof frame.height === 'number' ? frame.top + frame.height : null
 }
@@ -179,7 +179,7 @@ export function layoutLifeline(view: NodeView, ctx: LayoutContext): NodeLayout<L
 // =============================================================================================
 // Combined fragment
 
-export interface OperandLayout {
+interface OperandLayout {
   readonly viewId: string
   readonly elementId: string | null
   readonly rect: Rect
@@ -196,7 +196,7 @@ export interface FragmentData {
 const OPERAND_MIN_H = MIN_SIZES.interactionOperand.height
 
 /** Visible operand views of a combined fragment view, in order. */
-export function operandViews(view: View): NodeView[] {
+function operandViews(view: View): NodeView[] {
   const compartment = view['operandCompartment'] as View | null | undefined
   return (compartment?.subViews ?? []).filter(
     (v): v is NodeView => isKindOf(v, 'UMLInteractionOperandView') && v.visible !== false

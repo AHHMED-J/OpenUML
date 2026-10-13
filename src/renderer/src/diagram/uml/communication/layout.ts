@@ -34,12 +34,11 @@ import { nodeNotationFor } from '../../render/registry'
 import { lifelineEditText, lifelineHeaderText, messageEditText, messageLabelText } from '../sequence/strings'
 import { messageSortOf } from '../sequence/analysis'
 
-export { COMM_LIFELINE_MIN }
 /** Length of a message arrow (±20 along the connector) and its offset from the connector. */
-export const MESSAGE_ARROW_LENGTH = 40
-export const MESSAGE_OFFSET = 10
+const MESSAGE_ARROW_LENGTH = 40
+const MESSAGE_OFFSET = 10
 /** Clickable margin around an arrow. */
-export const MESSAGE_HIT_MARGIN = 10
+const MESSAGE_HIT_MARGIN = 10
 
 // =============================================================================================
 // Lifeline
@@ -135,7 +134,7 @@ function withOnDemandNodes(ctx: LayoutContext): LayoutContext {
 }
 
 /** Routed polyline of a connector view (what its edge layout will compute). */
-export function connectorPoints(connector: EdgeView, ctx: LayoutContext): Point[] {
+function connectorPoints(connector: EdgeView, ctx: LayoutContext): Point[] {
   return routeEdgeView(connector, withOnDemandNodes(ctx)).points
 }
 

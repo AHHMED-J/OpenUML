@@ -17,7 +17,7 @@ function setStereotype(b: OperationBuilder, repo: Repository, el: Elem, name: st
 }
 
 /** Applies a parsed lifeline notation; the type goes to the represented role (created when missing). */
-export function applyLifeline(b: OperationBuilder, repo: Repository, lifeline: Elem, p: ParsedLifeline): void {
+function applyLifeline(b: OperationBuilder, repo: Repository, lifeline: Elem, p: ParsedLifeline): void {
   b.set(lifeline, 'name', p.name)
   if (fieldOf(lifeline, 'visibility')) b.set(lifeline, 'visibility', p.visibility ?? 'public')
   setStereotype(b, repo, lifeline, p.stereotype)
@@ -36,7 +36,7 @@ export function applyLifeline(b: OperationBuilder, repo: Repository, lifeline: E
 }
 
 /** Applies a parsed message notation; a signature whose name no longer matches is dropped. */
-export function applyMessage(b: OperationBuilder, repo: Repository, message: Elem, p: ParsedMessage): void {
+function applyMessage(b: OperationBuilder, repo: Repository, message: Elem, p: ParsedMessage): void {
   setStereotype(b, repo, message, p.stereotype)
   b.set(message, 'assignmentTarget', p.assignmentTarget)
   b.set(message, 'arguments', p.arguments)

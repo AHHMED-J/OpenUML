@@ -22,7 +22,7 @@ import { insertedPorts, propagateUp } from './propagation'
 const ENTER_ROLE: Readonly<Partial<Record<Idef0Side, Idef0Role>>> = { left: 'input', top: 'control', bottom: 'mechanism' }
 
 /** Role of an arrow released on `side` of a box (the right side is an output side: refused). */
-export function roleForSide(side: Idef0Side): Idef0Role | null {
+function roleForSide(side: Idef0Side): Idef0Role | null {
   return ENTER_ROLE[side] ?? null
 }
 

@@ -207,7 +207,7 @@ function subContainerAt(
 }
 
 /** How far outside an action's border a click still creates a pin on it. */
-export const PIN_BORDER_TOLERANCE = 12
+const PIN_BORDER_TOLERANCE = 12
 
 function inflate(r: Rect, by: number): Rect {
   return { left: r.left - by, top: r.top - by, width: r.width + 2 * by, height: r.height + 2 * by }

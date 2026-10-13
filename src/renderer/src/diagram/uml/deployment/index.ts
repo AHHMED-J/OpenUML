@@ -5,7 +5,6 @@ import { layoutNodeBox, nodeContainer } from './layout'
 import { NodeBox } from './render'
 
 export * from './layout'
-export { deploymentNotation, communicationPathNotation } from './edges'
 
 export function registerDeploymentNotations(): void {
   registerNodeNotation('UMLNodeView', { layout: layoutNodeBox, Render: NodeBox, container: nodeContainer })
