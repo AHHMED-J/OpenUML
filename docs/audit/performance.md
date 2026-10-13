@@ -202,3 +202,16 @@ more than the stand-in, so in the app the gain of the cache fix is larger than t
   save a download of about 100 MB per runner.
 - **Vitest** suggests `fsModuleCache` to persist transforms between runs; the suite already
   takes about 2 s, so it is not worth a configuration change.
+
+## Follow-ups
+
+- **Explorer accessibility after virtualization (was left open).** The focused row, which is the
+  tree's `aria-activedescendant`, is always rendered in place (with spacers around it) even when
+  it is scrolled out of the rendered window, so screen readers keep their focus after mouse
+  scrolling; tabbing into the tree also scrolls it back into view. This adds at most one row to
+  the DOM (`virtualRows.ts` `rowSlots`, `743c4db`).
+- **CI downloads (was left open).** The release build jobs cache the Electron and electron-builder
+  downloads per OS and version (`b91a586`, see [security.md](security.md)).
+- **Editor preferences.** The grid size preference only changes the step used by snapping and the
+  spacing of the grid pattern; the default font size is applied once, inside the creating
+  operation, to the views it inserts. Neither adds work to layout or dragging (`c9ff927`).
