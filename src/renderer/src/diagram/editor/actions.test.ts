@@ -56,21 +56,26 @@ describe('live drag preview', () => {
     const t = testDiagram()
     const before = t.diagram.ownedViews.length
     const rect = { left: 40, top: 60, width: 160, height: 90 }
-    const preview = previewLayout(t, () => void createNodeAt(t, t.layout(), 'Class', rect, { quiet: true }), t.layout())
+    const preview = previewLayout(t, () => void createNodeAt(t, t.layout(), 'Class', rect), t.layout())
     expect(t.diagram.ownedViews).toHaveLength(before)
     const id = createNodeAt(t, t.layout(), 'Class', rect) as string
     const drawn = [...preview!.nodes.values()].map((n) => n.box)
     expect(drawn).toContainEqual(t.layout().nodes.get(id)?.box)
 
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
-      // A timing state must be placed on a lifeline.
-      expect(createNodeAt(t, t.layout(), 'TimingState', rect, { quiet: true })).toBeNull()
-      expect(warn).not.toHaveBeenCalled()
+      // A timing state must be placed on a lifeline: refused by a modeling rule, so nothing is
+      // logged; the reason goes to `onRefused` when the caller wants it.
       expect(createNodeAt(t, t.layout(), 'TimingState', rect)).toBeNull()
-      expect(warn).toHaveBeenCalledTimes(1)
+      const reasons: string[] = []
+      expect(createNodeAt(t, t.layout(), 'TimingState', rect, { onRefused: (r) => reasons.push(r) })).toBeNull()
+      expect(reasons).toEqual(['A state/condition must be placed on a lifeline'])
+      expect(warn).not.toHaveBeenCalled()
+      expect(error).not.toHaveBeenCalled()
     } finally {
       warn.mockRestore()
+      error.mockRestore()
     }
   })
 

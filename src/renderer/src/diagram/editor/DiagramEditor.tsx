@@ -53,12 +53,15 @@ import {
   moveSelection,
   previewLayout,
   reconnectEnd,
+  refusedDropHost,
   resizeNode,
   resizeSubView,
   setEdgeVertices,
+  toolName,
   type DiagramEnv,
   type ToolSpec
 } from './actions'
+import { connectionRefusal, dropRefusal, refusalReason, withArticle, readableName } from './feedback'
 import { releaseActiveEditor, setActiveEditor, type EditorHandle } from './activeEditor'
 import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
@@ -78,6 +81,11 @@ export interface DiagramEditorProps {
   readonly onZoomChange: (zoom: number) => void
   readonly showGrid: boolean
   readonly snapToGrid: boolean
+  /**
+   * Shows a brief, non-blocking message to the user: why a gesture was refused (a connection the
+   * rules do not allow, an element that cannot be placed there). Called at most once per gesture.
+   */
+  readonly onNotify?: (message: string) => void
 }
 
 type Gesture =
@@ -132,7 +140,7 @@ function gestureChange(g: Gesture, env: DiagramEnv, layout: DiagramLayout): (() 
       // A drawn rectangle shows the new element itself; where it cannot be placed, the outline stays.
       return g.rect.width >= 4 || g.rect.height >= 4
         ? () => {
-            if (!createNodeAt(env, layout, g.kind as never, g.rect, { quiet: true })) throw new Error(`${g.kind} cannot be placed here`)
+            if (!createNodeAt(env, layout, g.kind as never, g.rect)) throw new Error(`${g.kind} cannot be placed here`)
           }
         : null
     default:
@@ -151,7 +159,7 @@ function edgeMidBox(points: readonly Point[]): Rect {
 }
 
 export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
-  const { diagramId, tool, onToolUsed, zoom: targetZoom, onZoomChange, showGrid, snapToGrid } = props
+  const { diagramId, tool, onToolUsed, zoom: targetZoom, onZoomChange, showGrid, snapToGrid, onNotify } = props
   /** The zoom drawn: follows `targetZoom` with a short transition (see the zoom effect below). */
   const [zoom, setShownZoom] = useState(targetZoom)
   const engine = useProjectStore((s) => s.engine)
@@ -191,8 +199,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const svgRef = useRef<SVGSVGElement>(null)
   const gesture = useRef<Gesture | null>(null)
   const spaceDown = useRef(false)
-  const live = useRef({ zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid })
-  live.current = { zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid }
+  const live = useRef({ zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid, onNotify })
+  live.current = { zoom, targetZoom, layout, selected, selectedSet, env, tool, snapToGrid, onNotify }
+  /** Reports why a gesture was refused (see `onNotify`). */
+  const notify = useCallback((reason: string): void => live.current.onNotify?.(reason), [])
 
   const [preview, setPreview] = useState<DragPreview | null>(null)
   /** While dragging: the diagram as it will be when the gesture is released (see `scheduleLive`). */
@@ -525,7 +535,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           const box = l.nodes.get(target.viewId)?.box
           const from = box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : p
           if (t.selfConnection) {
-            const id = createEdgeBetween(en, l, t, target.viewId, target.viewId, p)
+            const id = createEdgeBetween(en, l, t, target.viewId, target.viewId, p, notify)
             if (id) {
               setSelection([id])
               onToolUsed()
@@ -804,10 +814,17 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     if (!g || !l || !en || cancelled) return
     const p = toDiagram(e.clientX, e.clientY)
     switch (g.type) {
-      case 'move':
-        if (g.moved) moveSelection(en, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, l)
-        else if (g.reselect) setSelection([g.clickedId])
+      case 'move': {
+        if (!g.moved) {
+          if (g.reselect) setSelection([g.clickedId])
+          return
+        }
+        // Dropped inside a container that does not take these views: they stay where they belong.
+        const refused = refusedDropHost(en, l, p, g.nodes, g.boxes.map((b) => ({ ...b, left: b.left + g.dx, top: b.top + g.dy })))
+        moveSelection(en, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, l)
+        if (refused) notify(dropRefusal(g.nodes, refused))
         return
+      }
       case 'resize':
         if (g.rect !== g.box) resizeNode(en, g.id, g.rect)
         return
@@ -827,58 +844,69 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return
       }
       case 'create-node': {
-        const id = createNodeAt(en, l, g.kind as never, g.rect)
+        const id = createNodeAt(en, l, g.kind as never, g.rect, { onRefused: notify })
         if (id) {
           setSelection([id])
           onToolUsed()
           requestEdit(id)
-        } else console.warn(`${g.kind} cannot be placed here.`)
+        }
         return
       }
       case 'create-edge': {
         const hooks = hooksFor(en.diagram)
         const pickedId = hooks?.pickEnd ? hooks.pickEnd(l, p, g.tool) : null
         const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
-        const hooked = hooks?.createEdge?.(en, l, g.tool, g.tailId || null, target?.viewId ?? null, g.start, p)
+        let hooked: string | null | undefined
+        try {
+          hooked = hooks?.createEdge?.(en, l, g.tool, g.tailId || null, target?.viewId ?? null, g.start, p)
+        } catch (err) {
+          notify(refusalReason(err, `Couldn't create ${withArticle(readableName(toolName(g.tool)))}`))
+          return
+        }
         if (hooked !== undefined) {
           if (hooked) {
             setSelection([hooked])
             onToolUsed()
             requestEdit(hooked)
-          } else console.warn(`Invalid connection (${g.tool.kind})`)
+          } else {
+            const view = (id: string | undefined): View | null => (id ? ((repository.get(id) as View | undefined) ?? null) : null)
+            notify(connectionRefusal(toolName(g.tool), view(g.tailId), view(target?.viewId)))
+          }
           return
         }
         if (g.tool.freeEnd) {
           // Found message (free tail, lifeline at the release point) or lost message (free head).
+          if (g.tool.freeEnd === 'head' && target) {
+            notify('A lost message ends in empty space: release it away from other elements')
+            return
+          }
           const id =
             g.tool.freeEnd === 'tail'
               ? target
-                ? createEndpointMessage(en, l, g.tool, target.viewId, g.start, g.start.y)
+                ? createEndpointMessage(en, l, g.tool, target.viewId, g.start, g.start.y, notify)
                 : null
-              : target
-                ? null
-                : createEndpointMessage(en, l, g.tool, g.tailId, p, g.start.y)
+              : createEndpointMessage(en, l, g.tool, g.tailId, p, g.start.y, notify)
           if (id) {
             setSelection([id])
             onToolUsed()
             requestEdit(id)
-          } else console.warn(`Invalid connection (${g.tool.kind})`)
+          }
           return
         }
-        const id = target ? createEdgeBetween(en, l, g.tool, g.tailId, target.viewId, g.start) : null
+        const id = target ? createEdgeBetween(en, l, g.tool, g.tailId, target.viewId, g.start, notify) : null
         if (id) {
           setSelection([id])
           onToolUsed()
           const view = repository.get(id) as View | undefined
           if (view?.model) requestEdit(id)
-        } else if (target) console.warn(`Invalid connection (${g.tool.kind})`)
+        }
         return
       }
       case 'vertex': {
         if (!g.moved) return
         if (g.end) {
           const target = hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
-          if (target) reconnectEnd(en, g.edgeId, g.end, target.viewId, p)
+          if (target) reconnectEnd(en, g.edgeId, g.end, target.viewId, p, notify)
           return
         }
         setEdgeVertices(en, g.edgeId, g.points)
