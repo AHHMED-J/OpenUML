@@ -16,7 +16,6 @@
     "dist": "electron-vite build && electron-builder"
   },
   "dependencies": {
-    "immer": "11.1.21",
     "zustand": "5.0.15"
   },
   "devDependencies": {
