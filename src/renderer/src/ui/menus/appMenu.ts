@@ -7,6 +7,7 @@ import { projectStore, selectedModels } from '../../store'
 import type { Platform } from '../keymap'
 import { addDiagramItemsFor, addItemsFor } from '../modelActions'
 import { baseName } from '../recentFiles'
+import { EXAMPLES } from '../examples'
 import { uiStore } from '../uiStore'
 import { Cmd } from './commandIds'
 import { idef0FormatMenu, idef0Menu } from './idef0Menu'
@@ -74,6 +75,14 @@ function recentMenu(): MenuNode {
       if (items.length === 0) items.push({ label: '(no recent files)', enabled: () => false })
       return [...items, SEP, { id: 'file.clear-recent', label: 'Clear Recent', command: Cmd.fileClearRecent }]
     }
+  }
+}
+
+function examplesMenu(): MenuNode {
+  return {
+    id: 'file.open-example',
+    label: 'Open Example',
+    submenu: EXAMPLES.map((e) => ({ id: `file.open-example.${e.id}`, label: e.label, command: Cmd.fileOpenExample, args: e.id }))
   }
 }
 
@@ -164,6 +173,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       { id: 'file.new', label: 'New', command: Cmd.fileNew },
       { id: 'file.open', label: 'Open...', command: Cmd.fileOpen },
       recentMenu(),
+      examplesMenu(),
       { id: 'file.save', label: 'Save', command: Cmd.fileSave },
       { id: 'file.save-as', label: 'Save As...', command: Cmd.fileSaveAs },
       { id: 'file.close', label: 'Close', command: Cmd.fileClose },

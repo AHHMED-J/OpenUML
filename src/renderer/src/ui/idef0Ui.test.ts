@@ -1,6 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ModelEngine } from '../commands'
 import { writeMdj } from '../format'
 import { buildOrderExample } from '../model/idef0-example'
@@ -11,6 +11,7 @@ import { explorerChildren, explorerLabel, typeOrder } from './explorer/tree'
 import { RoleIcon, TypeIcon, ToolIcon } from './icons'
 import { CommandRegistry } from '../commands'
 import { registerIdef0Commands } from '../diagram'
+import { buildAppMenu } from './menus/appMenu'
 import { idef0FormatMenu, idef0Menu } from './menus/idef0Menu'
 import { resolveMenu } from './menus/menuModel'
 import { idef0Context, idef0WarningCount } from './app/idef0'
@@ -111,6 +112,27 @@ describe('Add Diagram > IDEF0 Diagram on a function (Model Explorer)', () => {
     projectStore.getState().select({ elements: [] })
     await registry.execute(Cmd.modelAddDiagram, { kind: 'IDEF0Diagram' })
     expect(uiStore.getState().modal).toBeNull()
+  })
+})
+
+describe('File > Open Example', () => {
+  it('lists the bundled examples and opens one as an untitled, warning-free project', async () => {
+    const registry = new CommandRegistry()
+    registerAppCommands(registry)
+    const file = resolveMenu(buildAppMenu('darwin'), { commands: registry, platform: 'darwin' }).find((m) => m.kind === 'submenu' && m.label === 'File')
+    const entries = file?.kind === 'submenu' ? file.items.find((i) => i.kind === 'submenu' && i.label === 'Open Example') : undefined
+    expect(entries?.kind === 'submenu' ? entries.items.map((i) => (i.kind === 'item' ? i.label : '')) : []).toEqual(['Software Release (IDEF0)'])
+    vi.stubGlobal('document', { activeElement: null })
+    vi.stubGlobal('HTMLElement', class {})
+    projectStore.getState().newProject()
+    await registry.execute(Cmd.fileOpenExample, 'software-release-idef0')
+    const s = projectStore.getState()
+    expect(s.filePath).toBeNull()
+    expect(s.loadWarnings).toEqual([])
+    const model = (s.project.ownedElements as Elem[]).find((e) => e._type === 'IDEF0Model') as Elem
+    expect(((model['topFunction'] as Elem)['functions'] as Elem[]).length).toBe(6)
+    await registry.execute(Cmd.fileOpenExample, 'unknown')
+    vi.unstubAllGlobals()
   })
 })
 
