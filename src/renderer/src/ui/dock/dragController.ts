@@ -21,6 +21,8 @@ export const PRESS_TOLERANCE = 4
 /** Pointer travel (px) that starts a grip drag. */
 export const GRIP_THRESHOLD = 3
 const ANIM_MS = 180
+/** Length of the tremble that confirms a completed long press (keep in sync with styles.css). */
+export const TREMBLE_MS = 500
 const COLLAPSED_HEIGHT = 29
 
 export interface DockDragSnapshot {
@@ -214,6 +216,11 @@ function startDrag(p: Press): void {
   })
   requestAnimationFrame(() => {
     ghost.classList.add('lifted')
+    // A completed long press is confirmed by a short tremble; grip drags start without it.
+    if (!p.immediate && !reducedMotion()) {
+      ghost.classList.add('trembling')
+      setTimeout(() => ghost.classList.remove('trembling'), TREMBLE_MS)
+    }
     followPointer()
   })
 }
