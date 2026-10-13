@@ -119,7 +119,7 @@ export {
 } from './editor/actions'
 export { alignBoxes, alignViews, reorderViews, ALIGN_OPS, type AlignOp } from './editor/alignment'
 export { hitTestDiagram, viewsInBand, type DiagramHit } from './editor/hitTest'
-export { applyQuickEdit, resolveByName, registerQuickEditSyntax, quickEditSyntaxHint, type QuickEditSyntax } from './editor/quickEditApply'
+export { applyQuickEdit, renameElements, resolveByName, registerQuickEditSyntax, quickEditSyntaxHint, type QuickEditSyntax } from './editor/quickEditApply'
 export * from './editor/quickEditSyntax'
 
 // Clipboard

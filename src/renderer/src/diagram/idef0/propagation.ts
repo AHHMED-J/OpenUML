@@ -11,6 +11,8 @@
  *   is removed when its child boundary arrow is tunneled or deleted; the removal goes on upward.
  * - **Child counterparts**: the boundary arrows of a child diagram standing for an arrow of the
  *   decomposed box, with the arrows they feed (deleted with it).
+ * - **Linked names**: renaming an arrow renames the arrows that carry the same flow on the other
+ *   levels (through ports that carry a single arrow).
  *
  * Everything runs inside the caller's operation, so the gesture and its consequences on other
  * diagrams form one undo step. The downward direction (`syncPorts`) adds ports only for parent
@@ -205,4 +207,44 @@ export function childCounterparts(arrow: Elem): { ports: Elem[]; arrows: Elem[] 
     }
   }
   return { ports, arrows }
+}
+
+/**
+ * The arrows carrying the same flow as `arrow` on the other levels: up through its boundary port's
+ * counterpart, down through the child ports linked to it; only through ports that carry a single
+ * arrow (a port feeding a join of several arrows is not one flow).
+ */
+export function linkedArrows(arrow: Elem): Elem[] {
+  const seen = new Set<Elem>([arrow])
+  const queue = [arrow]
+  while (queue.length > 0) {
+    const a = queue.shift() as Elem
+    const next: Elem[] = []
+    for (const end of [a['source'], a['target']] as Array<Elem | null>) {
+      if (isPort(end)) {
+        const up = end['corresponds'] as Elem | null
+        if (up && arrowsAtPort(end).length === 1) next.push(up)
+      } else if (isIdef0Function(end)) {
+        for (const port of list(end, 'ports')) {
+          if (port['corresponds'] !== a) continue
+          const fed = arrowsAtPort(port)
+          if (fed.length === 1) next.push(fed[0] as Elem)
+        }
+      }
+    }
+    for (const n of next) {
+      if (seen.has(n) || roleOf(n) === 'call') continue
+      seen.add(n)
+      queue.push(n)
+    }
+  }
+  seen.delete(arrow)
+  return [...seen]
+}
+
+/** Gives the arrows linked to `arrow` on other levels its name (inside the rename operation). */
+export function syncLinkedNames(b: OperationBuilder, arrow: Elem): void {
+  if (!isKindOf(arrow, 'IDEF0Arrow')) return
+  const name = (arrow['name'] as string | undefined) ?? ''
+  for (const other of linkedArrows(arrow)) if (other['name'] !== name) b.set(other, 'name', name)
 }
