@@ -4,6 +4,7 @@
  * between segments. Called from `factories.ts`.
  */
 import { isKindOf } from './metamodel'
+import { ModelRuleError } from './errors'
 import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest } from './factories'
 import type { Bounds, Diagram, Elem, NodeView, Point, View } from './types'
 import {
@@ -93,7 +94,7 @@ export function timingNodeOwner(req: NodeRequest): Elem | null {
   const container = req.container
   switch (req.kind as TimingNodeKind) {
     case 'TimingState': {
-      if (!isKindOf(container?.model, 'UMLLifeline')) throw new Error('A state/condition must be placed on a lifeline')
+      if (!isKindOf(container?.model, 'UMLLifeline')) throw new ModelRuleError('A state/condition must be placed on a lifeline')
       return container.model
     }
     case 'TimeConstraint':
@@ -108,13 +109,13 @@ function requireContainer(req: NodeRequest): void {
   switch (req.kind as TimingNodeKind) {
     case 'TimingLifeline':
     case 'TimeTick':
-      if (!req.container || req.container._type !== 'UMLTimingFrameView') throw new Error('Timing elements should be placed inside a frame')
+      if (!req.container || req.container._type !== 'UMLTimingFrameView') throw new ModelRuleError('Timing elements should be placed inside a frame')
       break
     case 'TimeSegment':
-      if (req.container?._type !== 'UMLTimingStateView') throw new Error('A time segment should be placed on a state/condition row')
+      if (req.container?._type !== 'UMLTimingStateView') throw new ModelRuleError('A time segment should be placed on a state/condition row')
       break
     case 'TimeConstraint':
-      if (!req.container) throw new Error('A time constraint should be placed on a message or a time segment')
+      if (!req.container) throw new ModelRuleError('A time constraint should be placed on a message or a time segment')
       break
     default:
   }

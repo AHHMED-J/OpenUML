@@ -4,6 +4,7 @@
  * connection point references) and transitions. Called from `factories.ts`.
  */
 import { isKindOf } from './metamodel'
+import { ModelRuleError } from './errors'
 import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest } from './factories'
 import type { Bounds, Diagram, Elem, NodeView, View } from './types'
 import {
@@ -143,7 +144,7 @@ function machineOf(diagram: Diagram): Elem | null {
 export function stateMachineNodeOwner(req: NodeRequest): Elem | null {
   if (req.kind === 'ConnectionPointReference') {
     const host = req.container?.model
-    if (!isKindOf(host, 'UMLState') || isKindOf(host, 'UMLFinalState')) throw new Error('A connection point reference must be placed on a state')
+    if (!isKindOf(host, 'UMLState') || isKindOf(host, 'UMLFinalState')) throw new ModelRuleError('A connection point reference must be placed on a state')
     return host as Elem
   }
   const machine = machineOf(req.diagram)
