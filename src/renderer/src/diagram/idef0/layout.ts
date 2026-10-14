@@ -5,6 +5,7 @@
  */
 import {
   IDEF0_SHEET,
+  areaOfSheet,
   functionViewsOf,
   icomCodes,
   isContextDiagram,
@@ -14,13 +15,15 @@ import {
   diagramNodeNumber,
   fontWith,
   parentDiagramOf,
+  sheetMinimumOf,
+  sheetOfSize,
   type Elem,
   type NodeView
 } from '../../model'
 import { wrapText, type Font, type Rect } from '../core'
 import { nameEditText, nodeLayout, styleOf } from '../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine } from '../layout/types'
-import { AREA_RECT, IDEF0_BOX, IDEF0_PORT_SIZE, IDEF0_STYLE, rectCenterOf } from './geometry'
+import { IDEF0_BOX, IDEF0_PORT_SIZE, IDEF0_STYLE, areaRectOf, rectCenterOf } from './geometry'
 import { STATUS_STAGES, boxNumberText, dreText, statusLabel, titleText } from './strings'
 
 const LINE_GAP = 2
@@ -178,30 +181,45 @@ export interface FrameData {
   readonly purposeLines: readonly TextLine[]
 }
 
-const TOP_BAND: Rect = { left: IDEF0_SHEET.left, top: IDEF0_SHEET.top, width: IDEF0_SHEET.width, height: 40 }
-const BOTTOM_BAND: Rect = { left: IDEF0_SHEET.left, top: IDEF0_SHEET.top + IDEF0_SHEET.height - 48, width: IDEF0_SHEET.width, height: 48 }
+const TOP_BAND_HEIGHT = 40
+const BOTTOM_BAND_HEIGHT = 48
+/** Cell widths of the title block bands on the default sheet (0 = takes the rest). */
+const TOP_CELLS: readonly number[] = [160, 96, 192, 304, 256]
+const BOTTOM_CELLS: readonly number[] = [160, 0, 160]
+/** Width of the border strips of the sheet that select the frame. */
+const BORDER_HIT = 4
 
+/**
+ * The cells of a title block band: on a sheet wider than the default every cell keeps its share of
+ * the width (the fixed cells grow by the same factor, rounded; the flexible cell takes the rest).
+ */
 function cellsOf(band: Rect, widths: readonly number[]): Rect[] {
   const out: Rect[] = []
   let x = band.left
-  const flex = band.width - widths.filter((w) => w > 0).reduce((a, b) => a + b, 0)
-  for (const w of widths) {
-    const width = w > 0 ? w : flex
+  const factor = band.width / IDEF0_SHEET.width
+  const scaled = widths.map((w) => (w > 0 ? Math.round(w * factor) : 0))
+  const fixed = scaled.reduce((a, b) => a + b, 0)
+  const flexIndex = widths.indexOf(0)
+  scaled.forEach((w, i) => {
+    // Without a flexible cell the last cell absorbs the rounding.
+    const width = i === flexIndex ? band.width - fixed : flexIndex < 0 && i === scaled.length - 1 ? band.left + band.width - x : w
     out.push({ left: x, top: band.top, width, height: band.height })
     x += width
-  }
+  })
   return out
 }
 
 function thumbnailOf(diagram: Elem, detailed: Elem | null, area: Rect): FrameData['thumbnail'] {
   const parent = parentDiagramOf(diagram)
   if (!parent) return null
-  const scale = Math.min(area.width / AREA_RECT.width, area.height / AREA_RECT.height)
-  const ox = area.left + (area.width - AREA_RECT.width * scale) / 2
-  const oy = area.top + (area.height - AREA_RECT.height * scale) / 2
+  // The parent's boxes are mapped from the parent's own drawing area (its sheet may be larger).
+  const parentArea = areaRectOf(parent)
+  const scale = Math.min(area.width / parentArea.width, area.height / parentArea.height)
+  const ox = area.left + (area.width - parentArea.width * scale) / 2
+  const oy = area.top + (area.height - parentArea.height * scale) / 2
   const map = (v: NodeView): Rect => ({
-    left: ox + (v.left - AREA_RECT.left) * scale,
-    top: oy + (v.top - AREA_RECT.top) * scale,
+    left: ox + (v.left - parentArea.left) * scale,
+    top: oy + (v.top - parentArea.top) * scale,
     width: Math.max(2, v.width * scale),
     height: Math.max(2, v.height * scale)
   })
@@ -223,10 +241,15 @@ export function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<Fram
   const showBands = diagram['showTitleBlock'] !== false
   const showTop = showBands && diagram['showWorkingBand'] !== false
   const detailed = context ? null : diagram._parent
-  const fixedView = { ...view, ...IDEF0_SHEET } as NodeView
+  // The origin of the sheet is fixed; its size is stored on the view (at least the default sheet).
+  const sheet = sheetOfSize(view)
+  const sheetView = { ...view, ...sheet } as NodeView
+  const area = areaOfSheet(sheet)
+  const topBand: Rect = { left: sheet.left, top: sheet.top, width: sheet.width, height: TOP_BAND_HEIGHT }
+  const bottomBand: Rect = { left: sheet.left, top: sheet.top + sheet.height - BOTTOM_BAND_HEIGHT, width: sheet.width, height: BOTTOM_BAND_HEIGHT }
 
-  const topCells = cellsOf(TOP_BAND, [160, 96, 192, 304, 256])
-  const bottomCells = cellsOf(BOTTOM_BAND, [160, 0, 160])
+  const topCells = cellsOf(topBand, TOP_CELLS)
+  const bottomCells = cellsOf(bottomBand, BOTTOM_CELLS)
   const regions: EditRegion[] = []
   const hit: Rect[] = []
 
@@ -250,7 +273,7 @@ export function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<Fram
   let contextTop: TextLine | null = null
   const bands: Rect[] = []
   if (showTop) {
-    bands.push(TOP_BAND)
+    bands.push(topBand)
     const [authorC, dateC, projectC, statusC, contextC] = topCells as [Rect, Rect, Rect, Rect, Rect]
     cells.push(cell(authorC, 'AUTHOR', author, 15, { kind: 'field', elementId: diagram._id, field: 'author' }))
     cells.push(cell(dateC, 'DATE', (diagram['date'] as string) ?? '', 15, { kind: 'field', elementId: diagram._id, field: 'date' }))
@@ -272,14 +295,14 @@ export function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<Fram
     else thumbnail = thumbnailOf(diagram, detailed, { left: contextC.left + 72, top: contextC.top + 4, width: contextC.width - 80, height: contextC.height - 8 })
   }
   if (showBands) {
-    bands.push(BOTTOM_BAND)
+    bands.push(bottomBand)
     const [nodeC, titleC, numberC] = bottomCells as [Rect, Rect, Rect]
     cells.push(cell(nodeC, 'NODE', nodeReference(model, diagramNodeNumber(diagram)), 18))
     cells.push(cell(titleC, 'TITLE', titleText(diagram), 18))
     cells.push(cell(numberC, 'NUMBER', (diagram['number'] as string) ?? '', 18, { kind: 'field', elementId: diagram._id, field: 'number' }))
-    hit.push(TOP_BAND, BOTTOM_BAND)
+    hit.push(topBand, bottomBand)
   }
-  if (showTop) hit.push(TOP_BAND)
+  if (showTop) hit.push(topBand)
 
   // A-0: purpose and viewpoint statements in the lower-left of the drawing area.
   const purposeLines: TextLine[] = []
@@ -293,21 +316,36 @@ export function layoutFrame(view: NodeView, ctx: LayoutContext): NodeLayout<Fram
       regions.push({ box: rect, target: { kind: 'field', elementId: model._id, field }, text: (model[field] as string) ?? '', font: small, multiline: true })
       hit.push(rect)
     }
-    block(640, 'PURPOSE', (model['purpose'] as string) ?? '', 'purpose')
-    block(668, 'VIEWPOINT', (model['viewpoint'] as string) ?? '', 'viewpoint')
+    block(area.bottom - 56, 'PURPOSE', (model['purpose'] as string) ?? '', 'purpose')
+    block(area.bottom - 28, 'VIEWPOINT', (model['viewpoint'] as string) ?? '', 'viewpoint')
   }
 
-  const layout = nodeLayout<FrameData>(fixedView, {
+  // The frame is hit on its title block bands and its border, never inside the drawing area (an
+  // empty-canvas press there starts a rubber band).
+  const right = sheet.left + sheet.width
+  const bottom = sheet.top + sheet.height
+  hit.push(
+    { left: sheet.left, top: sheet.top, width: BORDER_HIT, height: sheet.height },
+    { left: right - BORDER_HIT, top: sheet.top, width: BORDER_HIT, height: sheet.height }
+  )
+  if (!showTop) hit.push({ left: sheet.left, top: sheet.top, width: sheet.width, height: BORDER_HIT })
+  if (!showBands) hit.push({ left: sheet.left, top: bottom - BORDER_HIT, width: sheet.width, height: BORDER_HIT })
+
+  const layout = nodeLayout<FrameData>(sheetView, {
     minWidth: IDEF0_SHEET.width,
     minHeight: IDEF0_SHEET.height,
-    sizable: 'none',
+    // Only the right, bottom and bottom-right handles: the sheet origin (and the content) stays put.
+    sizable: 'grow',
     movable: false,
     zIndex: -1,
     style,
     regions,
     data: (box) => ({ sheet: box, bands, cells, stages, thumbnail, contextTop, purposeLines })
   })
-  return { ...layout, viewId: view._id, hitAreas: hit.length > 0 ? hit : [{ left: IDEF0_SHEET.left, top: IDEF0_SHEET.top, width: IDEF0_SHEET.width, height: 4 }] }
+  // Resizing stops where the drawing area would no longer hold the boxes, notes and ports; the
+  // drawn sheet itself is only grown to the default size, so older files render as before.
+  const min = sheetMinimumOf(diagram)
+  return { ...layout, viewId: view._id, minWidth: min.width, minHeight: min.height, hitAreas: hit }
 }
 
 // ---------------------------------------------------------------------------------------------

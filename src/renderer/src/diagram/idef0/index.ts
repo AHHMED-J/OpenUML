@@ -34,6 +34,7 @@ export * from './colorFlow'
 export * from './gestures'
 export * from './deletion'
 export * from './titleBlock'
+export * from './sheet'
 
 let registered = false
 

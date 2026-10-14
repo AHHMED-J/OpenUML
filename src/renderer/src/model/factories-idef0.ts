@@ -21,6 +21,7 @@ import {
   type Idef0Side
 } from './idef0-numbering'
 import { inheritedTitleBlock } from './idef0-titleblock'
+import { IDEF0_AREA, IDEF0_SHEET, areaOfSheet, sheetSizeOf, type DrawingArea } from './idef0-sheet'
 import type { Diagram, Elem, NodeView, Point, View } from './types'
 import { addSubView, boundsOf, createElement, defaultName, nextName } from './view-builders'
 import { DEFAULT_FONT, fontWith } from './values'
@@ -28,10 +29,6 @@ import { DEFAULT_FONT, fontWith } from './values'
 export type Idef0NodeKind = 'IDEF0Function' | 'IDEF0ModelNote'
 export type Idef0EdgeKind = 'IDEF0Arrow' | 'IDEF0Call'
 
-/** Sheet geometry in diagram units (spec 11 §1.11). */
-export const IDEF0_SHEET = { left: 8, top: 8, width: 1008, height: 752 } as const
-/** Drawing (message) area: the rectangle the boundary ports sit on. */
-export const IDEF0_AREA = { left: 24, top: 64, right: 1000, bottom: 696 } as const
 export const IDEF0_BOX = { width: 168, height: 88, minWidth: 120, minHeight: 64 } as const
 export const IDEF0_CONTEXT_BOX = { width: 240, height: 120 } as const
 export const IDEF0_PORT_SIZE = 8
@@ -74,19 +71,19 @@ function frameView(diagram: Diagram): NodeView {
   return frame
 }
 
-/** Bounds of a boundary port view centered on the area edge of `role` at coordinate `along`. */
-export function portBounds(role: Idef0Role, along: number): { left: number; top: number; width: number; height: number } {
+/** Bounds of a boundary port view centered on the edge of `role` of the drawing area `area` at coordinate `along`. */
+export function portBounds(role: Idef0Role, along: number, area: DrawingArea = IDEF0_AREA): { left: number; top: number; width: number; height: number } {
   const half = IDEF0_PORT_SIZE / 2
   const size = { width: IDEF0_PORT_SIZE, height: IDEF0_PORT_SIZE }
   switch (ROLE_SIDE[role]) {
     case 'left':
-      return { left: IDEF0_AREA.left - half, top: along - half, ...size }
+      return { left: area.left - half, top: along - half, ...size }
     case 'right':
-      return { left: IDEF0_AREA.right - half, top: along - half, ...size }
+      return { left: area.right - half, top: along - half, ...size }
     case 'top':
-      return { left: along - half, top: IDEF0_AREA.top - half, ...size }
+      return { left: along - half, top: area.top - half, ...size }
     default:
-      return { left: along - half, top: IDEF0_AREA.bottom - half, ...size }
+      return { left: along - half, top: area.bottom - half, ...size }
   }
 }
 
@@ -151,14 +148,14 @@ export function diagramOfScope(scope: Elem | null): Elem | null {
   return (scope['childDiagram'] as Elem | null) ?? null
 }
 
-/** Origin and size of the i-th of n boxes on the staircase (spec 11 §1.11, compressed to fit the sheet for n > 3). */
-export function staircaseBox(index: number, count: number): { left: number; top: number; width: number; height: number } {
+/** Origin and size of the i-th of n boxes on the staircase (spec 11 §1.11, compressed to fit the drawing area `area` for n > 3). */
+export function staircaseBox(index: number, count: number, area: DrawingArea = IDEF0_AREA): { left: number; top: number; width: number; height: number } {
   const small = count >= 5
   const width = small ? 144 : IDEF0_BOX.width
   const height = small ? 72 : IDEF0_BOX.height
   const steps = Math.max(1, count - 1)
-  const dx = Math.min(280, Math.floor(((IDEF0_AREA.right - 40 - width - FIRST_BOX.left) / steps) / 8) * 8)
-  const dy = Math.min(150, Math.floor(((IDEF0_AREA.bottom - 60 - height - FIRST_BOX.top) / steps) / 8) * 8)
+  const dx = Math.min(280, Math.floor(((area.right - 40 - width - FIRST_BOX.left) / steps) / 8) * 8)
+  const dy = Math.min(150, Math.floor(((area.bottom - 60 - height - FIRST_BOX.top) / steps) / 8) * 8)
   return { left: FIRST_BOX.left + index * dx, top: FIRST_BOX.top + index * dy, width, height }
 }
 
@@ -182,6 +179,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   const n = Math.max(1, Math.min(6, Math.round(count)))
   // The new sheet continues the title block of the diagram drawing the box (A-0 for the top function).
   const titleBlock = inheritedTitleBlock(diagramOfScope(fn._parent))
+  const area = IDEF0_AREA
   const diagram = createElement<Diagram>('IDEF0Diagram', { name: name ?? (fn['name'] as string), diagramKind: 'decomposition', ...titleBlock })
   diagram.ownedViews.push(frameView(diagram))
   const insertions: Insertion[] = []
@@ -199,7 +197,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   for (let i = 0; i < n; i++) {
     const child = createElement('IDEF0Function', { name: nextName([...existing, ...functions], 'New Function '), boxNumber: i + 1 })
     functions.push(child)
-    boxes.push({ fn: child, view: add(createElement<NodeView>('IDEF0FunctionView', { model: child, ...staircaseBox(i, n) })) as NodeView })
+    boxes.push({ fn: child, view: add(createElement<NodeView>('IDEF0FunctionView', { model: child, ...staircaseBox(i, n, area) })) as NodeView })
   }
 
   // Parent attachments, in their order along the parent box sides.
@@ -223,7 +221,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   const addPort = (role: Idef0Role, parent: Elem, along: number): View => {
     const port = createElement('IDEF0Port', { role, corresponds: parent })
     ports.push(port)
-    return add(createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, along) }))
+    return add(createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, along, area) }))
   }
   const addArrow = (role: Idef0Role, label: string, source: Elem | null, target: Elem | null, tail: View, head: View): View => {
     const arrow = createElement('IDEF0Arrow', { name: label, role, source, target })
@@ -373,10 +371,10 @@ export interface Idef0ArrowRequest {
   readonly call?: boolean
 }
 
-function clampAlong(role: Idef0Role, value: number): number {
+function clampAlong(role: Idef0Role, value: number, area: DrawingArea): number {
   const vertical = ROLE_SIDE[role] === 'left' || ROLE_SIDE[role] === 'right'
-  const lo = (vertical ? IDEF0_AREA.top : IDEF0_AREA.left) + 16
-  const hi = (vertical ? IDEF0_AREA.bottom : IDEF0_AREA.right) - 16
+  const lo = (vertical ? area.top : area.left) + 16
+  const hi = (vertical ? area.bottom : area.right) - 16
   return Math.max(lo, Math.min(hi, Math.round(value / 8) * 8))
 }
 
@@ -393,10 +391,11 @@ export function planIdef0Arrow(req: Idef0ArrowRequest): CreationPlan {
   const role: Idef0Role = req.call ? 'call' : (req.role ?? defaultRole(tail, head))
   if (!tail && !head) throw new ModelRuleError('An arrow needs at least one end on a box')
   const at = req.at ?? { x: 0, y: 0 }
+  const area = areaOfSheet(sheetSizeOf(req.diagram))
   const addPort = (portRole: Idef0Role, along: number): View => {
     const port = createElement('IDEF0Port', { role: portRole })
     insertions.push({ owner: scope, field: 'ports', element: port })
-    const view = createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(portRole, clampAlong(portRole, along)) })
+    const view = createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(portRole, clampAlong(portRole, along, area), area) })
     insertions.push({ owner: req.diagram, field: 'ownedViews', element: view })
     return view
   }

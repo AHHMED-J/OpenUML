@@ -23,7 +23,7 @@ import { layoutOf, withGeometry, type DiagramEnv, type ToolSpec } from '../edito
 import { connectionRefusal } from '../editor/feedback'
 import type { DiagramLayout } from '../layout/types'
 import type { ArrowData } from './edges'
-import { AREA_RECT, nearestSide } from './geometry'
+import { AREA_RECT, areaRectOfSheet, nearestSide } from './geometry'
 import { insertedPorts, propagateUp } from './propagation'
 import { NO_HINT, hasRouteHint, hintField, validRunValue, type RunHandle } from './runs'
 
@@ -67,6 +67,12 @@ function functionNear(layout: DiagramLayout, p: Point, tolerance: number): strin
 /** How close to an arrow (diagram units) a line gesture end forks off or joins into it. */
 const ARROW_PICK_TOLERANCE = 5
 
+/** The drawing area of the diagram laid out in `layout` (from its frame). */
+function frameAreaOf(layout: DiagramLayout): Rect {
+  for (const node of layout.nodes.values()) if (node.viewType === 'IDEF0FrameView') return areaRectOfSheet(node.box)
+  return AREA_RECT
+}
+
 /**
  * The end a line gesture picks at `p` (spec 11 §3.4). Rule, so that crowded box sides keep
  * accepting new arrows:
@@ -80,7 +86,8 @@ const ARROW_PICK_TOLERANCE = 5
 export function pickEnd(layout: DiagramLayout, p: Point, tool: ToolSpec): string | null {
   const fn = functionNear(layout, p, END_DROP_TOLERANCE)
   if (fn || tool.kind === 'IDEF0Call') return fn
-  const nearFrameEdge = distanceToOutline(AREA_RECT, p) <= END_DROP_TOLERANCE || !rectContainsPoint(AREA_RECT, p)
+  const area = frameAreaOf(layout)
+  const nearFrameEdge = distanceToOutline(area, p) <= END_DROP_TOLERANCE || !rectContainsPoint(area, p)
   for (let i = layout.order.length - 1; i >= 0; i--) {
     const id = layout.order[i] as string
     const node = layout.nodes.get(id)

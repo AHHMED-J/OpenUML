@@ -47,12 +47,11 @@ export * from './structure-factories'
 export * from './factories-rad'
 export * from './idef0-numbering'
 export * from './idef0-titleblock'
+export * from './idef0-sheet'
 export {
-  IDEF0_AREA,
   IDEF0_BOX,
   IDEF0_CONTEXT_BOX,
   IDEF0_PORT_SIZE,
-  IDEF0_SHEET,
   diagramOfScope,
   planBoundaryArrow,
   planDecompose,

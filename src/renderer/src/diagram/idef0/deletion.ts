@@ -13,7 +13,7 @@
  * arrows) is kept: only its link to the deleted port goes.
  */
 import { deleteFromModel, type ModelEngine, type OperationBuilder } from '../../commands'
-import { IDEF0_AREA, createElement, diagramOfScope, isKindOf, planCloseGaps, portBounds, roleOf, type Diagram, type Elem, type Idef0Role, type NodeView, type View } from '../../model'
+import { createElement, drawingAreaOf, diagramOfScope, isKindOf, planCloseGaps, portBounds, roleOf, type Diagram, type Elem, type Idef0Role, type NodeView, type View } from '../../model'
 import type { TextMeasurer } from '../core'
 import { withGeometry, type DiagramEnv } from '../editor/actions'
 import { childCounterparts, counterpartChain, syncLevels } from './propagation'
@@ -75,9 +75,10 @@ function addBoundaryPort(b: OperationBuilder, env: DiagramEnv, scope: Elem, role
   b.insert(scope, 'ports', port)
   const vertical = role === 'input' || role === 'output'
   const along = vertical ? near.y : near.x
-  const lo = (vertical ? IDEF0_AREA.top : IDEF0_AREA.left) + 16
-  const hi = (vertical ? IDEF0_AREA.bottom : IDEF0_AREA.right) - 16
-  const view = createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, Math.max(lo, Math.min(hi, Math.round(along / 8) * 8))) })
+  const area = drawingAreaOf(env.diagram)
+  const lo = (vertical ? area.top : area.left) + 16
+  const hi = (vertical ? area.bottom : area.right) - 16
+  const view = createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, Math.max(lo, Math.min(hi, Math.round(along / 8) * 8)), area) })
   b.insert(env.diagram, 'ownedViews', view)
   return { port, view }
 }

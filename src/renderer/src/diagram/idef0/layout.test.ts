@@ -101,15 +101,19 @@ describe('boundary port layout', () => {
 describe('frame and title block', () => {
   const frame = (k: ReturnType<typeof exampleKit>, d: Diagram) => k.layoutOf(d).nodes.get(d.ownedViews[0]!._id)!
 
-  it('is a fixed 1008 x 752 sheet at (8, 8) behind everything, hit only on its bands', () => {
+  it('is a 1008 x 752 sheet at (8, 8) behind everything, resized from the right and bottom only, hit only on its bands and border', () => {
     const k = exampleKit()
     const f = frame(k, k.child)
     expect(f.box).toEqual({ left: 8, top: 8, width: 1008, height: 752 })
     expect(f.zIndex).toBe(-1)
-    expect(f.sizable).toBe('none')
+    expect(f.sizable).toBe('grow')
     expect(f.movable).toBe(false)
     expect(f.hitAreas?.some((r) => r.top === 8 && r.height === 40)).toBe(true)
-    expect(f.hitAreas?.every((r) => r.top < 48 || r.top >= 640 || r.top >= 712)).toBe(true)
+    // Nothing inside the drawing area (24..1000 x 64..696) hits the frame: a press there starts a rubber band.
+    const inArea = (r: { left: number; top: number; width: number; height: number }) => r.left < 1000 && r.left + r.width > 24 && r.top < 696 && r.top + r.height > 64
+    expect(f.hitAreas?.filter(inArea)).toEqual([])
+    expect(f.hitAreas?.some((r) => r.left === 8 && r.width === 4 && r.height === 752)).toBe(true)
+    expect(f.hitAreas?.some((r) => r.left === 1012 && r.width === 4 && r.height === 752)).toBe(true)
   })
 
   it('fills node, title and context cells: reference, detailed box name, thumbnail of the parent', () => {
