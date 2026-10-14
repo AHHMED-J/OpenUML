@@ -308,6 +308,7 @@ export function explorerContextMenu(): MenuNode[] {
     { label: 'Move Up', command: Cmd.editMoveUp },
     { label: 'Move Down', command: Cmd.editMoveDown },
     SEP,
+    { label: 'Highlight', command: Cmd.editHighlight },
     { label: 'Select in Diagram', command: Cmd.editSelectInDiagram }
   ]
 }

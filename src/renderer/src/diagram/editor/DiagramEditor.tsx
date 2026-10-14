@@ -70,6 +70,7 @@ import { releaseActiveEditor, setActiveEditor, setContextEdgeEnd, takeReveal, ty
 import { edgeEditAt, edgeSlotAt, endElementAt } from './edgeEnds'
 import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
+import { HighlightOverlay } from './HighlightOverlay'
 import { applyQuickEdit } from './quickEditApply'
 import { QuickEditor, type QuickEditAction, type QuickEditState } from './QuickEditor'
 
@@ -1179,6 +1180,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
             )}
             <DiagramContent layout={liveLayout ?? layout} />
             <SelectionOverlay layout={liveLayout ?? layout} selected={selected} zoom={zoom} />
+            <HighlightOverlay layout={liveLayout ?? layout} zoom={zoom} />
             <DragOverlay preview={preview} zoom={zoom} />
           </g>
         </svg>

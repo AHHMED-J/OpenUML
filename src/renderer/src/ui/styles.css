@@ -1591,3 +1591,28 @@ body.dock-dragging * {
     opacity: 0.6;
   }
 }
+
+/* Model Explorer > Highlight: the element pulses in red for two seconds (see diagram/editor/highlight.ts). */
+.view-highlight rect,
+.view-highlight polyline {
+  stroke: #e5484d;
+  animation: view-highlight-pulse 500ms ease-in-out 4;
+}
+
+@keyframes view-highlight-pulse {
+  0%,
+  100% {
+    stroke-opacity: 0.25;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-highlight rect,
+  .view-highlight polyline {
+    animation: none;
+    stroke-opacity: 0.9;
+  }
+}

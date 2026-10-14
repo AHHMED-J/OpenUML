@@ -102,6 +102,7 @@ ensureNotations()
 export { DiagramEditor, type DiagramEditorProps, type ToolSelection } from './editor/DiagramEditor'
 export { registerDiagramCommands, DiagramCommandIds, copySelection, pasteClipboard, getClipboardPayload, type DiagramCommandContext } from './commands'
 export { getActiveEditor, getContextEdgeEnd, requestReveal, type ContextEdgeEnd, type EditorHandle } from './editor/activeEditor'
+export { highlightViews } from './editor/highlight'
 export {
   createEdgeBetween,
   createNodeAt,
