@@ -101,7 +101,8 @@ ensureNotations()
 // Editor and commands
 export { DiagramEditor, type DiagramEditorProps, type ToolSelection } from './editor/DiagramEditor'
 export { registerDiagramCommands, DiagramCommandIds, copySelection, pasteClipboard, getClipboardPayload, type DiagramCommandContext } from './commands'
-export { getActiveEditor, type EditorHandle } from './editor/activeEditor'
+export { getActiveEditor, getContextEdgeEnd, requestReveal, type ContextEdgeEnd, type EditorHandle } from './editor/activeEditor'
+export { highlightViews } from './editor/highlight'
 export {
   createEdgeBetween,
   createNodeAt,
@@ -153,11 +154,15 @@ export { ensureNotations } from './notations'
 
 // IDEF0: commands, validation and model edits for the shell
 export {
+  IDEF0_ROLE_COLORS,
   Idef0CommandIds,
+  colorIdef0Arrows,
   decomposeFunction,
+  isFlowColorEdit,
   deleteIdef0Elements,
   issueItems,
   registerIdef0Commands,
+  setBoxNumber,
   validateIdef0,
   type Idef0CommandContext,
   type Idef0ListItem,

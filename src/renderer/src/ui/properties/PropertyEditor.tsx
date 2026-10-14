@@ -5,8 +5,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { addFeature, deleteFromModel, reorderElement, setFieldsOfAll } from '../../commands'
-import { renameElements } from '../../diagram'
-import { isElem, typeDisplayName, type Elem } from '../../model'
+import { renameElements, setBoxNumber } from '../../diagram'
+import { ModelRuleError, isElem, isIdef0Function, typeDisplayName, type Elem } from '../../model'
 import { projectStore } from '../../store'
 import { selectInExplorer } from '../app/appCommands'
 import { reportError } from '../app/commands'
@@ -23,6 +23,11 @@ function commit(row: PropertyRow, value: unknown): void {
     const engine = projectStore.getState().engine
     // Names go through the rename hooks (linked IDEF0 arrows, diagram titles).
     if (row.field === 'name' && typeof value === 'string') renameElements(engine, row.targets, value, `Change ${row.label}`)
+    // An IDEF0 box number swaps with the box that had it (no duplicates, no gaps).
+    else if (row.field === 'boxNumber' && row.targets.some(isIdef0Function)) {
+      if (row.targets.length !== 1) throw new ModelRuleError('Select a single box to change its number')
+      setBoxNumber(engine, row.targets[0] as Elem, value as number)
+    }
     else setFieldsOfAll(engine, row.targets, { [row.field]: value }, `Change ${row.label}`)
   } catch (err) {
     reportError(err)

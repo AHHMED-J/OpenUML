@@ -44,7 +44,7 @@ describe('IDEF0 metamodel', () => {
     const arrow = instantiate('IDEF0Arrow')
     expect(arrow).toMatchObject({ role: 'input', tunnelSource: false, tunnelTarget: false, sourceSlot: -1, targetSlot: -1, calledNode: '' })
     const diagram = instantiate('IDEF0Diagram')
-    expect(diagram).toMatchObject({ diagramKind: 'decomposition', status: 'working', autoNumber: true, showTitleBlock: true, showWorkingBand: true })
+    expect(diagram).toMatchObject({ diagramKind: 'decomposition', status: 'working', autoNumber: false, showTitleBlock: true, showWorkingBand: true })
     const info = getTypeInfo('IDEF0ArrowView')
     expect(initialValue(info, info!.fieldMap.get('lineStyle')!)).toBe(2)
     expect(typeDisplayName('IDEF0Function')).toBe('Function')

@@ -1,10 +1,11 @@
 /** Registration of the IDEF0 editor hooks: auto-renumbering, rename sync, gestures and deletion. */
 import type { OperationBuilder } from '../../commands'
 import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Diagram, type Elem } from '../../model'
-import { registerDiagramHooks } from '../editor/actions'
+import { registerDiagramHooks, type DiagramEnv, type SegmentDrag } from '../editor/actions'
+import type { DiagramLayout } from '../layout/types'
 import { registerRenameHook } from '../editor/quickEditApply'
 import { deleteIdef0Views } from './deletion'
-import { createIdef0Edge, freeEnds, pickEnd, reconnectIdef0 } from './gestures'
+import { arrowRunAt, createIdef0Edge, freeEnds, moveArrowRun, pickEnd, pickReconnect, reconnectIdef0 } from './gestures'
 import { syncLinkedNames } from './propagation'
 
 /** A diagram is titled with the name of the box it details. */
@@ -16,12 +17,13 @@ function titleOf(diagram: Elem): string | null {
 }
 
 /**
- * Runs inside every geometry operation of an IDEF0 diagram: box numbers follow the staircase when
- * `autoNumber` is set, and diagram titles follow the names of the boxes they detail, so numbering
- * and titles change in the same undo step as the edit that caused them.
+ * Runs inside every geometry operation of an IDEF0 diagram: diagram titles follow the names of the
+ * boxes they detail, in the same undo step as the edit that caused them. Box numbers stay where
+ * they are (moving a box never renumbers) unless the diagram opted into `autoNumber`, which makes
+ * them follow the staircase.
  */
 function normalizeIdef0(b: OperationBuilder, diagram: Diagram): void {
-  if (diagram['autoNumber'] !== false) {
+  if (diagram['autoNumber'] === true) {
     for (const change of planRenumber(diagram)) b.set(change.fn, 'boxNumber', change.boxNumber)
   }
   syncTitles(b, diagram)
@@ -36,6 +38,14 @@ function syncTitles(b: OperationBuilder, diagram: Elem): void {
   }
 }
 
+/** Segments of IDEF0 arrows drag their route run (fork bus, channel, feedback lane); other segments stay put. */
+function arrowSegmentDrag(env: DiagramEnv, layout: DiagramLayout, edgeId: string, index: number): SegmentDrag | null | undefined {
+  if (layout.edges.get(edgeId)?.viewType !== 'IDEF0ArrowView') return undefined
+  const run = arrowRunAt(layout, edgeId, index)
+  if (!run) return null
+  return { axis: run.axis, value: run.value, commit: (value) => void moveArrowRun(env, layout, edgeId, index, value) }
+}
+
 let registered = false
 
 export function registerIdef0Hooks(): void {
@@ -47,7 +57,10 @@ export function registerIdef0Hooks(): void {
     reconnect: reconnectIdef0,
     createEdge: createIdef0Edge,
     pickEnd,
-    freeEnds
+    freeEnds,
+    segmentDrag: arrowSegmentDrag,
+    liveReconnect: true,
+    pickReconnect
   })
   // Renaming an arrow renames its counterparts on the other levels.
   registerRenameHook((b, _repo, el) => syncLinkedNames(b, el))

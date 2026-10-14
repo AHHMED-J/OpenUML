@@ -8,6 +8,7 @@ export const Cmd = {
   ...CommandIds,
   // File
   fileOpenRecent: 'file.open-recent',
+  fileOpenExample: 'file.open-example',
   fileClearRecent: 'file.clear-recent',
   fileExportPng: 'file.export-diagram-as.png',
   fileExportSvg: 'file.export-diagram-as.svg',
@@ -25,6 +26,7 @@ export const Cmd = {
   editMoveDown: 'edit.move-down',
   editSelectInExplorer: 'edit.select-in-explorer',
   editSelectInDiagram: 'edit.select-in-diagram',
+  editHighlight: 'edit.highlight',
   editRename: 'edit.rename',
   // Format
   formatLineRectilinear: 'format.linestyle.rectilinear',
@@ -53,6 +55,7 @@ export const Cmd = {
   alignSameWidth: 'alignment.set-width-equally',
   alignSameHeight: 'alignment.set-height-equally',
   alignSameSize: 'alignment.set-size-equally',
+  alignMakeSameSize: 'alignment.make-same-size',
   alignSendToBack: 'alignment.send-to-back',
   alignBringToFront: 'alignment.bring-to-front',
   // Model
@@ -110,6 +113,7 @@ export const NATIVE_EDIT_COMMANDS: Readonly<Record<string, 'undo' | 'redo' | 'cu
 /** Commands that need arguments or only make sense from a specific widget: hidden from the palette. */
 export const PALETTE_HIDDEN = new Set<string>([
   Cmd.fileOpenRecent,
+  Cmd.fileOpenExample,
   Cmd.modelAdd,
   Cmd.modelAddDiagram,
   Cmd.editRename,

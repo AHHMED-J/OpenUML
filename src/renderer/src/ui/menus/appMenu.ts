@@ -7,8 +7,10 @@ import { projectStore, selectedModels } from '../../store'
 import type { Platform } from '../keymap'
 import { addDiagramItemsFor, addItemsFor } from '../modelActions'
 import { baseName } from '../recentFiles'
+import { EXAMPLES } from '../examples'
 import { uiStore } from '../uiStore'
 import { Cmd } from './commandIds'
+import { endMultiplicityMenu } from '../app/associationEnds'
 import { idef0FormatMenu, idef0Menu } from './idef0Menu'
 import type { MenuNode } from './menuModel'
 
@@ -77,6 +79,14 @@ function recentMenu(): MenuNode {
   }
 }
 
+function examplesMenu(): MenuNode {
+  return {
+    id: 'file.open-example',
+    label: 'Open Example',
+    submenu: EXAMPLES.map((e) => ({ id: `file.open-example.${e.id}`, label: e.label, command: Cmd.fileOpenExample, args: e.id }))
+  }
+}
+
 function lineStyleMenu(): MenuNode {
   return {
     id: 'format.linestyle',
@@ -109,6 +119,7 @@ function alignmentMenu(): MenuNode {
       { label: 'Set Width Equally', command: Cmd.alignSameWidth },
       { label: 'Set Height Equally', command: Cmd.alignSameHeight },
       { label: 'Set Size Equally', command: Cmd.alignSameSize },
+      { label: 'Make Same Size', command: Cmd.alignMakeSameSize },
       SEP,
       { label: 'Bring to Front', command: Cmd.alignBringToFront },
       { label: 'Send to Back', command: Cmd.alignSendToBack }
@@ -164,6 +175,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       { id: 'file.new', label: 'New', command: Cmd.fileNew },
       { id: 'file.open', label: 'Open...', command: Cmd.fileOpen },
       recentMenu(),
+      examplesMenu(),
       { id: 'file.save', label: 'Save', command: Cmd.fileSave },
       { id: 'file.save-as', label: 'Save As...', command: Cmd.fileSaveAs },
       { id: 'file.close', label: 'Close', command: Cmd.fileClose },
@@ -296,6 +308,7 @@ export function explorerContextMenu(): MenuNode[] {
     { label: 'Move Up', command: Cmd.editMoveUp },
     { label: 'Move Down', command: Cmd.editMoveDown },
     SEP,
+    { label: 'Highlight', command: Cmd.editHighlight },
     { label: 'Select in Diagram', command: Cmd.editSelectInDiagram }
   ]
 }
@@ -327,7 +340,9 @@ export function workingDiagramsContextMenu(targetId: string | undefined): MenuNo
 }
 
 export function canvasContextMenu(): MenuNode[] {
+  const ends = endMultiplicityMenu()
   return [
+    ...(ends.length > 0 ? [...ends, SEP] : []),
     addElementMenu(),
     addDiagramMenu(),
     idef0Menu(),

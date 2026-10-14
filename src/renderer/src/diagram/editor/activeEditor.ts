@@ -33,3 +33,35 @@ export function getActiveEditor(diagramId?: string | null): EditorHandle | null 
   if (!active) return null
   return diagramId && active.diagramId !== diagramId ? null : active
 }
+
+let pendingReveal: string | null = null
+
+/** Asks the editor that shows `viewId` to scroll it into view once it is laid out. */
+export function requestReveal(viewId: string): void {
+  pendingReveal = viewId
+}
+
+/** Returns and clears the pending reveal when `has` accepts it (the view is in that editor). */
+export function takeReveal(has: (viewId: string) => boolean): string | null {
+  if (!pendingReveal || !has(pendingReveal)) return null
+  const id = pendingReveal
+  pendingReveal = null
+  return id
+}
+
+/** The edge end a context menu was opened on: the edge view and the end element (e.g. an association end). */
+export interface ContextEdgeEnd {
+  readonly viewId: string
+  readonly endId: string
+}
+
+let contextEdgeEnd: ContextEdgeEnd | null = null
+
+/** Records which edge end (if any) the last right-click was near, for the context menu. */
+export function setContextEdgeEnd(value: ContextEdgeEnd | null): void {
+  contextEdgeEnd = value
+}
+
+export function getContextEdgeEnd(): ContextEdgeEnd | null {
+  return contextEdgeEnd
+}

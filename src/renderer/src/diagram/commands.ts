@@ -190,7 +190,8 @@ const ALIGN_LABELS: Record<string, string> = {
   'space-equally-vertically': 'Space Equally Vertically',
   'set-width-equally': 'Set Width Equally',
   'set-height-equally': 'Set Height Equally',
-  'set-size-equally': 'Set Size Equally'
+  'set-size-equally': 'Set Size Equally',
+  'make-same-size': 'Make Same Size'
 }
 
 /**

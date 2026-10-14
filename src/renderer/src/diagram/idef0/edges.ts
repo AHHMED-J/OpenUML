@@ -10,8 +10,10 @@ import { buildEdgeLayout, placeEdgeLabels, type EdgeLabelSpec } from '../layout/
 import { nameEditText } from '../layout/helpers'
 import type { EdgeLayout, LayoutContext } from '../layout/types'
 import type { EdgeNotation } from '../render/registry'
-import { PORT_DIR, SIDE_DIR, IDEF0_STYLE, dirVector, rectCenterOf, slotPoint } from './geometry'
-import { STUB, feedbackKind, longestSegment, routeArrow, routeBranch, trimEnd, trimStart, type RouteEnd } from './routing'
+import { AREA_RECT, PORT_DIR, SIDE_DIR, IDEF0_STYLE, dirVector, rectCenterOf, slotPoint } from './geometry'
+import { arrowLabelColor, arrowLineColor, arrowTextColor, isArrowView as isArrowEdge } from './colors'
+import { STUB, busOf, feedbackKind, longestSegment, routeArrowDetailed, routeBranch, trimEnd, trimStart, type RouteAdjust, type RouteEnd } from './routing'
+import { branchEnds, branchLimits, functionBoxes, hintsOf, plannedRuns, segmentOn, type ArrowEnds, type RunHandle } from './runs'
 import { arrowText, callLabelText } from './strings'
 
 interface TunnelShape {
@@ -26,6 +28,12 @@ export interface ArrowData {
   readonly squiggle: readonly Point[] | null
   readonly lineWidth: number
   readonly role: string
+  /** Runs of the route the Select tool can drag (see `runs.ts`). */
+  readonly runs?: readonly RunHandle[]
+  /** Where branches leave or join this arrow when it is one straight run (its fork bus). */
+  readonly bus?: RouteAdjust
+  /** This arrow's own adjustable run (branches extending it move with it). */
+  readonly run?: RouteAdjust
 }
 
 function isArrowView(v: View | null | undefined): v is EdgeView {
@@ -196,20 +204,38 @@ function squigglePoints(from: Point, to: Point): Point[] {
   return out
 }
 
-/** Routes the arrow from its model-derived ends. */
-function routeArrowView(edge: EdgeView, ctx: LayoutContext): { points: Point[]; join: boolean } {
+const ENDS: ArrowEnds = { end: describeEnd, arrows: arrowViews }
+
+interface RoutedView {
+  readonly points: Point[]
+  readonly join: boolean
+  /** The arrow's own adjustable run. */
+  readonly run?: RouteAdjust | null
+  readonly bus?: RouteAdjust | null
+  /** For a branch: its trunk view and the trunk run it lies on. */
+  readonly trunk?: { readonly viewId: string; readonly run: RouteAdjust } | null
+}
+
+/** The run of `trunk` its branches lie on: its bus, else its own adjustable run. */
+function trunkRun(trunk: View, ctx: LayoutContext): RouteAdjust | null {
+  const data = ctx.edgeLayout(trunk._id)?.data as ArrowData | undefined
+  return data?.bus ?? data?.run ?? null
+}
+
+/** Routes the arrow from its model-derived ends (and its route hints). */
+function routeArrowView(edge: EdgeView, ctx: LayoutContext): RoutedView {
   const arrow = edge.model
   if (!arrow) return { points: storedPoints(edge), join: false }
   const role = roleOf(arrow)
-  if (isArrowView(edge.tail)) {
-    const head = describeEnd(edge, 'head', ctx)
-    if (!head) return { points: storedPoints(edge), join: false }
-    return { points: routeBranch(trunkPoints(edge.tail, ctx), head), join: false }
-  }
-  if (isArrowView(edge.head)) {
-    const tail = describeEnd(edge, 'tail', ctx)
-    if (!tail) return { points: storedPoints(edge), join: true }
-    return { points: routeBranch(trunkPoints(edge.head, ctx), tail).reverse(), join: true }
+  const trunkView = isArrowView(edge.tail) ? edge.tail : isArrowView(edge.head) ? edge.head : null
+  if (trunkView) {
+    const join = trunkView === edge.head
+    const far = describeEnd(edge, join ? 'tail' : 'head', ctx)
+    if (!far) return { points: storedPoints(edge), join }
+    const run = trunkRun(trunkView, ctx)
+    const bus = (ctx.edgeLayout(trunkView._id)?.data as ArrowData | undefined)?.bus
+    const points = routeBranch(trunkPoints(trunkView, ctx), far, bus?.value)
+    return { points: join ? points.reverse() : points, join, trunk: run ? { viewId: trunkView._id, run } : null }
   }
   const tail = describeEnd(edge, 'tail', ctx)
   if (role === 'call') {
@@ -219,7 +245,39 @@ function routeArrowView(edge: EdgeView, ctx: LayoutContext): { points: Point[]; 
   }
   const head = describeEnd(edge, 'head', ctx)
   if (!tail || !head) return { points: storedPoints(edge), join: false }
-  return { points: routeArrow({ tail, head, lane: laneOf(edge, tail, head, ctx) }), join: false }
+  const hints = hintsOf(edge)
+  const obstacles = functionBoxes(ctx)
+  const far = branchEnds(edge, ctx, ENDS)
+  const preferred = plannedRuns(ctx, ENDS).get(edge._id)
+  const routed = routeArrowDetailed({
+    tail,
+    head,
+    lane: laneOf(edge, tail, head, ctx),
+    hint: hints,
+    ...(preferred ? { preferred } : {}),
+    area: AREA_RECT,
+    obstacles,
+    limit: branchLimits(far)
+  })
+  let bus: RouteAdjust | null = null
+  if (routed.points.length === 2 && far.length > 0) {
+    const axis = routed.points[0]?.x === routed.points[1]?.x ? 'y' : 'x'
+    bus = busOf(routed.points, far, { obstacles, ...(hints[axis] !== undefined ? { hint: hints[axis] } : {}), ...(preferred?.[axis] !== undefined ? { preferred: preferred[axis] } : {}) })
+  }
+  return { points: routed.points, join: false, run: routed.adjust, bus }
+}
+
+/** The draggable runs of a routed arrow (its own run, or the trunk run a branch lies on). */
+function runHandles(edge: EdgeView, routed: RoutedView, points: readonly Point[]): RunHandle[] {
+  const out: RunHandle[] = []
+  const add = (viewId: string, run: RouteAdjust): void => {
+    if (run.min >= run.max) return
+    const index = segmentOn(points, run.axis, run.value)
+    if (index >= 0) out.push({ ...run, index, viewId })
+  }
+  if (routed.run) add(edge._id, routed.run)
+  if (routed.trunk) add(routed.trunk.viewId, routed.trunk.run)
+  return out
 }
 
 /**
@@ -236,6 +294,26 @@ function labelHost(edge: EdgeView, text: string, run: readonly Point[], ctx: Lay
   const distance = horizontal ? 4 + size.height / 2 : 6 + Math.ceil(size.width) / 2
   const label = { ...(stored ?? { _type: 'EdgeLabelView', _id: '', _parent: edge, edgePosition: 1, alpha: Math.PI / 2 }), distance } as unknown as View
   return { ...edge, nameLabel: label } as EdgeView
+}
+
+/**
+ * The arrow views forming one fork/join tree with `edge` on its diagram (its root trunk and every
+ * branch below it; just `edge` when it has no branches).
+ */
+function arrowTree(edge: EdgeView, ctx: LayoutContext): string[] {
+  let root: View = edge
+  for (let guard = 0; guard < 64; guard++) {
+    const up = isArrowEdge(root['tail']) ? (root['tail'] as View) : isArrowEdge(root['head']) ? (root['head'] as View) : null
+    if (!up) break
+    root = up
+  }
+  const views = arrowViews(ctx)
+  const tree: View[] = [root]
+  for (let i = 0; i < tree.length && tree.length < 512; i++) {
+    const trunk = tree[i] as View
+    for (const v of views) if ((v.tail === trunk || v.head === trunk) && !tree.includes(v)) tree.push(v)
+  }
+  return tree.map((v) => v._id)
 }
 
 /** Gap between the line and a tunneled end where the parentheses sit. */
@@ -270,11 +348,12 @@ function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> 
           defaults: 'name',
           text,
           edit: isCall ? { kind: 'custom', elementId: arrow._id, syntax: 'idef0.call' } : { kind: 'name', elementId: arrow._id },
-          editText: isCall ? callLabelText(arrow) : nameEditText(arrow)
+          editText: isCall ? callLabelText(arrow) : arrow['name'] ? nameEditText(arrow) : text
         }
       ]
     : []
   const labelPoints = longestSegment(points) ?? (points.length >= 2 ? [points[0] as Point, points[1] as Point] : points)
+  const runs = runHandles(edge, routed, points)
   const base = buildEdgeLayout(edge, ctx, {
     dash: 'solid',
     tailEnd: FLAT,
@@ -284,7 +363,10 @@ function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> 
     routed: { points, lineStyle: (edge.lineStyle ?? 2) as never },
     extraBounds: tunnels.map((t) => t.bounds)
   })
-  const labels = labelPoints.length >= 2 ? placeEdgeLabels(labelHost(edge, text, labelPoints, ctx), labelPoints, labelSpec, ctx) : []
+  // Colors: a branch takes its trunk's, the label follows the line unless it has a text color.
+  const style = { ...base.style, lineColor: arrowLineColor(edge), fontColor: arrowTextColor(edge) }
+  const labelColor = arrowLabelColor(edge, edge['nameLabel'] as View | null | undefined)
+  const labels = (labelPoints.length >= 2 ? placeEdgeLabels(labelHost(edge, text, labelPoints, ctx), labelPoints, labelSpec, ctx) : []).map((l) => ({ ...l, fontColor: labelColor }))
   let squiggle: Point[] | null = null
   const label = labels[0]
   if (label && edge['showSquiggle'] !== false) {
@@ -302,10 +384,20 @@ function layoutArrow(edge: EdgeView, ctx: LayoutContext): EdgeLayout<ArrowData> 
       : undefined
   return {
     ...base,
+    style,
     labels,
     labelPoints,
     ...(fallback ? { fallbackEdit: fallback } : {}),
-    data: { tunnels, squiggle, lineWidth: IDEF0_STYLE.arrowLine, role }
+    highlightGroup: arrowTree(edge, ctx),
+    data: {
+      tunnels,
+      squiggle,
+      lineWidth: IDEF0_STYLE.arrowLine,
+      role,
+      ...(runs.length > 0 ? { runs } : {}),
+      ...(routed.bus ? { bus: routed.bus } : {}),
+      ...(routed.run ? { run: routed.run } : {})
+    }
   }
 }
 

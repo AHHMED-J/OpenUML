@@ -14,9 +14,9 @@ describe('explorer rows', () => {
     expect(rows.map(draw)).toEqual([
       'Order Handling',
       '└Order Management',
-      ' ├A-0 Process Customer Order',
+      ' ├A-0 Context diagram: Process Customer Order',
       ' └A0 Process Customer Order',
-      '  ├A0 Process Customer Order',
+      '  ├A0 Diagram: Process Customer Order',
       '  ├Inputs (1)',
       '  │└Input 1: Customer Order',
       '  ├Controls (1)',

@@ -7,6 +7,7 @@ import {
   nodeNumber,
   nodeReference,
   roleOf,
+  shownArrowName,
   type Elem
 } from '../../model'
 
@@ -44,9 +45,9 @@ export function callLabelText(arrow: Elem): string {
   return called ? referenceOf(called) : ''
 }
 
-/** Label text of any arrow (call arrows show their reference). */
+/** Label text of any arrow (call arrows show their reference; child boundary arrows may inherit theirs). */
 export function arrowText(arrow: Elem): string {
-  return roleOf(arrow) === 'call' ? callLabelText(arrow) : ((arrow['name'] as string | undefined) ?? '')
+  return roleOf(arrow) === 'call' ? callLabelText(arrow) : shownArrowName(arrow)
 }
 
 export interface ParsedCall {

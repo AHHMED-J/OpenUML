@@ -1,5 +1,6 @@
 /** Modal dialog host and toast notifications. */
 import type React from 'react'
+import { ChecklistDialog } from './dialogs/ChecklistDialog'
 import { CommandPalette } from './dialogs/CommandPalette'
 import { ListDialog } from './dialogs/ListDialog'
 import { ElementPickerDialog, PromptDialog, ReferenceListDialog } from './dialogs/PickerDialogs'
@@ -24,7 +25,7 @@ function keyOf(modal: object): number {
 
 /** Closes `modal`, answering a pending promise-based dialog with "cancelled". */
 function dismissModal(modal: ModalState): void {
-  if (modal.kind === 'prompt' || modal.kind === 'picker' || modal.kind === 'refList') modal.resolve(null)
+  if (modal.kind === 'prompt' || modal.kind === 'picker' || modal.kind === 'refList' || modal.kind === 'checklist') modal.resolve(null)
   uiStore.getState().openModal(null)
 }
 
@@ -54,6 +55,8 @@ function ModalContent({ modal }: { modal: ModalState }): React.JSX.Element {
       return <CommandPalette key={modalKey} />
     case 'preferences':
       return <PreferencesDialog key={modalKey} />
+    case 'checklist':
+      return <ChecklistDialog key={modalKey} title={modal.title} message={modal.message} rows={modal.rows} required={modal.required} resolve={modal.resolve} />
     case 'list':
       return <ListDialog key={modalKey} title={modal.title} items={modal.items} />
     case 'prompt':

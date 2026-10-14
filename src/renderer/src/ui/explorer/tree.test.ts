@@ -130,7 +130,7 @@ describe('explorer tree', () => {
 })
 
 describe('IDEF0 explorer labels', () => {
-  it('prefixes IDEF0 diagrams with their node number so the A-0 diagram and top function differ', () => {
+  it('labels IDEF0 diagrams by node number and kind so they differ from the function they detail', () => {
     const { engine, model } = setup()
     const a0Context = addDiagram(engine, model, 'IDEF0Diagram')
     const idef0Model = a0Context._parent as Elem
@@ -138,11 +138,13 @@ describe('IDEF0 explorer labels', () => {
     expect(top['name']).toBe(a0Context['name'])
     // Boxes carry their node number (the top function is A0).
     expect(explorerLabel(top)).toBe(`A0 ${top['name'] as string}`)
-    expect(explorerLabel(a0Context)).toBe(`A-0 ${a0Context['name'] as string}`)
-    expect(diagramLabel(a0Context as Diagram)).toBe(`A-0 ${a0Context['name'] as string}`)
+    expect(explorerLabel(a0Context)).toBe(`A-0 Context diagram: ${a0Context['name'] as string}`)
+    expect(diagramLabel(a0Context as Diagram)).toBe(`A-0 Context diagram: ${a0Context['name'] as string}`)
 
     const child = addDiagram(engine, top, 'IDEF0Diagram')
-    expect(explorerLabel(child)).toBe(`A0 ${child['name'] as string}`)
+    expect(explorerLabel(child)).toBe(`A0 Diagram: ${child['name'] as string}`)
+    expect(diagramLabel(child as Diagram)).toBe(`A0 Diagram: ${child['name'] as string}`)
+    expect(explorerLabel(child)).not.toBe(explorerLabel(top))
     // The prefix is display only: the stored name is unchanged.
     expect(child['name']).toBe(top['name'])
   })

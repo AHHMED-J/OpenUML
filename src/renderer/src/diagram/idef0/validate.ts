@@ -4,6 +4,7 @@
  */
 import {
   diagramOfScope,
+  effectiveArrowName,
   functionViewsOf,
   isContextDiagram,
   isIdef0Function,
@@ -76,7 +77,10 @@ function validateScope(scope: Elem, issues: IdefIssue[]): void {
     }
     const numbers = boxes.map((f) => f['boxNumber'] as number).sort((a, b) => a - b)
     const consecutive = numbers.every((n, i) => n === i + 1)
-    if (!consecutive || planRenumber(diagram).length > 0) add('W10', diagram, `Box numbers of "${descr(diagram)}" are duplicated, have gaps or disagree with the staircase order (Renumber Boxes)`)
+    // Box numbers are kept where the user put them; only a diagram that follows the staircase
+    // automatically (`autoNumber`) also warns when the numbers disagree with it.
+    const offStaircase = diagram['autoNumber'] === true && planRenumber(diagram).length > 0
+    if (!consecutive || offStaircase) add('W10', diagram, `Box numbers of "${descr(diagram)}" are duplicated, have gaps or disagree with the staircase order (Renumber Boxes)`)
   }
   if (isModel && diagram) {
     if (views.length !== 1) add('W02', diagram, `The context diagram must have exactly one box (found ${views.length})`)
@@ -140,11 +144,13 @@ function validateScope(scope: Elem, issues: IdefIssue[]): void {
     const label = nameOf(a)
     const branch = isBranch(a)
     const call = roleOf(a) === 'call'
-    // W05 / W07 / W13: arrow labels.
+    // W05 / W07 / W13: arrow labels. A child boundary arrow linked to a labeled parent arrow (or to
+    // an unlabeled branch of a labeled trunk) carries that label, as a branch carries its trunk's.
     if (!call) {
-      if (!label && !branch) add('W05', a, 'An arrow has no label')
+      const inherited = label || effectiveArrowName(a).trim()
+      if (!inherited && !branch) add('W05', a, 'An arrow has no label')
       else if (label && isGeneric(label)) add('W05', a, `The label "${label}" only repeats a generic word`)
-      if (!label && branch && !nameOf(rootArrow(a))) add('W07', a, 'A branch and its trunk are both unlabeled')
+      if (!inherited && branch) add('W07', a, 'A branch and its trunk are both unlabeled')
       if (label && !branch) {
         const key = label.toLowerCase()
         if (labelsSeen.has(key)) add('W13', a, `Another arrow on this diagram is also labeled "${label}"`)

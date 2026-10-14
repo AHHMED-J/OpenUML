@@ -19,7 +19,8 @@ const IDEF0_MODEL_TYPES: TypeDef[] = [
     str('abbreviation', ''),
     str('purpose', ''),
     str('viewpoint', ''),
-    ref('topFunction', 'IDEF0Function')
+    ref('topFunction', 'IDEF0Function'),
+    bool('colorArrowsByRole', false)
   ]),
   t('IDEF0Function', 'IDEF0Scope', [
     objs('functions', 'IDEF0Function'),
@@ -47,14 +48,16 @@ const IDEF0_VIEW_TYPES: TypeDef[] = [
     str('author', ''),
     str('date', ''),
     str('number', ''),
-    bool('autoNumber', true),
+    bool('autoNumber', false),
     bool('showTitleBlock', true),
     bool('showWorkingBand', true)
   ]),
   t('IDEF0FrameView', 'NodeView'),
   t('IDEF0FunctionView', 'NodeView', [bool('showDre', true)]),
   t('IDEF0PortView', 'NodeView'),
-  t('IDEF0ArrowView', 'EdgeView', [emb('nameLabel', 'EdgeLabelView'), bool('showSquiggle', true)], { inits: { lineStyle: 2 } }),
+  // `routeX` / `routeY`: the user's position of the arrow's draggable vertical / horizontal run
+  // (fork bus, channel, feedback lane), -1 = routed automatically.
+  t('IDEF0ArrowView', 'EdgeView', [emb('nameLabel', 'EdgeLabelView'), bool('showSquiggle', true), int('routeX', -1), int('routeY', -1)], { inits: { lineStyle: 2 } }),
   t('IDEF0NoteView', 'NodeView')
 ]
 

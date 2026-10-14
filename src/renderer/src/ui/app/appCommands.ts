@@ -10,7 +10,7 @@ import {
   type CommandDefinition,
   type CommandRegistry
 } from '../../commands'
-import { deleteIdef0Elements, getTextMeasurer } from '../../diagram'
+import { deleteIdef0Elements, getTextMeasurer, highlightViews, requestReveal } from '../../diagram'
 import { isKindOf, type DiagramKind, type Elem, type View } from '../../model'
 import { projectStore, selectedModels } from '../../store'
 import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
@@ -18,11 +18,14 @@ import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge } from './bridge'
+import { EXAMPLES } from '../examples'
+import { promptBoxCount } from './boxCount'
 import {
   closeWindow,
   exportAllDiagrams,
   exportDiagram,
   newProject,
+  openExample,
   openProjectDialog,
   openProjectPath,
   saveProject,
@@ -100,21 +103,35 @@ function canMove(step: number): boolean {
   return index >= 0 && index < (c.owner[c.field] as Elem[]).length
 }
 
-function selectInDiagram(): void {
-  const model = singleSelectedModel() ?? selectedModels(ps())[0]
-  if (!model) return
+/**
+ * Opens the diagram that draws `model` (the active diagram when it does) and selects its view
+ * there. Returns false when no diagram shows the element.
+ */
+export function revealInDiagram(model: Elem): boolean {
   const repo = ps().repository
   const views = repo.viewsOf(model).filter((v) => v.visible !== false && repo.diagramOf(v))
-  if (views.length === 0) {
-    ui().toast('No diagrams to show')
-    return
-  }
+  if (views.length === 0) return false
   const active = ps().activeDiagramId
   const view = views.find((v) => repo.diagramOf(v)?._id === active) ?? (views[0] as View)
   const diagram = repo.diagramOf(view)
-  if (!diagram) return
+  if (!diagram) return false
+  requestReveal(view._id)
   ps().openDiagram(diagram._id)
-  ps().select({ views: [view._id] })
+  ps().select({ views: [view._id], elements: [model._id] })
+  return true
+}
+
+/** Shows the selected element on its diagram and makes it pulse in red for two seconds. */
+function highlightSelected(): void {
+  const model = singleSelectedModel() ?? selectedModels(ps())[0]
+  if (!model) return
+  if (revealInDiagram(model)) highlightViews(ps().selectedViewIds)
+  else ui().toast('No diagrams to show')
+}
+
+function selectInDiagram(): void {
+  const model = singleSelectedModel() ?? selectedModels(ps())[0]
+  if (model && !revealInDiagram(model)) ui().toast('No diagrams to show')
 }
 
 export function confirmAndDeleteFromModel(elements: readonly Elem[]): Promise<void> {
@@ -172,6 +189,14 @@ export function registerAppCommands(registry: CommandRegistry): void {
     run: (path) => (typeof path === 'string' ? openProjectPath(path) : undefined),
     isEnabled: () => bridge !== null
   })
+  add({
+    id: Cmd.fileOpenExample,
+    label: 'Open Example',
+    run: (id) => {
+      const example = EXAMPLES.find((e) => e.id === id)
+      return example ? openExample(example.text) : undefined
+    }
+  })
   add({ id: Cmd.fileClearRecent, label: 'Clear Recent', run: () => ui().clearRecent(), isEnabled: () => ui().recentFiles.length > 0 })
   add({ id: Cmd.fileSave, label: 'Save', run: () => saveProject(), isEnabled: () => bridge !== null })
   add({ id: Cmd.fileSaveAs, label: 'Save As...', run: () => saveProjectAs(), isEnabled: () => bridge !== null })
@@ -205,6 +230,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
     }
   })
   add({ id: Cmd.editSelectInDiagram, label: 'Select in Diagram', isEnabled: () => selectedModels(ps()).length > 0, run: selectInDiagram })
+  add({ id: Cmd.editHighlight, label: 'Highlight', isEnabled: () => selectedModels(ps()).length > 0, run: highlightSelected })
   add({
     id: Cmd.editRename,
     label: 'Rename',
@@ -222,10 +248,18 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.modelAddDiagram,
     label: 'Add Diagram',
-    run: (arg) => {
+    run: async (arg) => {
       const kind = (arg as { kind?: DiagramKind } | undefined)?.kind ?? 'ClassDiagram'
       if (!ADD_DIAGRAM_ITEMS.some((i) => i.kind === kind)) return
-      const diagram = addDiagram(ps().engine, selectedParent(), kind)
+      const parent = selectedParent()
+      // Decomposing a function asks for the number of child boxes first, like Decompose; cancel changes nothing.
+      let boxCount: number | undefined
+      if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) {
+        const count = await promptBoxCount()
+        if (count === null) return
+        boxCount = count
+      }
+      const diagram = addDiagram(ps().engine, parent, kind, boxCount)
       openDiagram(diagram)
     }
   })
