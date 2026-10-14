@@ -6,6 +6,7 @@ import type { Diagram, Elem } from '../../model'
 import { addDiagram } from '../../ui/modelActions'
 import { applyQuickEdit } from '../editor/quickEditApply'
 import { decomposeFunction } from './decompose'
+import { applyTitleBlockToChildren } from './titleBlock'
 import { newKit } from './testkit'
 
 const titleOf = (d: Elem) => ({ author: d['author'], date: d['date'], status: d['status'], number: d['number'] })
@@ -148,5 +149,35 @@ describe('IDEF0 title block propagation', () => {
       b.set(t.a2, 'author', 'Gus')
     })
     expect([t.a0, t.a1, t.a2, t.a21].map((d) => d['author'])).toEqual(['Fay', 'Fay', 'Gus', 'Gus'])
+  })
+})
+
+describe('Apply Title Block to Child Diagrams', () => {
+  it('copies author, date and status to every descendant, overriding hand edits, in one undo step', () => {
+    const t = tree()
+    setFieldsOfAll(t.engine, [t.a2], { author: 'Bob', status: 'working' })
+    setFieldsOfAll(t.engine, [t.a11], { date: '' })
+    setFieldsOfAll(t.engine, [t.a1], { number: '4' })
+    const before = snapshot(t)
+    const depth = t.engine.undoDepth
+    expect(applyTitleBlockToChildren(t.engine, t.context)).toBe(3)
+    expect(t.engine.undoDepth).toBe(depth + 1)
+    for (const d of [t.a0, t.a1, t.a2, t.a11, t.a21]) expect([d['author'], d['date'], d['status']]).toEqual(['Ana', '2026-10-14', 'draft'])
+    expect(t.a1['number']).toBe('4')
+    expect(applyTitleBlockToChildren(t.engine, t.context)).toBe(0)
+    t.engine.undo()
+    expect(snapshot(t)).toBe(before)
+  })
+
+  it('reaches only the descendants of the diagram it runs on', () => {
+    const t = tree()
+    setFieldsOfAll(t.engine, [t.a0], { author: 'Bob' })
+    t.engine.transact('Hand edits', (b) => {
+      b.set(t.a11, 'author', 'Zed')
+      b.set(t.a21, 'author', 'Zed')
+      b.set(t.context, 'author', 'Ana')
+    })
+    expect(applyTitleBlockToChildren(t.engine, t.a1)).toBe(1)
+    expect([t.context, t.a0, t.a1, t.a11, t.a2, t.a21].map((d) => d['author'])).toEqual(['Ana', 'Bob', 'Bob', 'Bob', 'Bob', 'Zed'])
   })
 })

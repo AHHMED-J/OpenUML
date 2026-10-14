@@ -23,6 +23,7 @@ export function idef0Menu(): MenuNode {
       SEP,
       { id: 'idef0.renumber', label: 'Renumber Boxes', command: Idef0CommandIds.renumber },
       { id: 'idef0.sync-ports', label: 'Synchronize Boundary Arrows', command: Idef0CommandIds.syncPorts },
+      { id: 'idef0.apply-title-block', label: 'Apply Title Block to Child Diagrams', command: Idef0CommandIds.applyTitleBlock },
       {
         id: 'idef0.add-boundary',
         label: 'Add Boundary Arrow',
