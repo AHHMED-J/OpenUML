@@ -21,7 +21,7 @@ import {
   type Idef0Side
 } from './idef0-numbering'
 import { inheritedTitleBlock } from './idef0-titleblock'
-import { IDEF0_AREA, IDEF0_SHEET, areaOfSheet, sheetSizeOf, type DrawingArea } from './idef0-sheet'
+import { IDEF0_AREA, IDEF0_SHEET, areaOfSheet, sheetSizeOf, type DrawingArea, type SheetSize } from './idef0-sheet'
 import type { Diagram, Elem, NodeView, Point, View } from './types'
 import { addSubView, boundsOf, createElement, defaultName, nextName } from './view-builders'
 import { DEFAULT_FONT, fontWith } from './values'
@@ -65,8 +65,8 @@ function ownedElementsOf(el: Elem): Elem[] {
 // ---------------------------------------------------------------------------------------------
 // Views
 
-function frameView(diagram: Diagram): NodeView {
-  const frame = createElement<NodeView>('IDEF0FrameView', { model: diagram, ...IDEF0_SHEET })
+function frameView(diagram: Diagram, size: SheetSize = IDEF0_SHEET): NodeView {
+  const frame = createElement<NodeView>('IDEF0FrameView', { model: diagram, left: IDEF0_SHEET.left, top: IDEF0_SHEET.top, width: size.width, height: size.height })
   frame._parent = diagram
   return frame
 }
@@ -167,7 +167,7 @@ interface BoxSlot {
 /**
  * Plans the decomposition of `fn` into `count` boxes. The new diagram is owned by `fn` and set as
  * its `childDiagram`; it takes the author, date and status of the parent diagram and the next
- * sheet number (`inheritedTitleBlock`). Every arrow attached to `fn` on its own diagram that is not tunneled at the
+ * sheet number (`inheritedTitleBlock`), and the parent's sheet size (boxes and ports are placed on it). Every arrow attached to `fn` on its own diagram that is not tunneled at the
  * connected end (call arrows excluded) gets a boundary port (ICOM role of the parent attachment,
  * `corresponds` = the parent arrow) and a default-wired arrow labeled with the parent arrow's
  * effective label (an unlabeled branch gives its trunk's): inputs to the first box, controls
@@ -177,11 +177,13 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   if (!isIdef0Function(fn)) throw new ModelRuleError('Only a function can be decomposed')
   if (fn['childDiagram']) throw new ModelRuleError('The function already has a child diagram')
   const n = Math.max(1, Math.min(6, Math.round(count)))
-  // The new sheet continues the title block of the diagram drawing the box (A-0 for the top function).
-  const titleBlock = inheritedTitleBlock(diagramOfScope(fn._parent))
-  const area = IDEF0_AREA
+  // The new sheet continues the title block and the sheet size of the diagram drawing the box (A-0 for the top function).
+  const parentDiagram = diagramOfScope(fn._parent)
+  const titleBlock = inheritedTitleBlock(parentDiagram)
+  const sheet = sheetSizeOf(parentDiagram)
+  const area = areaOfSheet(sheet)
   const diagram = createElement<Diagram>('IDEF0Diagram', { name: name ?? (fn['name'] as string), diagramKind: 'decomposition', ...titleBlock })
-  diagram.ownedViews.push(frameView(diagram))
+  diagram.ownedViews.push(frameView(diagram, sheet))
   const insertions: Insertion[] = []
   const functions: Elem[] = []
   const ports: Elem[] = []

@@ -230,7 +230,9 @@ describe('IDEF0 menus', () => {
       ['A3 Landscape', false],
       ['A3 Portrait', false],
       [],
-      ['Fit to Content', undefined]
+      ['Fit to Content', undefined],
+      [],
+      ['Apply Sheet Size to Child Diagrams', undefined]
     ])
     projectStore.getState().newProject()
     expect(resolveMenu([idef0Menu(), idef0FormatMenu()], ctx)).toEqual([])

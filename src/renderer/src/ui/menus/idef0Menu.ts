@@ -10,7 +10,7 @@ function idef0Active(): boolean {
   return activeDiagram(projectStore.getState())?._type === 'IDEF0Diagram'
 }
 
-/** Format > IDEF0 > Sheet Size: the presets (checked when the sheet has that size) and Fit to Content. */
+/** Format > IDEF0 > Sheet Size: the presets (checked when the sheet has that size), Fit to Content, apply to children. */
 function sheetSizeMenu(): MenuNode {
   return {
     id: 'format.idef0.sheet-size',
@@ -22,7 +22,9 @@ function sheetSizeMenu(): MenuNode {
         checkbox: true
       })),
       SEP,
-      { label: 'Fit to Content', command: Idef0CommandIds.sheetFit }
+      { label: 'Fit to Content', command: Idef0CommandIds.sheetFit },
+      SEP,
+      { label: 'Apply Sheet Size to Child Diagrams', command: Idef0CommandIds.applySheetSize }
     ]
   }
 }
