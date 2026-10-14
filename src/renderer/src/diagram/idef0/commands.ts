@@ -28,7 +28,7 @@ import { callTarget, childTarget, parentTarget, type DiagramTarget } from './nav
 import { validateIdef0, type IdefIssue } from './validate'
 import { STATUS_STAGES, statusLabel } from './strings'
 import { applyTitleBlockToChildren, descendantDiagramsOf } from './titleBlock'
-import { fitSheetToContent, setSheetSize } from './sheet'
+import { applySheetSizeToChildren, fitSheetToContent, setSheetSize } from './sheet'
 
 export const Idef0CommandIds = {
   decompose: 'idef0.decompose',
@@ -42,6 +42,7 @@ export const Idef0CommandIds = {
   tunnelEnd: 'idef0.tunnel-end',
   resetRoute: 'idef0.reset-route',
   applyTitleBlock: 'idef0.apply-title-block',
+  applySheetSize: 'idef0.apply-sheet-size',
   addBoundary: (role: string) => `idef0.add-boundary-${role}`,
   colorByRole: 'format.idef0.color-by-role',
   status: (stage: string) => `format.idef0.status.${stage}`,
@@ -292,6 +293,20 @@ export function registerIdef0Commands(registry: CommandRegistry, ctx: Idef0Comma
       if (!d) return
       const n = applyTitleBlockToChildren(state().engine, d)
       ctx.toast(n === 0 ? 'The child diagrams already have this title block' : `Applied the title block to ${n} child diagram${n === 1 ? '' : 's'}`)
+    }
+  })
+  add({
+    id: Idef0CommandIds.applySheetSize,
+    label: 'Apply Sheet Size to Child Diagrams',
+    isEnabled: () => {
+      const d = idefDiagram()
+      return !!d && descendantDiagramsOf(d).length > 0
+    },
+    run: () => {
+      const d = idefDiagram()
+      if (!d) return
+      const n = applySheetSizeToChildren(state().engine, getTextMeasurer(), d)
+      ctx.toast(n === 0 ? 'The child diagrams already have this sheet size' : `Applied the sheet size to ${n} child diagram${n === 1 ? '' : 's'}`)
     }
   })
   for (const preset of SHEET_PRESETS) {

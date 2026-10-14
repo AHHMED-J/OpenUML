@@ -1,23 +1,27 @@
 /**
  * IDEF0 sheet size edits: resizing the frame (handles, Format > IDEF0 > Sheet Size presets, Fit to
- * Content). The size lives on the frame view
+ * Content) and applying a sheet size to the child diagrams. The size lives on the frame view
  * (`model/idef0-sheet.ts`); the sheet origin never moves, so a resize moves only the right and
  * bottom edges of the drawing area, and the output and mechanism ports on them follow in the same
  * undo step. Arrows are re-routed inside the new area by the geometry write-back.
  */
-import type { OperationBuilder } from '../../commands'
+import type { ModelEngine, OperationBuilder } from '../../commands'
 import {
   drawingAreaOf,
   frameViewOf,
   roleOf,
   ROLE_SIDE,
   sheetMinimumOf,
+  sheetSizeOf,
   validSheetSize,
+  type Diagram,
   type Elem,
   type NodeView,
   type SheetSize
 } from '../../model'
-import { withGeometry, type DiagramEnv } from '../editor/actions'
+import type { TextMeasurer } from '../core'
+import { syncGeometry, withGeometry, type DiagramEnv } from '../editor/actions'
+import { descendantDiagramsOf } from './titleBlock'
 
 /** Whether the steps recorded in `b` changed the size of the frame of `diagram`. */
 function frameResized(b: OperationBuilder, frame: NodeView): boolean {
@@ -78,4 +82,24 @@ export function setSheetSize(env: DiagramEnv, size: SheetSize, name = 'Change Sh
 /** The smallest sheet that holds the content of `env.diagram` (never below the default sheet). */
 export function fitSheetToContent(env: DiagramEnv): boolean {
   return setSheetSize(env, sheetMinimumOf(env.diagram), 'Fit Sheet to Content')
+}
+
+/**
+ * Gives every descendant diagram of `diagram` its sheet size (a child whose content needs more
+ * keeps that much), in one undo step. Returns the number of diagrams changed.
+ */
+export function applySheetSizeToChildren(engine: ModelEngine, measurer: TextMeasurer, diagram: Elem): number {
+  const size = sheetSizeOf(diagram)
+  const targets = descendantDiagramsOf(diagram)
+    .map((child) => ({ child, frame: frameViewOf(child), next: validSheetSize(child, size) }))
+    .filter((t): t is { child: Elem; frame: NodeView; next: SheetSize } => !!t.frame && !sameSize(t.next, { width: t.frame.width, height: t.frame.height }))
+  if (targets.length === 0) return 0
+  engine.transact('Apply Sheet Size to Child Diagrams', (b) => {
+    for (const { child, frame, next } of targets) {
+      b.setAll(frame, { width: next.width, height: next.height })
+      keepPortsOnSheetEdges(b, child)
+      syncGeometry({ engine, diagram: child as Diagram, measurer }, b)
+    }
+  })
+  return targets.length
 }

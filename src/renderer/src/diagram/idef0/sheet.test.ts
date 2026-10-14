@@ -16,17 +16,20 @@ import {
   type View
 } from '../../model'
 import { projectStore } from '../../store'
+import { addDiagram } from '../../ui/modelActions'
 import { SELECTION, rectContainsPoint, resizeHandles, type Point, type Rect } from '../core'
 import { resizeNode, type DiagramEnv } from '../editor/actions'
 import { hitTestDiagram } from '../editor/hitTest'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import type { DiagramLayout } from '../layout/types'
 import { ensureNotations } from '../notations'
+import { addChildBoxes } from './boxCount'
 import { Idef0CommandIds, registerIdef0Commands } from './commands'
+import { decomposeFunction } from './decompose'
 import { areaRectOf } from './geometry'
 import type { FrameData } from './layout'
-import { fitSheetToContent, setSheetSize } from './sheet'
-import { measurer } from './testkit'
+import { applySheetSizeToChildren, fitSheetToContent, setSheetSize } from './sheet'
+import { measurer, newKit } from './testkit'
 
 const EXAMPLE = readFileSync(new URL('../../../../../examples/software-release-idef0.mdj', import.meta.url), 'utf8')
 
@@ -277,5 +280,54 @@ describe('IDEF0 sheet: presets', () => {
     expect(sheetSizeOf(child)).toEqual(sheetMinimumOf(child))
     expect(sheetSizeOf(child).width).toBeGreaterThan(1500)
     expect(sheetSizeOf(child).height).toBe(752)
+  })
+})
+
+describe('IDEF0 sheet: child diagrams', () => {
+  const boxOf = (d: Diagram, n: number): Elem => ((d._parent as Elem)['functions'] as Elem[]).find((f) => f['boxNumber'] === n) as Elem
+
+  it('a new child diagram (Decompose, Explorer add) takes the sheet size of its parent, with its ports on the edges', () => {
+    const kit = newKit()
+    setSheetSize(kit.envOf(kit.child), sheetPreset('a3-landscape')!)
+    const a1 = decomposeFunction(kit.engine, boxOf(kit.child, 1), 3)
+    expect(sheetSizeOf(a1)).toEqual({ width: 2016, height: 1424 })
+    expect(frameViewOf(a1)).toMatchObject({ left: 8, top: 8, width: 2016, height: 1424 })
+    const viaExplorer = addDiagram(kit.engine, boxOf(kit.child, 2), 'IDEF0Diagram', 3) as Diagram
+    expect(sheetSizeOf(viaExplorer)).toEqual({ width: 2016, height: 1424 })
+    // The A-0 still has the default sheet, so a fresh model's A0 starts with it.
+    expect(sheetSizeOf(kit.context)).toEqual({ width: 1008, height: 752 })
+  })
+
+  it('seeds the ports of a decomposition on the edges of the inherited sheet', () => {
+    const ex = loadExample()
+    const parent = ex.diagrams.find((d) => d['diagramKind'] !== 'context' && d.ownedViews.some((v) => v._type === 'IDEF0FunctionView' && !(v.model as Elem)['childDiagram'])) as Diagram
+    setSheetSize(ex.env(parent), { width: 1600, height: 1200 })
+    const fn = (parent.ownedViews.find((v) => v._type === 'IDEF0FunctionView' && !(v.model as Elem)['childDiagram'] && ((v.model as Elem)._parent?.['arrows'] as Elem[]).some((a) => a['source'] === v.model)) as View).model as Elem
+    const child = decomposeFunction(ex.engine, fn, 3)
+    expect(sheetSizeOf(child)).toEqual({ width: 1600, height: 1200 })
+    const area = areaRectOf(child)
+    expect(portViews(child, 'output').length).toBeGreaterThan(0)
+    for (const v of portViews(child, 'output')) expect(center(v).x).toBe(area.left + area.width)
+    for (const v of portViews(child, 'mechanism')) expect(center(v).y).toBe(area.top + area.height)
+    // Set Number of Child Boxes keeps the new boxes inside the larger sheet.
+    addChildBoxes(ex.env(child), 2)
+    for (const v of child.ownedViews.filter((x) => x._type === 'IDEF0FunctionView') as NodeView[]) expect(v.left + v.width).toBeLessThanOrEqual(area.left + area.width)
+  })
+
+  it('Apply Sheet Size to Child Diagrams resizes every descendant in one undo step', () => {
+    const ex = loadExample()
+    const before = writeMdj(ex.engine.repository.project as Elem)
+    setSheetSize(ex.env(ex.a0), { width: 1600, height: 1200 })
+    const afterResize = writeMdj(ex.engine.repository.project as Elem)
+    const depth = ex.engine.undoDepth
+    expect(applySheetSizeToChildren(ex.engine, measurer, ex.a0)).toBe(2)
+    expect(ex.engine.undoDepth).toBe(depth + 1)
+    for (const d of ex.diagrams) expect(sheetSizeOf(d)).toEqual({ width: 1600, height: 1200 })
+    for (const d of ex.diagrams) for (const v of portViews(d, 'output')) expect(center(v).x).toBe(1600 + 8 - 16)
+    expect(applySheetSizeToChildren(ex.engine, measurer, ex.a0)).toBe(0)
+    ex.engine.undo()
+    expect(writeMdj(ex.engine.repository.project as Elem)).toBe(afterResize)
+    ex.engine.undo()
+    expect(writeMdj(ex.engine.repository.project as Elem)).toBe(before)
   })
 })
