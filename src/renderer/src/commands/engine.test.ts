@@ -25,6 +25,7 @@ import {
   importFragment,
   ModelEngine,
   moveElement,
+  registerTransactionHook,
   moveViews,
   reorderElement,
   setFields,
@@ -123,6 +124,28 @@ describe('create / undo / redo', () => {
     expect(engine.undoDepth).toBe(1)
     engine.undo()
     expect(diagram.ownedViews).toHaveLength(0)
+  })
+
+  it('transaction hooks run once per outermost transaction and join its undo step', () => {
+    const { project, engine, model } = setup()
+    const calls: number[] = []
+    registerTransactionHook((b) => {
+      calls.push(b.steps.length)
+      const renamed = b.steps.some((s) => s.op === 'a' && s.id === model._id && s.field === 'name' && s.value === 'Hooked')
+      if (renamed) b.set(model, 'documentation', 'set by hook')
+    })
+    const before = snapshot(project)
+    engine.transact('Outer', () => {
+      engine.transact('Inner', (b) => b.set(model, 'name', 'Hooked'))
+      expect(model['documentation']).toBe('')
+    })
+    expect(calls).toEqual([1])
+    expect(model['documentation']).toBe('set by hook')
+    expect(engine.undoDepth).toBe(1)
+    engine.undo()
+    expect(snapshot(project)).toBe(before)
+    engine.transact('Nothing', () => undefined)
+    expect(calls).toEqual([1])
   })
 
   it('caps history at 100 operations', () => {
