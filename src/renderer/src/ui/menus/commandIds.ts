@@ -117,7 +117,6 @@ export const PALETTE_HIDDEN = new Set<string>([
   Cmd.modelAdd,
   Cmd.modelAddDiagram,
   Cmd.editRename,
-  Cmd.toolSelect,
   Cmd.viewCommandPalette
 ])
 

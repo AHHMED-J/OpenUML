@@ -550,6 +550,16 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     []
   )
 
+  // Back to Select (Esc / A / the toolbox) drops a half-drawn node or edge of the previous tool.
+  useEffect(() => {
+    const g = gesture.current
+    if (tool !== null || !g || (g.type !== 'create-node' && g.type !== 'create-edge')) return
+    gesture.current = null
+    setPreview(null)
+    stopLive()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a tool change cancels
+  }, [tool])
+
   // ---- Selection helpers.
   const setSelection = useCallback((ids: readonly string[]) => select({ views: ids }), [select])
 

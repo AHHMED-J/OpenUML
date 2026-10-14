@@ -168,12 +168,18 @@ export interface KeyBinding {
   readonly args?: unknown
   /** Restrict to platforms (default: all). */
   readonly platforms?: readonly Platform[]
+  /**
+   * Context key that must be active for the keystroke to run the command (see
+   * `KeyDispatchContext.contextKeys`, e.g. `toolActive`); otherwise the key is left alone.
+   */
+  readonly when?: string
 }
 
 export interface ResolvedBinding {
   readonly descriptor: string
   readonly command: string
   readonly args?: unknown
+  readonly when?: string
 }
 
 export class Keymap {
@@ -204,7 +210,7 @@ export class Keymap {
         this.warnings.push(`Keystroke ${descriptor}: ${b.command} overrides ${existing.command}`)
         if (this.byCommand.get(existing.command) === descriptor) this.byCommand.delete(existing.command)
       }
-      this.byKey.set(descriptor, { descriptor, command: b.command, args: b.args })
+      this.byKey.set(descriptor, { descriptor, command: b.command, args: b.args, ...(b.when ? { when: b.when } : {}) })
       if (!this.byCommand.has(b.command)) this.byCommand.set(b.command, descriptor)
     }
   }
@@ -311,6 +317,8 @@ export interface KeyDispatchContext {
   readonly textFocused: boolean
   /** Commands that a focused text field must not trigger with an unmodified key (e.g. Esc → Select tool). */
   readonly textBlockedCommands?: ReadonlySet<string>
+  /** Active context keys: a binding with a `when` key fires only while that key is here. */
+  readonly contextKeys?: ReadonlySet<string>
 }
 
 /**
@@ -328,6 +336,7 @@ export function bindingToDispatch(
   if (ctx.textFocused && isNativeEditKeystroke(descriptor, keymap.platform)) return undefined
   const binding = keymap.match(descriptor)
   if (!binding) return undefined
+  if (binding.when && !ctx.contextKeys?.has(binding.when)) return undefined
   if (ctx.textFocused && (ctx.textBlockedCommands?.has(binding.command) || !/^(cmd|ctrl|alt)-/.test(descriptor))) return undefined
   return binding
 }

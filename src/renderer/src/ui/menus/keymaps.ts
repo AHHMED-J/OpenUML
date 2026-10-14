@@ -3,6 +3,9 @@ import type { KeyBinding } from '../keymap'
 import { Cmd } from './commandIds'
 
 const MAC = ['darwin']
+
+/** Context key of the keyboard dispatcher: a toolbox tool other than Select is active. */
+export const WHEN_TOOL_ACTIVE = 'toolActive'
 const OTHERS = ['win32', 'linux', 'freebsd', 'openbsd', 'sunos', 'aix']
 
 export const DEFAULT_KEYMAP: readonly KeyBinding[] = [
@@ -66,6 +69,7 @@ export const DEFAULT_KEYMAP: readonly KeyBinding[] = [
   { key: 'cmdctrl-4', command: Cmd.viewStatusbar },
   { key: 'cmdctrl-5', command: Cmd.viewToolbox },
   { key: 'cmdctrl-6', command: Cmd.viewEditors },
-  // Toolbox
-  { key: 'esc', command: Cmd.toolSelect }
+  // Toolbox: Esc, or A while a tool is active (outside text fields), returns to the Select tool.
+  { key: 'esc', command: Cmd.toolSelect },
+  { key: 'a', command: Cmd.toolSelect, when: WHEN_TOOL_ACTIVE }
 ]
