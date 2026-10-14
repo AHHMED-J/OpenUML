@@ -4,6 +4,7 @@ import { createDiagram, setFieldsOfAll } from '../../commands'
 import { writeMdj } from '../../format'
 import type { Diagram, Elem } from '../../model'
 import { addDiagram } from '../../ui/modelActions'
+import { applyQuickEdit } from '../editor/quickEditApply'
 import { decomposeFunction } from './decompose'
 import { newKit } from './testkit'
 
@@ -63,5 +64,89 @@ describe('IDEF0 title block inheritance', () => {
     expect(state.engine.undoDepth).toBe(0)
     expect(writeMdj(state.repository.project as Elem)).toBe(text)
     expect(titleOf(state.repository.get(kit.child._id) as Elem)).toEqual({ author: '', date: '', status: 'working', number: '' })
+  })
+})
+
+/** A-0 > A0 > (A1 > A11, A2 > A21), A-0 titled Ana / 2026-10-14 / draft / 1 before decomposing. */
+function tree() {
+  const kit = newKit()
+  const { engine, context, child: a0 } = kit
+  // A0 already exists (blank): the A-0 edit reaches it through propagation.
+  setFieldsOfAll(engine, [context], { author: 'Ana', date: '2026-10-14', status: 'draft', number: '1' })
+  const a1 = decomposeFunction(engine, boxOf(a0, 1), 3)
+  const a2 = decomposeFunction(engine, boxOf(a0, 2), 3)
+  const a11 = decomposeFunction(engine, boxOf(a1, 1), 3)
+  const a21 = decomposeFunction(engine, boxOf(a2, 1), 3)
+  return { ...kit, a0, a1, a2, a11, a21 }
+}
+
+const snapshot = (kit: { repository: { project: unknown } }): string => writeMdj(kit.repository.project as Elem, { verbose: true })
+
+describe('IDEF0 title block propagation', () => {
+  it('an A-0 edit reaches the existing blank descendants; sheet numbers stay per sheet', () => {
+    const t = tree()
+    for (const d of [t.a0, t.a1, t.a2, t.a11, t.a21]) expect(d['author']).toBe('Ana')
+    expect(t.a0['date']).toBe('2026-10-14')
+    expect(t.a0['status']).toBe('draft')
+    // A0 existed before the A-0 got its number: numbers never propagate.
+    expect(t.a0['number']).toBe('')
+    setFieldsOfAll(t.engine, [t.context], { number: '7' })
+    expect([t.a0, t.a1, t.a11].map((d) => d['number'])).toEqual(['', '', ''])
+  })
+
+  it('an inline title-block edit updates the descendants that followed, keeps hand edits, in one undo step', () => {
+    const t = tree()
+    setFieldsOfAll(t.engine, [t.a2], { author: 'Bob' })
+    expect(t.a21['author']).toBe('Bob')
+    setFieldsOfAll(t.engine, [t.a11], { author: '' })
+    const before = snapshot(t)
+    const depth = t.engine.undoDepth
+    expect(applyQuickEdit(t.engine, { kind: 'field', elementId: t.context._id, field: 'author' }, 'Ana López')).toBe(true)
+    expect(t.engine.undoDepth).toBe(depth + 1)
+    expect([t.context, t.a0, t.a1, t.a11].map((d) => d['author'])).toEqual(['Ana López', 'Ana López', 'Ana López', 'Ana López'])
+    // A2 was changed by hand: it and the sheets that follow it keep their author.
+    expect([t.a2['author'], t.a21['author']]).toEqual(['Bob', 'Bob'])
+    t.engine.undo()
+    expect(snapshot(t)).toBe(before)
+    t.engine.redo()
+    expect(t.a1['author']).toBe('Ana López')
+  })
+
+  it('date and status edits from the Property Editor path flow down the same way', () => {
+    const t = tree()
+    setFieldsOfAll(t.engine, [t.a1], { date: '2026-01-01', status: 'recommended' })
+    setFieldsOfAll(t.engine, [t.context], { date: '2026-10-15', status: 'publication' }, 'Change Date')
+    expect([t.a0, t.a2, t.a21].map((d) => [d['date'], d['status']])).toEqual([
+      ['2026-10-15', 'publication'],
+      ['2026-10-15', 'publication'],
+      ['2026-10-15', 'publication']
+    ])
+    // A1 (and A11 below it, which followed A1) keep their own values.
+    expect([t.a1, t.a11].map((d) => [d['date'], d['status']])).toEqual([
+      ['2026-01-01', 'recommended'],
+      ['2026-01-01', 'recommended']
+    ])
+  })
+
+  it('never flows upward', () => {
+    const t = tree()
+    setFieldsOfAll(t.engine, [t.a1], { author: 'Carla', date: '2027-01-01', status: 'working' })
+    expect([t.context, t.a0, t.a2].map((d) => [d['author'], d['date'], d['status']])).toEqual([
+      ['Ana', '2026-10-14', 'draft'],
+      ['Ana', '2026-10-14', 'draft'],
+      ['Ana', '2026-10-14', 'draft']
+    ])
+    expect([t.a11['author'], t.a11['date'], t.a11['status']]).toEqual(['Carla', '2027-01-01', 'working'])
+  })
+
+  it('a descendant edited in the same operation keeps its own value', () => {
+    const t = tree()
+    setFieldsOfAll(t.engine, [t.context, t.a2], { author: 'Dora' })
+    setFieldsOfAll(t.engine, [t.a2], { author: 'Eve' })
+    t.engine.transact('Both', (b) => {
+      b.set(t.context, 'author', 'Fay')
+      b.set(t.a2, 'author', 'Gus')
+    })
+    expect([t.a0, t.a1, t.a2, t.a21].map((d) => d['author'])).toEqual(['Fay', 'Fay', 'Gus', 'Gus'])
   })
 })
