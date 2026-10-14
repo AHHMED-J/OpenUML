@@ -67,6 +67,7 @@ import {
 } from './actions'
 import { connectionRefusal, dropRefusal, refusalReason, withArticle, readableName } from './feedback'
 import { releaseActiveEditor, setActiveEditor, takeReveal, type EditorHandle } from './activeEditor'
+import { edgeEditAt, edgeSlotAt } from './edgeEnds'
 import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
 import { applyQuickEdit } from './quickEditApply'
@@ -1012,6 +1013,13 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     const p = toDiagram(e.clientX, e.clientY)
     const hit: DiagramHit | null = hitTestDiagram(l, p, { selected: sel, zoom: z })
     if (!hit) {
+      // The empty role name / multiplicity slot of an (unselected) association end.
+      const slot = edgeSlotAt(l, p)
+      if (slot) {
+        setSelection([slot.viewId])
+        openRegion(slot.viewId, slot.region)
+        return
+      }
       const id = createTextAt(en, { x: snapValue(p.x), y: snapValue(p.y) })
       if (id) {
         setSelection([id])
@@ -1034,7 +1042,12 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       const label = hit.label
       if (label.edit) openRegion(hit.viewId, { box: label.box, target: label.edit, text: label.editText ?? label.text, font: label.font })
     } else if (hit.kind === 'edge' || hit.kind === 'edge-segment' || hit.kind === 'edge-vertex') {
-      openQuickEdit(hit.viewId)
+      // Near an end of an association-style edge: that end (its multiplicity); else the name.
+      const edge = l.edges.get(hit.viewId)
+      const region = edge ? edgeEditAt(edge, p) : null
+      if (region) openRegion(hit.viewId, region)
+      else if (edge?.endEdits) openQuickEdit(hit.viewId, (repository.get(hit.viewId) as View | undefined)?.model?._id)
+      else openQuickEdit(hit.viewId)
     }
   }
 

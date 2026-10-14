@@ -104,6 +104,8 @@ export function hitTestDiagram(layout: DiagramLayout, p: Point, options: HitOpti
     for (const label of edge.labels) {
       if (rectContainsPoint(label.box, p)) return { kind: 'edge-label', viewId: id, label }
     }
+    // The empty label slots hinted on a selected edge belong to it.
+    if (selected.has(id) && edge.slots?.some((s) => rectContainsPoint(s.box, p))) return { kind: 'edge', viewId: id }
     const hit = hitTestEdge(edge.points, p, tol)
     if (hit) {
       if (selected.has(id) && hit.kind === 'segment') return { kind: 'edge-segment', viewId: id, index: hit.index, orientation: hit.orientation }
