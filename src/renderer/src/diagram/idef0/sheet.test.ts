@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { ModelEngine } from '../../commands'
+import { CommandRegistry, ModelEngine } from '../../commands'
 import { readMdj, writeMdj } from '../../format'
 import {
   IDEF0_SHEET,
@@ -15,12 +15,14 @@ import {
   type NodeView,
   type View
 } from '../../model'
+import { projectStore } from '../../store'
 import { SELECTION, rectContainsPoint, resizeHandles, type Point, type Rect } from '../core'
 import { resizeNode, type DiagramEnv } from '../editor/actions'
 import { hitTestDiagram } from '../editor/hitTest'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import type { DiagramLayout } from '../layout/types'
 import { ensureNotations } from '../notations'
+import { Idef0CommandIds, registerIdef0Commands } from './commands'
 import { areaRectOf } from './geometry'
 import type { FrameData } from './layout'
 import { fitSheetToContent, setSheetSize } from './sheet'
@@ -238,6 +240,31 @@ describe('IDEF0 sheet: presets', () => {
     }
     expect(sheetPreset('a3-landscape')).toMatchObject({ width: 2016, height: 1424 })
     expect(sheetPreset('a4-portrait')).toMatchObject({ width: 1008, height: 1424 })
+  })
+
+  it('Sheet Size commands set the preset (checked) and Fit to Content shrinks back, each one undo step', () => {
+    ensureNotations()
+    const ex = loadExample()
+    projectStore.getState().openProject(writeMdj(ex.engine.repository.project as Elem), null)
+    const state = projectStore.getState()
+    const repo = state.repository
+    const a0 = repo.diagrams().find((d) => d._type === 'IDEF0Diagram' && d['diagramKind'] !== 'context') as Diagram
+    state.openDiagram(a0._id)
+    const registry = new CommandRegistry()
+    const toasts: string[] = []
+    registerIdef0Commands(registry, { promptBoxCount: async () => 3, chooseBoxesToRemove: async () => null, openDiagram: () => undefined, showList: () => undefined, toast: (t) => toasts.push(t) })
+    expect(registry.isChecked(Idef0CommandIds.sheetSize('default'))).toBe(true)
+    const depth = state.engine.undoDepth
+    registry.execute(Idef0CommandIds.sheetSize('a3-landscape'))
+    expect(sheetSizeOf(a0)).toEqual({ width: 2016, height: 1424 })
+    expect(registry.isChecked(Idef0CommandIds.sheetSize('a3-landscape'))).toBe(true)
+    expect(registry.isChecked(Idef0CommandIds.sheetSize('default'))).toBe(false)
+    expect(projectStore.getState().engine.undoDepth).toBe(depth + 1)
+    registry.execute(Idef0CommandIds.sheetFit)
+    expect(sheetSizeOf(a0)).toEqual({ width: 1008, height: 752 })
+    expect(registry.isChecked(Idef0CommandIds.sheetSize('default'))).toBe(true)
+    registry.execute(Idef0CommandIds.sheetFit)
+    expect(toasts).toEqual(['The sheet already fits the diagram'])
   })
 
   it('Fit to Content grows a sheet whose content outgrew it and shrinks an oversized one to the content', () => {

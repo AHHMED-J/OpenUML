@@ -345,7 +345,7 @@ export function canvasContextMenu(): MenuNode[] {
     ...(ends.length > 0 ? [...ends, SEP] : []),
     addElementMenu(),
     addDiagramMenu(),
-    idef0Menu(),
+    idef0Menu({ withSheetSize: true }),
     SEP,
     { label: 'Format', submenu: formatItems },
     SEP,

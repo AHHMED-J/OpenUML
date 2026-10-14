@@ -206,13 +206,31 @@ describe('IDEF0 menus', () => {
       'Show Node Index'
     ])
     const format = resolveMenu([idef0FormatMenu()], ctx)[0]
-    expect(format?.kind === 'submenu' ? format.items.map((i) => (i.kind === 'item' ? [i.label, i.checked] : [])) : []).toEqual([
+    expect(format?.kind === 'submenu' ? format.items.map((i) => (i.kind === 'item' ? [i.label, i.checked] : i.kind === 'submenu' ? [i.label] : [])) : []).toEqual([
       ['Status: Working', true],
       ['Status: Draft', false],
       ['Status: Recommended', false],
       ['Status: Publication', false],
       [],
+      ['Sheet Size'],
+      [],
       ['Color Arrows by Role', false]
+    ])
+    const sheet = format?.kind === 'submenu' ? format.items.find((i) => i.kind === 'submenu') : undefined
+    expect(sheet?.kind === 'submenu' ? sheet.items.map((i) => (i.kind === 'item' ? [i.label, i.checked] : [])) : []).toEqual([
+      ['Default (1008 × 752)', true],
+      ['Letter Landscape', false],
+      ['Letter Portrait', false],
+      ['Legal Landscape', false],
+      ['Legal Portrait', false],
+      ['Tabloid/Ledger Landscape', false],
+      ['Tabloid/Ledger Portrait', false],
+      ['A4 Landscape', false],
+      ['A4 Portrait', false],
+      ['A3 Landscape', false],
+      ['A3 Portrait', false],
+      [],
+      ['Fit to Content', undefined]
     ])
     projectStore.getState().newProject()
     expect(resolveMenu([idef0Menu(), idef0FormatMenu()], ctx)).toEqual([])
