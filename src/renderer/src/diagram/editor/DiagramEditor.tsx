@@ -66,8 +66,8 @@ import {
   type ToolSpec
 } from './actions'
 import { connectionRefusal, dropRefusal, refusalReason, withArticle, readableName } from './feedback'
-import { releaseActiveEditor, setActiveEditor, takeReveal, type EditorHandle } from './activeEditor'
-import { edgeEditAt, edgeSlotAt } from './edgeEnds'
+import { releaseActiveEditor, setActiveEditor, setContextEdgeEnd, takeReveal, type EditorHandle } from './activeEditor'
+import { edgeEditAt, edgeSlotAt, endElementAt } from './edgeEnds'
 import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
 import { applyQuickEdit } from './quickEditApply'
@@ -572,7 +572,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     }
     if (e.button === 2) {
       // Right-click selects the view under the pointer (if not selected) for the context menu.
-      const id = hit && hit.kind !== 'handle' ? hit.viewId : null
+      const id = hit ? (hit.kind !== 'handle' ? hit.viewId : null) : (edgeSlotAt(l, p)?.viewId ?? null)
+      const edge = id ? l.edges.get(id) : undefined
+      const endId = edge ? endElementAt(edge, p) : null
+      setContextEdgeEnd(id && endId ? { viewId: id, endId } : null)
       if (!id) setSelection([])
       else if (!sel.has(id)) setSelection([id])
       return

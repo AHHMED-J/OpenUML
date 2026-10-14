@@ -10,6 +10,7 @@ import { baseName } from '../recentFiles'
 import { EXAMPLES } from '../examples'
 import { uiStore } from '../uiStore'
 import { Cmd } from './commandIds'
+import { endMultiplicityMenu } from '../app/associationEnds'
 import { idef0FormatMenu, idef0Menu } from './idef0Menu'
 import type { MenuNode } from './menuModel'
 
@@ -338,7 +339,9 @@ export function workingDiagramsContextMenu(targetId: string | undefined): MenuNo
 }
 
 export function canvasContextMenu(): MenuNode[] {
+  const ends = endMultiplicityMenu()
   return [
+    ...(ends.length > 0 ? [...ends, SEP] : []),
     addElementMenu(),
     addDiagramMenu(),
     idef0Menu(),
