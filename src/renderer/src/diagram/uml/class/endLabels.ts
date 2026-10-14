@@ -33,7 +33,7 @@ export function associationEndLabels(edge: EdgeView, end: Elem | null | undefine
       defaults: `${side}Multiplicity`,
       text: showMultiplicity ? multiplicity : '',
       edit: { kind: 'field', elementId: end._id, field: 'multiplicity' },
-      ...(showMultiplicity ? { placeholder: 'multiplicity', editText: multiplicity, endEdit: side } : {})
+      ...(showMultiplicity ? { placeholder: 'multiplicity', placeholderSample: '0..*', editText: multiplicity, endEdit: side } : {})
     }
   ]
 }

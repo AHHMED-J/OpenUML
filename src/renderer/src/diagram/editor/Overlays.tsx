@@ -36,7 +36,7 @@ function Handle({ center, zoom }: { center: Point; zoom: number }): React.JSX.El
  * white in both themes; overlays are never exported).
  */
 function SlotHint({ slot, zoom }: { slot: EdgeLabelSlot; zoom: number }): React.JSX.Element {
-  const b = slot.box
+  const b = slot.hintBox
   const pad = 2
   return (
     <g>
@@ -51,7 +51,7 @@ function SlotHint({ slot, zoom }: { slot: EdgeLabelSlot; zoom: number }): React.
         strokeWidth={1 / zoom}
         strokeDasharray={`${2 / zoom} ${2 / zoom}`}
       />
-      <SvgText line={{ text: slot.hint, box: b, font: { ...slot.font, style: 2 }, align: 'center' }} color={SLOT_HINT.text} />
+      <SvgText line={{ text: slot.hint, box: b, font: slot.hintFont, align: 'center' }} color={SLOT_HINT.text} />
     </g>
   )
 }

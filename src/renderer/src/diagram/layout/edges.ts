@@ -75,9 +75,11 @@ export interface EdgeLabelSpec {
   readonly underline?: boolean
   /**
    * Hint for an empty editable label (e.g. `'multiplicity'`): the label then still gets an
-   * editor-only slot (`EdgeLayout.slots`) placed as the label would be and sized for the hint.
+   * editor-only slot (`EdgeLayout.slots`) placed as the label would be.
    */
   readonly placeholder?: string
+  /** Text the slot is sized for (e.g. `'0..*'`; default the placeholder). */
+  readonly placeholderSample?: string
   /** This label's edit is the main inline edit of that end of the edge (`EdgeLayout.endEdits`). */
   readonly endEdit?: 'tail' | 'head'
 }
@@ -133,6 +135,9 @@ export function placeEdgeLabels(
   return out
 }
 
+/** Size of slot hints relative to the label font. */
+const SLOT_HINT_SCALE = 0.75
+
 /**
  * Editor-only slots of the empty editable labels that have a placeholder: where the label would
  * be placed, so it can be double-clicked (and hinted while the edge is selected).
@@ -147,10 +152,17 @@ export function placeEdgeLabelSlots(
   const out: EdgeLabelSlot[] = []
   for (const spec of specs) {
     if (spec.text || !spec.edit || !spec.placeholder) continue
-    const placed = placeSpec(edge, points, spec, spec.placeholder, ctx)
+    const placed = placeSpec(edge, points, spec, spec.placeholderSample ?? spec.placeholder, ctx)
+    // The hint is drawn smaller and in italics, centered on the slot.
+    const hintFont: Font = { ...placed.font, size: Math.max(7, Math.round(placed.font.size * SLOT_HINT_SCALE)), style: 2 }
+    const hint = ctx.measurer.measure(spec.placeholder, hintFont)
+    const b = placed.box
+    const hintBox = { left: b.left + b.width / 2 - Math.ceil(hint.width) / 2, top: b.top + b.height / 2 - hint.height / 2, width: Math.ceil(hint.width), height: hint.height }
     out.push({
       box: placed.box,
       font: placed.font,
+      hintBox,
+      hintFont,
       hint: spec.placeholder,
       edit: spec.edit,
       editText: spec.editText ?? '',
