@@ -10,7 +10,7 @@ import {
   toAccelerator,
   type KeyEventLike
 } from './keymap'
-import { DEFAULT_KEYMAP } from './menus/keymaps'
+import { DEFAULT_KEYMAP, WHEN_TOOL_ACTIVE } from './menus/keymaps'
 
 const key = (k: string, code: string, mods: Partial<KeyEventLike> = {}): KeyEventLike => ({
   key: k,
@@ -143,5 +143,41 @@ describe('formatting', () => {
     expect(bindingToDispatch(mac, 'delete', { textFocused: true })).toBeUndefined()
     expect(bindingToDispatch(mac, 'esc', { textFocused: true, textBlockedCommands: new Set(['tool.select']) })).toBeUndefined()
     expect(bindingToDispatch(mac, 'cmd-s', { textFocused: true })?.command).toBe('file.save')
+  })
+
+  it('returns to the Select tool with a plain A only while a tool is active and no text field has focus', () => {
+    const blocked = new Set(['tool.select'])
+    const toolActive = new Set([WHEN_TOOL_ACTIVE])
+    for (const platform of ['darwin', 'win32', 'linux']) {
+      const km = new Keymap(platform, DEFAULT_KEYMAP)
+      expect(km.warnings).toEqual([])
+      const a = eventToDescriptor(key('a', 'KeyA'))!
+      expect(a).toBe('a')
+      // A tool is active: A runs the Select tool command, like Esc.
+      expect(bindingToDispatch(km, a, { textFocused: false, textBlockedCommands: blocked, contextKeys: toolActive })?.command).toBe('tool.select')
+      expect(bindingToDispatch(km, 'esc', { textFocused: false, textBlockedCommands: blocked, contextKeys: toolActive })?.command).toBe('tool.select')
+      // No tool: A is left alone (Esc still runs the command, as before).
+      expect(bindingToDispatch(km, a, { textFocused: false, textBlockedCommands: blocked })).toBeUndefined()
+      expect(bindingToDispatch(km, a, { textFocused: false, textBlockedCommands: blocked, contextKeys: new Set() })).toBeUndefined()
+      expect(bindingToDispatch(km, 'esc', { textFocused: false, textBlockedCommands: blocked })?.command).toBe('tool.select')
+      // Typing in an input, the quick editor or a property field keeps the letter.
+      expect(bindingToDispatch(km, a, { textFocused: true, textBlockedCommands: blocked, contextKeys: toolActive })).toBeUndefined()
+      // Shift+A, Alt+A and Cmd/Ctrl+A are other keystrokes: Select All still works.
+      for (const mods of [{ shiftKey: true }, { altKey: true }]) {
+        expect(bindingToDispatch(km, eventToDescriptor(key('A', 'KeyA', mods))!, { textFocused: false, contextKeys: toolActive })).toBeUndefined()
+      }
+      const selectAll = eventToDescriptor(key('a', 'KeyA', platform === 'darwin' ? { metaKey: true } : { ctrlKey: true }))!
+      expect(bindingToDispatch(km, selectAll, { textFocused: false, contextKeys: toolActive })?.command).toBe('edit.select-all')
+      expect(bindingToDispatch(km, selectAll, { textFocused: false })?.command).toBe('edit.select-all')
+      // Esc stays the keystroke shown for the command.
+      expect(km.keystrokeFor('tool.select')).toBe('esc')
+    }
+  })
+
+  it('keeps a `when` key with the resolved binding', () => {
+    const km = new Keymap('darwin', [{ key: 'b', command: 'x.cmd', when: 'someKey' }])
+    expect(km.match('b')).toMatchObject({ command: 'x.cmd', when: 'someKey' })
+    expect(bindingToDispatch(km, 'b', { textFocused: false, contextKeys: new Set(['someKey']) })?.command).toBe('x.cmd')
+    expect(bindingToDispatch(km, 'b', { textFocused: false, contextKeys: new Set(['other']) })).toBeUndefined()
   })
 })

@@ -8,6 +8,7 @@ import { projectStore } from '../../store'
 import { bindingToDispatch, eventToDescriptor } from '../keymap'
 import { buildAppMenu } from '../menus/appMenu'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
+import { WHEN_TOOL_ACTIVE } from '../menus/keymaps'
 import { resolveMenu, toNativeMenu, type MenuContext } from '../menus/menuModel'
 import { uiStore } from '../uiStore'
 import { bridge, isTextInputFocused, platform } from './bridge'
@@ -44,6 +45,8 @@ function syncMenu(): void {
 }
 
 const TEXT_BLOCKED_COMMANDS: ReadonlySet<string> = new Set([Cmd.toolSelect])
+const NO_CONTEXT_KEYS: ReadonlySet<string> = new Set()
+const TOOL_ACTIVE_KEYS: ReadonlySet<string> = new Set([WHEN_TOOL_ACTIVE])
 
 function onKeyDown(e: KeyboardEvent): void {
   if (e.defaultPrevented || e.isComposing) return
@@ -54,7 +57,11 @@ function onKeyDown(e: KeyboardEvent): void {
   if (ui.modal || ui.contextMenu) return
   // Menu accelerators are dispatched here as well (see `bindingToDispatch`): the native menu only
   // receives keys the page leaves unhandled, so this is the single path for the canvas and panels.
-  const binding = bindingToDispatch(keymap, descriptor, { textFocused: isTextInputFocused(), textBlockedCommands: TEXT_BLOCKED_COMMANDS })
+  const binding = bindingToDispatch(keymap, descriptor, {
+    textFocused: isTextInputFocused(),
+    textBlockedCommands: TEXT_BLOCKED_COMMANDS,
+    contextKeys: ui.tool ? TOOL_ACTIVE_KEYS : NO_CONTEXT_KEYS
+  })
   if (!binding) return
   e.preventDefault()
   e.stopPropagation()

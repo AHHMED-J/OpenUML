@@ -1,6 +1,7 @@
 /**
  * Toolbox: palette groups for the active diagram type. Click selects a tool; clicking the
- * active tool again locks it; a third click (or Esc) returns to Select. Double-click locks.
+ * active tool again locks it; a third click (or Esc, or A outside text fields) returns to Select.
+ * Double-click locks.
  */
 import { useEffect, useState } from 'react'
 import type React from 'react'
@@ -16,7 +17,7 @@ export function ToolboxActions(): React.JSX.Element {
     <button
       className={`icon-button${tool === null ? ' pressed' : ''}`}
       aria-pressed={tool === null}
-      title="Select (Esc)"
+      title="Select (Esc / A)"
       aria-label="Select tool"
       onClick={() => uiStore.getState().setTool(null)}
     >
