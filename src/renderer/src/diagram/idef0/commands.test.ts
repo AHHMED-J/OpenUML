@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CommandRegistry } from '../../commands'
+import { CommandRegistry, setFieldsOfAll } from '../../commands'
 import { writeMdj } from '../../format'
 import { buildOrderExample } from '../../model/idef0-example'
 import type { Elem, View } from '../../model'
@@ -64,6 +64,7 @@ describe('IDEF0 commands', () => {
       'idef0.node-index',
       'idef0.tunnel-end',
       'idef0.reset-route',
+      'idef0.apply-title-block',
       'idef0.add-boundary-input',
       'idef0.add-boundary-control',
       'idef0.add-boundary-output',
@@ -225,6 +226,30 @@ describe('IDEF0 commands', () => {
     expect(ps().undoName).toBe('Change Status')
     ps().undo()
     expect(child['status']).toBe('working')
+  })
+
+  it('carries the A-0 status down and applies its title block to the child diagrams', () => {
+    const { registry, example, repo, toasts } = setup()
+    const context = repo.get(example.contextDiagram._id) as Elem
+    const child = repo.get(example.childDiagram._id) as Elem
+    // A file written before inheritance: the A-0 has an author, its child none.
+    expect([context['author'], child['author']]).toEqual(['A. Analyst', ''])
+    ps().openDiagram(example.childDiagram._id)
+    expect(registry.isEnabled(Idef0CommandIds.applyTitleBlock)).toBe(false)
+    ps().openDiagram(example.contextDiagram._id)
+    registry.execute(Idef0CommandIds.status('recommended'))
+    expect([context['status'], child['status']]).toEqual(['recommended', 'recommended'])
+    expect(ps().engine.undoDepth).toBe(1)
+    setFieldsOfAll(ps().engine, [child], { status: 'draft' })
+    expect(registry.isEnabled(Idef0CommandIds.applyTitleBlock)).toBe(true)
+    registry.execute(Idef0CommandIds.applyTitleBlock)
+    expect([child['author'], child['date'], child['status'], child['number']]).toEqual(['A. Analyst', '', 'recommended', ''])
+    expect(toasts.at(-1)).toBe('Applied the title block to 1 child diagram')
+    expect(ps().undoName).toBe('Apply Title Block to Child Diagrams')
+    registry.execute(Idef0CommandIds.applyTitleBlock)
+    expect(toasts.at(-1)).toMatch(/already have/)
+    ps().undo()
+    expect([child['author'], child['status']]).toEqual(['', 'draft'])
   })
 
   it('adds boundary arrows to the selected box and tunnels the selected arrow end', () => {

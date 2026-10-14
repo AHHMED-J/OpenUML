@@ -12,6 +12,7 @@ import { hasRouteHints, resetArrowRoutes } from './gestures'
 import { callTarget, childTarget, parentTarget, type DiagramTarget } from './navigation'
 import { validateIdef0, type IdefIssue } from './validate'
 import { STATUS_STAGES, statusLabel } from './strings'
+import { applyTitleBlockToChildren, descendantDiagramsOf } from './titleBlock'
 
 export const Idef0CommandIds = {
   decompose: 'idef0.decompose',
@@ -24,6 +25,7 @@ export const Idef0CommandIds = {
   nodeIndex: 'idef0.node-index',
   tunnelEnd: 'idef0.tunnel-end',
   resetRoute: 'idef0.reset-route',
+  applyTitleBlock: 'idef0.apply-title-block',
   addBoundary: (role: string) => `idef0.add-boundary-${role}`,
   colorByRole: 'format.idef0.color-by-role',
   status: (stage: string) => `format.idef0.status.${stage}`
@@ -257,6 +259,20 @@ export function registerIdef0Commands(registry: CommandRegistry, ctx: Idef0Comma
     run: () => {
       const d = idefDiagram()
       if (d) resetArrowRoutes(envOf(d), selectedArrowViews())
+    }
+  })
+  add({
+    id: Idef0CommandIds.applyTitleBlock,
+    label: 'Apply Title Block to Child Diagrams',
+    isEnabled: () => {
+      const d = idefDiagram()
+      return !!d && descendantDiagramsOf(d).length > 0
+    },
+    run: () => {
+      const d = idefDiagram()
+      if (!d) return
+      const n = applyTitleBlockToChildren(state().engine, d)
+      ctx.toast(n === 0 ? 'The child diagrams already have this title block' : `Applied the title block to ${n} child diagram${n === 1 ? '' : 's'}`)
     }
   })
   for (const role of ['input', 'control', 'output', 'mechanism'] as const) {

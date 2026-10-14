@@ -197,6 +197,7 @@ describe('IDEF0 menus', () => {
       'Go to Child Diagram',
       'Renumber Boxes',
       'Synchronize Boundary Arrows',
+      'Apply Title Block to Child Diagrams',
       'Add Boundary Arrow',
       'Tunnel Source End',
       'Tunnel Target End',

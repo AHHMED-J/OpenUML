@@ -7,7 +7,7 @@
  * the sheet number never propagates. New child diagrams inherit these fields when created
  * (`inheritedTitleBlock`).
  */
-import type { OperationBuilder } from '../../commands'
+import type { ModelEngine, OperationBuilder } from '../../commands'
 import { INHERITED_TITLE_FIELDS, childDiagramsOf, type Elem, type Repository } from '../../model'
 
 const INHERITED: readonly string[] = INHERITED_TITLE_FIELDS
@@ -55,4 +55,30 @@ export function propagateTitleBlock(b: OperationBuilder, repository: Repository)
       }
     }
   }
+}
+
+/** The diagrams below `diagram` in the decomposition tree (children, grandchildren, ...). */
+export function descendantDiagramsOf(diagram: Elem): Elem[] {
+  const out: Elem[] = []
+  const queue = childDiagramsOf(diagram)
+  while (queue.length > 0) {
+    const d = queue.shift() as Elem
+    if (out.includes(d) || d === diagram) continue
+    out.push(d)
+    queue.push(...childDiagramsOf(d))
+  }
+  return out
+}
+
+/**
+ * Copies the author, date and status of `diagram` to all its descendant diagrams, overriding
+ * values set by hand (one undo step). Returns the number of diagrams changed.
+ */
+export function applyTitleBlockToChildren(engine: ModelEngine, diagram: Elem): number {
+  const targets = descendantDiagramsOf(diagram).filter((d) => INHERITED.some((f) => d[f] !== diagram[f]))
+  if (targets.length === 0) return 0
+  engine.transact('Apply Title Block to Child Diagrams', (b) => {
+    for (const d of targets) for (const field of INHERITED) b.set(d, field, diagram[field])
+  })
+  return targets.length
 }
