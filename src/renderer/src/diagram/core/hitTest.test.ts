@@ -9,6 +9,7 @@ import {
   hitTestNode,
   resizeByHandle,
   resizeHandles,
+  rubberBandModeFor,
   rubberBandSelectsEdge,
   rubberBandSelectsRect
 } from './hitTest'
@@ -127,5 +128,40 @@ describe('rubber band', () => {
     expect(rubberBandSelectsEdge(band, crossing, 'intersect')).toBe(true)
     expect(rubberBandSelectsEdge(band, outside, 'intersect')).toBe(false)
     expect(rubberBandSelectsEdge(band, [])).toBe(false)
+  })
+
+  it('picks window or crossing from the drag direction', () => {
+    expect(rubberBandModeFor({ x: 10, y: 10 }, { x: 50, y: 60 })).toBe('contain')
+    expect(rubberBandModeFor({ x: 10, y: 60 }, { x: 50, y: 10 })).toBe('contain')
+    expect(rubberBandModeFor({ x: 10, y: 10 }, { x: 10, y: 80 })).toBe('contain')
+    expect(rubberBandModeFor({ x: 50, y: 10 }, { x: 10, y: 60 })).toBe('intersect')
+    expect(rubberBandModeFor({ x: 50, y: 60 }, { x: 49, y: 10 })).toBe('intersect')
+  })
+
+  it('crossing takes boxes it touches, but never a box it lies wholly inside', () => {
+    expect(rubberBandSelectsRect(band, rect(10, 10, 50, 50), 'intersect')).toBe(true)
+    expect(rubberBandSelectsRect(band, rect(150, 150, 100, 100), 'intersect')).toBe(true)
+    expect(rubberBandSelectsRect(band, rect(201, 0, 50, 50), 'intersect')).toBe(false)
+    // A frame or container around the band: not crossed, unless the band crosses its outline.
+    expect(rubberBandSelectsRect(band, rect(-50, -50, 400, 400), 'intersect')).toBe(false)
+    expect(rubberBandSelectsRect(band, rect(-50, -50, 400, 400))).toBe(false)
+    expect(rubberBandSelectsRect(band, rect(-50, -50, 400, 150), 'intersect')).toBe(true)
+    expect(rubberBandSelectsRect(band, rect(100, -50, 400, 400), 'intersect')).toBe(true)
+  })
+
+  it('crossing takes edges partly inside, edges passing through without a vertex inside, and touched labels', () => {
+    const partly = [{ x: 100, y: 100 }, { x: 300, y: 100 }]
+    const through = [{ x: -50, y: -10 }, { x: 100, y: -10 }, { x: 100, y: 300 }]
+    const around = [{ x: -50, y: -10 }, { x: 250, y: -10 }, { x: 250, y: 300 }]
+    expect(rubberBandSelectsEdge(band, partly)).toBe(false)
+    expect(rubberBandSelectsEdge(band, partly, 'intersect')).toBe(true)
+    expect(through.some((p) => p.x >= 0 && p.x <= 200 && p.y >= 0 && p.y <= 200)).toBe(false)
+    expect(rubberBandSelectsEdge(band, through, 'intersect')).toBe(true)
+    expect(rubberBandSelectsEdge(band, around, 'intersect')).toBe(false)
+    // A label box reaching into the band takes its edge; in window mode labels do not matter.
+    expect(rubberBandSelectsEdge(band, around, 'intersect', [rect(190, 40, 40, 14)])).toBe(true)
+    expect(rubberBandSelectsEdge(band, around, 'contain', [rect(10, 40, 40, 14)])).toBe(false)
+    expect(rubberBandSelectsEdge(band, [{ x: 50, y: 50 }], 'intersect')).toBe(true)
+    expect(rubberBandSelectsEdge(band, [], 'intersect')).toBe(false)
   })
 })

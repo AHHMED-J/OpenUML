@@ -25,6 +25,7 @@ import {
   isRectilinearStyle,
   rectFromPoints,
   resizeByHandle,
+  rubberBandModeFor,
   sanitizeGridSize,
   snap,
   snapWithDeadZone,
@@ -32,6 +33,7 @@ import {
   EdgePosition,
   type HandlePosition,
   type Rect,
+  type RubberBandMode,
   type SegmentOrientation
 } from '../core'
 import { nameEditText } from '../layout/helpers'
@@ -104,7 +106,7 @@ type Gesture =
   | { type: 'divider'; start: Point; viewId: string; divider: NodeDivider; y: number; moved: boolean }
   | { type: 'edge-shift'; start: Point; edgeId: string; points: Point[]; dy: number; moved: boolean }
   | { type: 'resize'; start: Point; id: string; handle: HandlePosition; box: Rect; minWidth: number; minHeight: number; keepRatio: boolean; rect: Rect }
-  | { type: 'band'; start: Point; additive: boolean; rect: Rect | null }
+  | { type: 'band'; start: Point; additive: boolean; rect: Rect | null; mode: RubberBandMode }
   | { type: 'create-node'; start: Point; kind: string; rect: Rect }
   | { type: 'create-edge'; start: Point; tool: ToolSpec; tailId: string; from: Point }
   | { type: 'vertex'; start: Point; edgeId: string; index: number; points: Point[]; end: 'tail' | 'head' | null; moved: boolean }
@@ -631,7 +633,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     }
 
     if (!hit) {
-      gesture.current = { type: 'band', start: p, additive: e.shiftKey || mod, rect: null }
+      gesture.current = { type: 'band', start: p, additive: e.shiftKey || mod, rect: null, mode: 'contain' }
       return
     }
     // Edges that move along one axis (sequence messages): dragging shifts the whole edge.
@@ -838,7 +840,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'band': {
         if (Math.hypot(p.x - g.start.x, p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD && !g.rect) return
         g.rect = rectFromPoints(g.start, p)
-        setPreview({ kind: 'band', rect: g.rect })
+        // Left to right encloses (window), right to left crosses (AutoCAD style).
+        g.mode = rubberBandModeFor(g.start, p)
+        setPreview({ kind: 'band', rect: g.rect, mode: g.mode })
         return
       }
       case 'create-node': {
@@ -934,7 +938,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           if (!g.additive) setSelection([])
           return
         }
-        setSelection(bandSelection(l, g.rect, selIds, g.additive))
+        setSelection(bandSelection(l, g.rect, selIds, g.additive, g.mode))
         return
       }
       case 'create-node': {
