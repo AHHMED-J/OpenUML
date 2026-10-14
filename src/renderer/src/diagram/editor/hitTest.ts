@@ -115,7 +115,10 @@ export function hitTestDiagram(layout: DiagramLayout, p: Point, options: HitOpti
   return null
 }
 
-/** Views fully enclosed by a rubber band (spec 02 §7.2). */
+/**
+ * Views fully enclosed by a rubber band (spec 02 §7.2): nodes whose box and edges whose whole
+ * routed polyline lie inside it (an edge's labels go with the edge).
+ */
 export function viewsInBand(layout: DiagramLayout, band: Rect): string[] {
   const ids: string[] = []
   for (const id of layout.order) {
@@ -128,4 +131,13 @@ export function viewsInBand(layout: DiagramLayout, band: Rect): string[] {
     if (edge && rubberBandSelectsEdge(band, edge.points, 'contain')) ids.push(id)
   }
   return ids
+}
+
+/**
+ * The selection after a rubber band: the views it encloses (`viewsInBand`), added to `current`
+ * when the band is additive (Shift / Cmd / Ctrl held).
+ */
+export function bandSelection(layout: DiagramLayout, band: Rect, current: readonly string[], additive: boolean): string[] {
+  const ids = viewsInBand(layout, band)
+  return additive ? [...new Set([...current, ...ids])] : ids
 }
