@@ -48,3 +48,20 @@ export function takeReveal(has: (viewId: string) => boolean): string | null {
   pendingReveal = null
   return id
 }
+
+/** The edge end a context menu was opened on: the edge view and the end element (e.g. an association end). */
+export interface ContextEdgeEnd {
+  readonly viewId: string
+  readonly endId: string
+}
+
+let contextEdgeEnd: ContextEdgeEnd | null = null
+
+/** Records which edge end (if any) the last right-click was near, for the context menu. */
+export function setContextEdgeEnd(value: ContextEdgeEnd | null): void {
+  contextEdgeEnd = value
+}
+
+export function getContextEdgeEnd(): ContextEdgeEnd | null {
+  return contextEdgeEnd
+}

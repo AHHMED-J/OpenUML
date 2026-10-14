@@ -9,14 +9,14 @@ import type { DiagramLayout, EdgeLabelSlot, EdgeLayout, EditRegion, EditTarget }
 export type EdgeEnd = 'tail' | 'head'
 
 /** Distance along an end of the edge that always counts as "near" it (diagram units). */
-export const NEAR_END_DISTANCE = 40
+const NEAR_END_DISTANCE = 40
 /** Fraction of the edge length at each end that counts as near it. */
-export const NEAR_END_FRACTION = 0.25
+const NEAR_END_FRACTION = 0.25
 /** The near zone of each end never exceeds this fraction, so a middle always remains. */
 const MAX_END_FRACTION = 0.4
 
 /** Arc length of the polyline point closest to `p`, and the total length. */
-export function polylinePosition(points: readonly Point[], p: Point): { at: number; length: number } {
+function polylinePosition(points: readonly Point[], p: Point): { at: number; length: number } {
   let length = 0
   let best = Infinity
   let at = 0
@@ -50,7 +50,7 @@ export function nearEdgeEnd(points: readonly Point[], p: Point): EdgeEnd | null 
   return null
 }
 
-export function sameEditTarget(a: EditTarget | undefined, b: EditTarget | undefined): boolean {
+function sameEditTarget(a: EditTarget | undefined, b: EditTarget | undefined): boolean {
   if (!a || !b || a.kind !== b.kind) return false
   return JSON.stringify(a) === JSON.stringify(b)
 }
@@ -60,7 +60,7 @@ function slotRegion(slot: EdgeLabelSlot): EditRegion {
 }
 
 /** The empty-label slot of `edge` under `p` (smallest first), or null. */
-export function slotAt(edge: EdgeLayout, p: Point): EdgeLabelSlot | null {
+function slotAt(edge: EdgeLayout, p: Point): EdgeLabelSlot | null {
   let best: EdgeLabelSlot | null = null
   for (const s of edge.slots ?? []) {
     if (!rectContainsPoint(s.box, p)) continue
@@ -81,7 +81,7 @@ export function edgeSlotAt(layout: DiagramLayout, p: Point): { viewId: string; r
 }
 
 /** The inline edit of the main label of one end: its label when shown, else its empty slot. */
-export function endEditRegion(edge: EdgeLayout, end: EdgeEnd): EditRegion | null {
+function endEditRegion(edge: EdgeLayout, end: EdgeEnd): EditRegion | null {
   const target = edge.endEdits?.[end]
   if (!target) return null
   const label = edge.labels.find((l) => sameEditTarget(l.edit, target))
@@ -100,4 +100,25 @@ export function edgeEditAt(edge: EdgeLayout, p: Point): EditRegion | null {
   if (!edge.endEdits) return null
   const end = nearEdgeEnd(edge.points, p)
   return end ? endEditRegion(edge, end) : null
+}
+
+/**
+ * The end of `edge` a point is on or near, as the element its main edit changes (an association
+ * end): a label or slot of that end under `p`, else the near end along the line. Null in the
+ * middle or for edges without end edits.
+ */
+export function endElementAt(edge: EdgeLayout, p: Point): string | null {
+  const ends = edge.endEdits
+  if (!ends) return null
+  const idOf = (t: EditTarget | undefined): string | null => (t && 'elementId' in t ? t.elementId : null)
+  const ids = [idOf(ends.tail), idOf(ends.head)]
+  const owner = (t: EditTarget | undefined): string | null => {
+    const id = idOf(t)
+    return id && ids.includes(id) ? id : null
+  }
+  for (const l of edge.labels) if (rectContainsPoint(l.box, p) && owner(l.edit)) return owner(l.edit)
+  const slot = slotAt(edge, p)
+  if (slot && owner(slot.edit)) return owner(slot.edit)
+  const end = nearEdgeEnd(edge.points, p)
+  return end ? idOf(ends[end]) : null
 }
