@@ -16,7 +16,7 @@ for which file to pick.
 ## Features
 
 - **Model Explorer** – the project tree with type icons, sorting by insertion order or name, search,
-  inline rename (F2 or double-click), drag-and-drop re-parenting, and context menus to add elements and diagrams.
+  double-click to open a diagram or show an element on its diagram, inline rename (F2), drag-and-drop re-parenting, and context menus to add elements and diagrams.
 - **UML diagrams** – class, object, package, component, deployment, composite structure, profile, use case,
   activity, state machine, sequence, communication, timing, interaction overview and information flow, each with
   its own toolbox, plus annotations (notes, note links, text).
@@ -26,7 +26,8 @@ for which file to pick.
   is not a gerund) never block editing.
 - **IDEF0** – function boxes with automatic numbering, ICOM arrows (input, control, output, mechanism) that
   snap to the right side, forks and joins, call and tunneled arrows, the A-0 context diagram, *Decompose* into
-  child diagrams with Go to Parent/Child, the title block, and consistency warnings with a status-bar count.
+  child diagrams with Go to Parent/Child, *Set Number of Child Boxes* (add boxes, or choose which boxes to remove
+  with their arrows and sub-diagrams; one undo step), the title block, and consistency warnings with a status-bar count.
 - **Editing** – live preview while moving, resizing and drawing, animated zoom, grid and snap-to-grid, inline
   name editing and quick-edit syntax (e.g. `-total : Money [0..1] = 0`, `trigger [guard] / effect`), copy,
   paste and duplicate, alignment commands. Diagram tabs and a Working Diagrams list.
@@ -36,7 +37,8 @@ for which file to pick.
   type/stereotype autocomplete, attribute/operation/parameter/literal lists), multi-selection editing,
   association-end sections, plus a Style editor and a Documentation editor.
 - **Undo/redo** for every change (one step per gesture), with unsaved-change tracking.
-- **Files** – New, Open, Open Recent, Save, Save As; export the current diagram (or all diagrams) to PNG or SVG.
+- **Files** – New, Open, Open Recent, *Open Example* (bundled models from `examples/`, e.g. a six-box IDEF0 software
+  release process), Save, Save As; export the current diagram (or all diagrams) to PNG or SVG.
 - **Commands** – native application menu, context menus, keyboard shortcuts (`Cmd` on macOS, `Ctrl` elsewhere)
   and a command palette (`Cmd/Ctrl+Shift+P`).
 - **Themes** – light and dark, following the system setting by default; preferences for grid, snap and default

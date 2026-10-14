@@ -94,16 +94,19 @@ export async function newProject(): Promise<void> {
   ui().setTool(null)
 }
 
-function loadProject(text: string, path: string): void {
+/** Opens `text` as the project; `path` is null for a bundled example (untitled until saved). */
+function loadProject(text: string, path: string | null, label = path ? baseName(path) : 'the example'): void {
   try {
     ps().openProject(text, path)
   } catch (err) {
-    throw new Error(`Failed to open ${baseName(path)}: ${err instanceof Error ? err.message : String(err)}`)
+    throw new Error(`Failed to open ${label}: ${err instanceof Error ? err.message : String(err)}`)
   }
   ui().setTool(null)
-  ui().addRecent(path)
-  bridge?.addRecentDocument(path)
-  restoreWorkingDiagrams(path)
+  if (path) {
+    ui().addRecent(path)
+    bridge?.addRecentDocument(path)
+    restoreWorkingDiagrams(path)
+  }
   const project = ps().project
   ui().expandMany([project._id, ...((project.ownedElements ?? []) as Array<{ _id: string }>).map((e) => e._id)])
   const warnings = ps().loadWarnings
@@ -120,6 +123,13 @@ export async function openProjectDialog(): Promise<void> {
   if (!result) return
   rememberWorkingDiagrams()
   loadProject(result.content, result.path)
+}
+
+/** Opens a bundled example (text compiled into the app, no file access) after the unsaved-changes prompt. */
+export async function openExample(text: string): Promise<void> {
+  if (!(await confirmDiscardChanges())) return
+  rememberWorkingDiagrams()
+  loadProject(text, null)
 }
 
 export async function openProjectPath(path: string, askToSave = true): Promise<void> {

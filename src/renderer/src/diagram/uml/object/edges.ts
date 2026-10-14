@@ -6,11 +6,11 @@
  */
 import type { EdgeView, Elem } from '../../../model'
 import { relationshipNotation, type AssociationEndInfo } from '../../core'
-import { buildEdgeLayout, type EdgeLabelSpec } from '../../layout/edges'
-import { nameEditText, nameOf } from '../../layout/helpers'
+import { buildEdgeLayout } from '../../layout/edges'
+import { nameOf } from '../../layout/helpers'
 import { standardEdgeLabels } from '../../render/generic'
 import type { EdgeNotation } from '../../render/registry'
-import { endPropertyText, roleNameText } from '../class/strings'
+import { associationEndLabels } from '../class/endLabels'
 
 function endInfo(end: Elem | null | undefined): AssociationEndInfo {
   if (!end) return {}
@@ -18,27 +18,6 @@ function endInfo(end: Elem | null | undefined): AssociationEndInfo {
     navigable: (end['navigable'] as AssociationEndInfo['navigable']) ?? 'unspecified',
     aggregation: (end['aggregation'] as AssociationEndInfo['aggregation']) ?? 'none'
   }
-}
-
-/** Role name / property / multiplicity labels of one end of an association-style edge. */
-function endLabelSpecs(edge: EdgeView, end: Elem | null | undefined, side: 'tail' | 'head'): EdgeLabelSpec[] {
-  if (!end) return []
-  return [
-    {
-      field: `${side}RoleNameLabel`,
-      defaults: `${side}RoleName`,
-      text: roleNameText(end, edge['showVisibility'] === true),
-      edit: { kind: 'name', elementId: end._id },
-      editText: nameEditText(end)
-    },
-    { field: `${side}PropertyLabel`, defaults: `${side}Property`, text: edge['showProperty'] === false ? '' : endPropertyText(end) },
-    {
-      field: `${side}MultiplicityLabel`,
-      defaults: `${side}Multiplicity`,
-      text: edge['showMultiplicity'] === false ? '' : String(end['multiplicity'] ?? ''),
-      edit: { kind: 'field', elementId: end._id, field: 'multiplicity' }
-    }
-  ]
 }
 
 /**
@@ -59,7 +38,7 @@ export function undirectedEdgeNotation(connectKind: EdgeNotation['connectKind'],
         dash: n.dash,
         tailEnd: n.tail,
         headEnd: n.head,
-        labels: [...labels, ...endLabelSpecs(edge, end1, 'tail'), ...endLabelSpecs(edge, end2, 'head')]
+        labels: [...labels, ...associationEndLabels(edge, end1, 'tail'), ...associationEndLabels(edge, end2, 'head')]
       })
     }
   }

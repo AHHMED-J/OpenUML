@@ -23,6 +23,18 @@ describe('IDEF0 .mdj round trip with layout', () => {
     }
   })
 
+  it('keeps a call arrow (one end only) when a file is read', () => {
+    const k = newKit()
+    const [b1, b2] = k.boxes(k.child)
+    createIdef0Edge(k.envOf(k.child), k.layoutOf(k.child), { kind: 'IDEF0Call' }, b1!._id, b2!._id, { x: 0, y: 0 }, { x: b2!.left + 4, y: b2!.top + 40 })
+    const text = writeMdj(k.repository.project as Elem)
+    const back = readMdj(text)
+    expect(back.warnings).toEqual([])
+    expect(writeMdj(back.project)).toBe(text)
+    const arrows = ((back.repository.get((b1!.model as Elem)._id) as Elem)._parent as Elem)['arrows'] as Elem[]
+    expect(arrows.filter((a) => a['role'] === 'call')).toHaveLength(1)
+  })
+
   it('keeps a decomposed and edited model stable through write, read and layout', () => {
     const k = newKit()
     const [b1, b2] = k.boxes(k.child)

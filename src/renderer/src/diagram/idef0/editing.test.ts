@@ -65,8 +65,8 @@ describe('decomposition', () => {
   })
 })
 
-describe('auto-renumbering in the same undo step', () => {
-  it('numbers a new box after the diagonal and undoes with the creation', () => {
+describe('box numbering', () => {
+  it('numbers a new box with the next free number and undoes with the creation', () => {
     const k = newKit()
     const before = k.engine.undoDepth
     const id = createNodeAt(k.envOf(k.child), k.layoutOf(k.child), 'IDEF0Function', { left: 900, top: 520, width: 0, height: 0 })
@@ -77,31 +77,43 @@ describe('auto-renumbering in the same undo step', () => {
     expect(numbers(k.boxes(k.child))).toEqual([1, 2, 3])
   })
 
-  it('renumbers when boxes move past each other, in the move operation', () => {
+  it('keeps box numbers when A1 is moved below A2 (regression: moving never renumbers)', () => {
     const k = newKit()
-    const [b1, , b3] = k.boxes(k.child) as [NodeView, NodeView, NodeView]
-    const names = [fnName(b1), fnName(b3)]
+    const [b1, b2] = k.boxes(k.child) as [NodeView, NodeView]
+    const [n1, n2] = [fnName(b1), fnName(b2)]
     const depth = k.engine.undoDepth
-    // Move box 1 beyond box 3 along the staircase.
-    moveSelection(k.envOf(k.child), [b1._id], 800, 400)
-    expect(k.boxes(k.child).map(fnName).at(-1)).toBe(names[0])
-    expect(fnName(k.boxes(k.child)[0] as NodeView)).not.toBe(names[0])
-    expect(numbers(k.boxes(k.child))).toEqual([1, 2, 3])
+    moveSelection(k.envOf(k.child), [b1._id], 0, b2.top - b1.top + 300)
+    expect(b1.top).toBeGreaterThan(b2.top)
+    expect((b1.model as Elem)['boxNumber']).toBe(1)
+    expect((b2.model as Elem)['boxNumber']).toBe(2)
+    expect(k.boxes(k.child).map(fnName).slice(0, 2)).toEqual([n1, n2])
     expect(k.engine.undoDepth).toBe(depth + 1)
-    k.engine.undo()
-    expect(fnName(k.boxes(k.child)[0] as NodeView)).toBe(names[0])
+    // Moving it past every other box does not renumber either.
+    moveSelection(k.envOf(k.child), [b1._id], 800, 400)
+    expect(numbers(k.boxes(k.child))).toEqual([1, 2, 3])
+    expect(fnName(k.boxes(k.child)[0] as NodeView)).toBe(n1)
   })
 
-  it('leaves numbers alone when autoNumber is off and renumbers on command', () => {
+  it('keeps the numbers of a file without autoNumber and follows the staircase only when opted in', () => {
     const k = newKit()
-    k.child['autoNumber'] = false
+    expect(k.child['autoNumber']).toBe(false)
+    const [b1] = k.boxes(k.child) as [NodeView]
+    k.child['autoNumber'] = true
+    moveSelection(k.envOf(k.child), [b1._id], 800, 400)
+    expect(fnName(k.boxes(k.child).at(-1) as NodeView)).toBe(fnName(b1))
+    k.engine.undo()
+    expect(fnName(k.boxes(k.child)[0] as NodeView)).toBe(fnName(b1))
+  })
+
+  it('renumbers along the staircase only on command (Renumber Boxes)', () => {
+    const k = newKit()
     const [b1] = k.boxes(k.child) as [NodeView]
     moveSelection(k.envOf(k.child), [b1._id], 800, 400)
-    expect(k.boxes(k.child).map(fnName)).toContain(fnName(b1))
-    expect(numbers(k.boxes(k.child))).toEqual([1, 2, 3])
     expect(fnName(k.boxes(k.child)[0] as NodeView)).toBe(fnName(b1))
+    const depth = k.engine.undoDepth
     expect(renumberBoxes(k.engine, k.child)).toBe(3)
     expect(fnName(k.boxes(k.child).at(-1) as NodeView)).toBe(fnName(b1))
+    expect(k.engine.undoDepth).toBe(depth + 1)
     expect(renumberBoxes(k.engine, k.child)).toBe(0)
   })
 

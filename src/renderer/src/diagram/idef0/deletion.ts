@@ -13,10 +13,15 @@
  * arrows) is kept: only its link to the deleted port goes.
  */
 import { deleteFromModel, type ModelEngine, type OperationBuilder } from '../../commands'
-import { IDEF0_AREA, createElement, diagramOfScope, isKindOf, portBounds, roleOf, type Diagram, type Elem, type Idef0Role, type NodeView, type View } from '../../model'
+import { IDEF0_AREA, createElement, diagramOfScope, isKindOf, planCloseGaps, portBounds, roleOf, type Diagram, type Elem, type Idef0Role, type NodeView, type View } from '../../model'
 import type { TextMeasurer } from '../core'
 import { withGeometry, type DiagramEnv } from '../editor/actions'
 import { childCounterparts, counterpartChain, syncLevels } from './propagation'
+
+function list(el: Elem, field: string): Elem[] {
+  const value = el[field]
+  return Array.isArray(value) ? (value as Elem[]) : []
+}
 
 function arrowsOf(scope: Elem): Elem[] {
   return ((scope['arrows'] as Elem[] | undefined) ?? []).filter((a) => isKindOf(a, 'IDEF0Arrow'))
@@ -208,6 +213,9 @@ export function deleteIdef0Views(env: DiagramEnv, views: readonly View[]): View[
       }
     }
     deleteFromModel(env.engine, targets)
+    // Deleting boxes closes the gaps in the numbers of the boxes left (in their order); nothing else
+    // renumbers boxes implicitly.
+    if (functions.length > 0) for (const change of planCloseGaps(list(scope, 'functions'))) b.set(change.fn, 'boxNumber', change.boxNumber)
     otherLevels.delete(env.diagram)
     syncLevels(b, env, otherLevels)
   })

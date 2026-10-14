@@ -15,6 +15,7 @@ import {
   COLORS,
   GRID,
   CANVAS_FIT_PADDING,
+  boundsOfPoints,
   canvasExtent,
   clampZoom,
   edgeAnchor,
@@ -61,12 +62,15 @@ import {
   setEdgeVertices,
   toolName,
   type DiagramEnv,
+  type SegmentDrag,
   type ToolSpec
 } from './actions'
 import { connectionRefusal, dropRefusal, refusalReason, withArticle, readableName } from './feedback'
-import { releaseActiveEditor, setActiveEditor, type EditorHandle } from './activeEditor'
+import { releaseActiveEditor, setActiveEditor, setContextEdgeEnd, takeReveal, type EditorHandle } from './activeEditor'
+import { edgeEditAt, edgeSlotAt, endElementAt } from './edgeEnds'
 import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
+import { HighlightOverlay } from './HighlightOverlay'
 import { applyQuickEdit } from './quickEditApply'
 import { QuickEditor, type QuickEditAction, type QuickEditState } from './QuickEditor'
 
@@ -105,6 +109,7 @@ type Gesture =
   | { type: 'create-edge'; start: Point; tool: ToolSpec; tailId: string; from: Point }
   | { type: 'vertex'; start: Point; edgeId: string; index: number; points: Point[]; end: 'tail' | 'head' | null; moved: boolean }
   | { type: 'segment'; start: Point; edgeId: string; index: number; orientation: SegmentOrientation; base: Point[]; points: Point[]; moved: boolean }
+  | { type: 'run'; start: Point; edgeId: string; drag: SegmentDrag; value: number; moved: boolean }
   | { type: 'label'; start: Point; edgeId: string; labelViewId: string | null; box: Rect; current: Rect; moved: boolean }
   | { type: 'pan'; startClient: Point; scroll: Point }
 
@@ -134,8 +139,22 @@ function gestureChange(g: Gesture, env: DiagramEnv, layout: DiagramLayout): (() 
       return g.moved ? () => resizeSubView(env, g.divider.viewId, g.y - g.divider.top) : null
     case 'edge-shift':
       return g.moved && g.dy !== 0 ? () => moveSelection(env, [g.edgeId], 0, g.dy, undefined, layout) : null
-    case 'vertex':
-      return g.moved && !g.end ? () => setEdgeVertices(env, g.edgeId, g.points) : null
+    case 'vertex': {
+      if (!g.moved) return null
+      if (!g.end) return () => setEdgeVertices(env, g.edgeId, g.points)
+      // Ends of edges whose diagram previews reconnection: the edge is shown reattached where it would drop.
+      const end = g.end
+      const at = g.points[g.index]
+      if (!hooksFor(env.diagram)?.liveReconnect || !at) return null
+      const targetId = reconnectTarget(env, layout, at, 1)
+      return targetId
+        ? () => {
+            if (!reconnectEnd(env, g.edgeId, end, targetId, at)) throw new Error('not reconnected')
+          }
+        : null
+    }
+    case 'run':
+      return g.moved && g.value !== g.drag.value ? () => g.drag.commit(g.value) : null
     case 'segment':
       return g.moved ? () => setEdgeVertices(env, g.edgeId, g.points) : null
     case 'label': {
@@ -152,6 +171,13 @@ function gestureChange(g: Gesture, env: DiagramEnv, layout: DiagramLayout): (() 
     default:
       return null
   }
+}
+
+/** The view a dragged edge end lands on at `p` (the diagram's hook, else the node under `p`). */
+function reconnectTarget(env: DiagramEnv, layout: DiagramLayout, p: Point, zoom: number): string | null {
+  const hook = hooksFor(env.diagram)?.pickReconnect
+  if (hook) return hook(layout, p)
+  return hitTestDiagram(layout, p, { selected: new Set(), zoom, nodesOnly: true })?.viewId ?? null
 }
 
 function isTextInput(el: EventTarget | null): boolean {
@@ -304,6 +330,27 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     el.scrollLeft = Math.max(0, p.anchor.x * zoom - p.screen.x)
     el.scrollTop = Math.max(0, p.anchor.y * zoom - p.screen.y)
   }, [zoom])
+
+  // Scrolls a view revealed from elsewhere (Model Explorer, Select in Diagram) into view.
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el || !layout) return
+    const id = takeReveal((viewId) => layout.nodes.has(viewId) || layout.edges.has(viewId))
+    if (!id) return
+    const node = layout.nodes.get(id)
+    const points = node ? null : (layout.edges.get(id)?.points ?? [])
+    const box = node ? node.box : boundsOfPoints(points ?? [])
+    if (!box) return
+    const z = zoom
+    const left = box.left * z
+    const top = box.top * z
+    const right = (box.left + box.width) * z
+    const bottom = (box.top + box.height) * z
+    const visible = left >= el.scrollLeft && top >= el.scrollTop && right <= el.scrollLeft + el.clientWidth && bottom <= el.scrollTop + el.clientHeight
+    if (visible) return
+    el.scrollLeft = Math.max(0, (left + right) / 2 - el.clientWidth / 2)
+    el.scrollTop = Math.max(0, (top + bottom) / 2 - el.clientHeight / 2)
+  }, [layout, selectedViewIds, zoom])
 
   // Ctrl/Cmd + wheel zoom around the cursor (non-passive listener so the page does not zoom/scroll).
   useEffect(() => {
@@ -474,8 +521,18 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       const next = change ? previewLayout(en, change, previousLayout.current) : null
       const fb = liveFallback.current
       setLiveLayout(next)
-      // With a live layout only the drop-target highlight remains as an overlay.
-      setPreview(next ? (fb?.kind === 'boxes' && fb.container ? { kind: 'boxes', rects: [], container: fb.container } : null) : fb)
+      // With a live layout only the drop-target highlight (or the snapped end of a reconnected edge) remains as an overlay.
+      const snapped = next && g.type === 'vertex' && g.end ? next.edges.get(g.edgeId)?.points : undefined
+      const snapPoint = snapped ? (g.type === 'vertex' && g.end === 'tail' ? snapped[0] : snapped[snapped.length - 1]) : undefined
+      setPreview(
+        snapPoint
+          ? { kind: 'snap', point: snapPoint }
+          : next
+            ? fb?.kind === 'boxes' && fb.container
+              ? { kind: 'boxes', rects: [], container: fb.container }
+              : null
+            : fb
+      )
     })
   }
 
@@ -516,7 +573,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     }
     if (e.button === 2) {
       // Right-click selects the view under the pointer (if not selected) for the context menu.
-      const id = hit && hit.kind !== 'handle' ? hit.viewId : null
+      const id = hit ? (hit.kind !== 'handle' ? hit.viewId : null) : (edgeSlotAt(l, p)?.viewId ?? null)
+      const edge = id ? l.edges.get(id) : undefined
+      const endId = edge ? endElementAt(edge, p) : null
+      setContextEdgeEnd(id && endId ? { viewId: id, endId } : null)
       if (!id) setSelection([])
       else if (!sel.has(id)) setSelection([id])
       return
@@ -611,7 +671,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'edge-segment': {
         const edge = l.edges.get(hit.viewId)
         if (!edge) return
-        if (isRectilinearStyle(edge.lineStyle)) {
+        const segmentDrag = hooksFor(en.diagram)?.segmentDrag?.(en, l, hit.viewId, hit.index)
+        if (segmentDrag !== undefined) {
+          gesture.current = segmentDrag ? { type: 'run', start: p, edgeId: hit.viewId, drag: segmentDrag, value: segmentDrag.value, moved: false } : { type: 'click', start: p }
+        } else if (isRectilinearStyle(edge.lineStyle)) {
           gesture.current = { type: 'segment', start: p, edgeId: hit.viewId, index: hit.index, orientation: hit.orientation, base: edge.points.map((q) => ({ ...q })), points: [...edge.points], moved: false }
         } else {
           // Dragging the middle of a segment inserts a bend point there.
@@ -690,7 +753,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     else if (hit?.kind === 'edge-vertex') c = edgeHitCursor({ kind: 'vertex', index: hit.index, isEnd: hit.isEnd })
     else if (hit?.kind === 'edge-segment') {
       const edge = l.edges.get(hit.viewId)
-      c = edge && !isRectilinearStyle(edge.lineStyle) ? 'crosshair' : edgeHitCursor({ kind: 'segment', index: hit.index, orientation: hit.orientation })
+      const en = live.current.env
+      const drag = en ? hooksFor(en.diagram)?.segmentDrag?.(en, l, hit.viewId, hit.index) : undefined
+      if (drag !== undefined) c = drag ? (drag.axis === 'y' ? 'ns-resize' : 'ew-resize') : 'default'
+      else c = edge && !isRectilinearStyle(edge.lineStyle) ? 'crosshair' : edgeHitCursor({ kind: 'segment', index: hit.index, orientation: hit.orientation })
     } else if (hit?.kind === 'node' && sel.has(hit.viewId)) c = 'move'
     else if (hit?.kind === 'edge-label') c = 'move'
     if (c !== cursor) setCursor(c)
@@ -804,6 +870,15 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         scheduleLive({ kind: 'polyline', points: pts })
         return
       }
+      case 'run': {
+        const delta = g.drag.axis === 'y' ? p.y - g.start.y : p.x - g.start.x
+        if (!g.moved && Math.abs(delta) * live.current.zoom < DRAG_THRESHOLD) return
+        g.moved = true
+        const raw = g.drag.value + delta
+        g.value = snapOn ? snap(raw, gs) : Math.round(raw)
+        scheduleLive(null)
+        return
+      }
       case 'label': {
         g.moved = true
         g.current = { ...g.box, left: Math.round(g.box.left + p.x - g.start.x), top: Math.round(g.box.top + p.y - g.start.y) }
@@ -915,8 +990,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'vertex': {
         if (!g.moved) return
         if (g.end) {
-          const target = hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
-          if (target) reconnectEnd(en, g.edgeId, g.end, target.viewId, p, notify)
+          const targetId = reconnectTarget(en, l, p, live.current.zoom)
+          if (targetId) reconnectEnd(en, g.edgeId, g.end, targetId, p, notify)
           return
         }
         setEdgeVertices(en, g.edgeId, g.points)
@@ -924,6 +999,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       }
       case 'segment':
         if (g.moved) setEdgeVertices(en, g.edgeId, g.points)
+        return
+      case 'run':
+        if (g.moved && g.value !== g.drag.value) g.drag.commit(g.value)
         return
       case 'label':
         if (g.moved && g.labelViewId) moveEdgeLabel(en, l, g.edgeId, g.labelViewId, g.current)
@@ -939,6 +1017,13 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     const p = toDiagram(e.clientX, e.clientY)
     const hit: DiagramHit | null = hitTestDiagram(l, p, { selected: sel, zoom: z })
     if (!hit) {
+      // The empty role name / multiplicity slot of an (unselected) association end.
+      const slot = edgeSlotAt(l, p)
+      if (slot) {
+        setSelection([slot.viewId])
+        openRegion(slot.viewId, slot.region)
+        return
+      }
       const id = createTextAt(en, { x: snapValue(p.x), y: snapValue(p.y) })
       if (id) {
         setSelection([id])
@@ -961,7 +1046,12 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       const label = hit.label
       if (label.edit) openRegion(hit.viewId, { box: label.box, target: label.edit, text: label.editText ?? label.text, font: label.font })
     } else if (hit.kind === 'edge' || hit.kind === 'edge-segment' || hit.kind === 'edge-vertex') {
-      openQuickEdit(hit.viewId)
+      // Near an end of an association-style edge: that end (its multiplicity); else the name.
+      const edge = l.edges.get(hit.viewId)
+      const region = edge ? edgeEditAt(edge, p) : null
+      if (region) openRegion(hit.viewId, region)
+      else if (edge?.endEdits) openQuickEdit(hit.viewId, (repository.get(hit.viewId) as View | undefined)?.model?._id)
+      else openQuickEdit(hit.viewId)
     }
   }
 
@@ -1090,6 +1180,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
             )}
             <DiagramContent layout={liveLayout ?? layout} />
             <SelectionOverlay layout={liveLayout ?? layout} selected={selected} zoom={zoom} />
+            <HighlightOverlay layout={liveLayout ?? layout} zoom={zoom} />
             <DragOverlay preview={preview} zoom={zoom} />
           </g>
         </svg>

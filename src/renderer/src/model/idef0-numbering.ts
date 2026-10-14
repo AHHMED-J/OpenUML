@@ -3,6 +3,7 @@
  * renumbering plan, ICOM codes of boundary ports, side slots and the node index. Nothing here
  * is stored except `IDEF0Function.boxNumber`; every other value is computed from the model.
  */
+import { ModelRuleError } from './errors'
 import { isKindOf } from './metamodel'
 import type { Elem, NodeView, Point, View } from './types'
 
@@ -105,13 +106,16 @@ export function diagramNodeNumber(diagram: Elem): string {
 }
 
 /**
- * Display label of an IDEF0 diagram: its node number before its name (`A-0 Top Function`,
- * `A0 Top Function`). A diagram is named after the function it details, so without the number the
- * explorer would show the A-0 diagram and the top function as two identical entries.
+ * Display label of an IDEF0 diagram: its node number and kind before its name
+ * (`A-0 Context diagram: Top Function`, `A0 Diagram: Top Function`, `A2 Diagram: Check Stock`).
+ * A diagram is named after the function it details, so without the kind the explorer would show
+ * the A0 diagram and the A0 function as two identical entries. Display only: the stored name is
+ * the plain name.
  */
 export function idef0DiagramLabel(diagram: Elem, name: string): string {
   const number = diagramNodeNumber(diagram)
-  return number ? `${number} ${name}` : name
+  if (!number) return name
+  return `${number} ${isContextDiagram(diagram) ? 'Context diagram' : 'Diagram'}: ${name}`
 }
 
 /** `abbreviation/nodeNumber`, just the number when the model has no abbreviation. */
@@ -167,6 +171,55 @@ export function planRenumber(diagram: Elem): BoxNumberChange[] {
   return changes
 }
 
+/** The sibling boxes of `fn` (the functions of its owner); the top function has none. */
+function siblingBoxes(fn: Elem): Elem[] {
+  const parent = fn._parent
+  return isIdef0Function(parent) ? list(parent, 'functions') : []
+}
+
+/** Smallest box number (from 1) none of `functions` uses: a new box closes a gap or comes last. */
+export function nextFreeBoxNumber(functions: readonly Elem[]): number {
+  const used = new Set(functions.map((f) => f['boxNumber'] as number))
+  let n = 1
+  while (used.has(n)) n++
+  return n
+}
+
+/**
+ * Box number changes that give `fn` the number `boxNumber` (Properties > Box Number): the box
+ * holding that number takes the old number of `fn`, so numbers never duplicate nor open a gap.
+ * Everything else (node numbers of the sub-tree, ICOM codes, titles, labels) is derived from
+ * `boxNumber` and follows. Throws a `ModelRuleError` for the top function or a number outside
+ * 1..n (n = the boxes of the diagram, at least the largest number in use).
+ */
+export function planBoxNumberSwap(fn: Elem, boxNumber: number): BoxNumberChange[] {
+  if (!isIdef0Function(fn)) return []
+  const siblings = siblingBoxes(fn)
+  if (siblings.length === 0) throw new ModelRuleError('The box of the A-0 diagram keeps box number 0')
+  const max = Math.max(siblings.length, ...siblings.map((f) => f['boxNumber'] as number))
+  if (!Number.isInteger(boxNumber) || boxNumber < 1 || boxNumber > max) {
+    throw new ModelRuleError(`Box numbers of this diagram go from 1 to ${max}`)
+  }
+  const old = fn['boxNumber'] as number
+  if (old === boxNumber) return []
+  const changes: BoxNumberChange[] = [{ fn, boxNumber }]
+  for (const other of siblings) if (other !== fn && other['boxNumber'] === boxNumber) changes.push({ fn: other, boxNumber: old })
+  return changes
+}
+
+/**
+ * Box number changes that close the gaps left among `functions` (after boxes were removed): the
+ * boxes keep their relative order (by number, then model order) and are numbered 1..n.
+ */
+export function planCloseGaps(functions: readonly Elem[]): BoxNumberChange[] {
+  const ordered = functions.map((fn, i) => ({ fn, i })).sort((a, b) => (a.fn['boxNumber'] as number) - (b.fn['boxNumber'] as number) || a.i - b.i)
+  const changes: BoxNumberChange[] = []
+  ordered.forEach(({ fn }, i) => {
+    if (fn['boxNumber'] !== i + 1) changes.push({ fn, boxNumber: i + 1 })
+  })
+  return changes
+}
+
 // ---------------------------------------------------------------------------------------------
 // Attached arrows and ICOM codes
 
@@ -181,6 +234,48 @@ export function rootArrow(arrow: Elem): Elem {
     current = next
   }
   return current
+}
+
+/** The arrow a branch leaves (fork) or joins, or null for an arrow between boxes and ports. */
+export function trunkOf(arrow: Elem): Elem | null {
+  const source = arrow['source'] as Elem | null
+  const target = arrow['target'] as Elem | null
+  return isKindOf(source, 'IDEF0Arrow') ? source : isKindOf(target, 'IDEF0Arrow') ? target : null
+}
+
+function boundaryPortOf(arrow: Elem): Elem | null {
+  const source = arrow['source'] as Elem | null
+  const target = arrow['target'] as Elem | null
+  return isKindOf(source, 'IDEF0Port') ? source : isKindOf(target, 'IDEF0Port') ? target : null
+}
+
+/** Deepest chain of labels followed (branches of branches, levels of decomposition). */
+const LABEL_DEPTH = 64
+
+/**
+ * The label drawn on an arrow: its own name, else, for a boundary arrow of a child diagram, the
+ * effective label of the parent arrow its port stands for. That parent arrow is often an unlabeled
+ * branch whose label is its trunk's, so a boundary arrow seeded from it (or written by an older
+ * version, with an empty name) still reads "Shipping rates" on the child diagram. An unlabeled
+ * branch draws nothing: it shares its trunk's label.
+ */
+export function shownArrowName(arrow: Elem, depth = 0): string {
+  const own = (arrow['name'] as string | undefined) ?? ''
+  if (own || trunkOf(arrow) || depth > LABEL_DEPTH) return own
+  const parent = boundaryPortOf(arrow)?.['corresponds'] as Elem | null | undefined
+  return parent ? effectiveArrowName(parent, depth + 1) : ''
+}
+
+/**
+ * The label an arrow carries (IDEF0 label inheritance): `shownArrowName`, else, for an unlabeled
+ * branch, the effective label of its trunk. Used to label child boundary arrows, by the validator
+ * and in the explorer.
+ */
+export function effectiveArrowName(arrow: Elem, depth = 0): string {
+  const shown = shownArrowName(arrow, depth)
+  if (shown || depth > LABEL_DEPTH) return shown
+  const trunk = trunkOf(arrow)
+  return trunk ? effectiveArrowName(trunk, depth + 1) : ''
 }
 
 /**
@@ -342,10 +437,14 @@ export function arrowPositionAt(arrow: Elem, fn: Elem, role: Idef0Role): number 
   return (group?.arrows.indexOf(arrow) ?? -1) + 1
 }
 
-/** The label of a call arrow when it has no name: its `calledNode` text or the called box's reference. */
+/**
+ * Label of an arrow in lists: its name, the label a child boundary arrow inherits (`shownArrowName`),
+ * or for a call arrow its `calledNode` text or the called box's reference.
+ */
 export function arrowDisplayName(arrow: Elem): string {
   const name = (arrow['name'] as string | undefined) ?? ''
-  if (name || roleOf(arrow) !== 'call') return name
+  if (name) return name
+  if (roleOf(arrow) !== 'call') return shownArrowName(arrow)
   const text = (arrow['calledNode'] as string | undefined) ?? ''
   if (text) return text
   const caller = arrow['source'] as Elem | null

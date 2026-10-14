@@ -5,7 +5,8 @@
 import { memo } from 'react'
 import type React from 'react'
 import { SELECTION, fmt, polylinePath, resizeHandles, type Point, type Rect } from '../core'
-import type { DiagramLayout } from '../layout/types'
+import type { DiagramLayout, EdgeLabelSlot } from '../layout/types'
+import { SvgText } from '../render/primitives'
 
 const ACCENT = SELECTION.color
 
@@ -29,6 +30,56 @@ function Handle({ center, zoom }: { center: Point; zoom: number }): React.JSX.El
   return <rect x={fmt(center.x - s / 2)} y={fmt(center.y - s / 2)} width={fmt(s)} height={fmt(s)} fill={SELECTION.handleFill} stroke={ACCENT} strokeWidth={1 / zoom} />
 }
 
+/**
+ * Muted hint for an empty editable edge label (e.g. an association end's multiplicity): a faint
+ * dashed box with the hint text, shown only while the edge is selected (the diagram canvas is
+ * white in both themes; overlays are never exported).
+ */
+function SlotHint({ slot, zoom }: { slot: EdgeLabelSlot; zoom: number }): React.JSX.Element {
+  const b = slot.hintBox
+  const pad = 2
+  return (
+    <g>
+      <rect
+        x={fmt(b.left - pad)}
+        y={fmt(b.top - pad / 2)}
+        width={fmt(b.width + 2 * pad)}
+        height={fmt(b.height + pad)}
+        rx={2}
+        fill={SLOT_HINT.fill}
+        stroke={SLOT_HINT.stroke}
+        strokeWidth={1 / zoom}
+        strokeDasharray={`${2 / zoom} ${2 / zoom}`}
+      />
+      <SvgText line={{ text: slot.hint, box: b, font: slot.hintFont, align: 'center' }} color={SLOT_HINT.text} />
+    </g>
+  )
+}
+
+const SLOT_HINT = { fill: 'rgba(255,255,255,0.6)', stroke: 'rgba(110,118,129,0.55)', text: 'rgba(110,118,129,0.85)' } as const
+
+/** Edges highlighted because a selected edge is drawn as one with them (`EdgeLayout.highlightGroup`). */
+function highlightedEdges(layout: DiagramLayout, selected: readonly string[]): string[] {
+  const ids = new Set<string>()
+  for (const id of selected) for (const member of layout.edges.get(id)?.highlightGroup ?? []) ids.add(member)
+  return [...ids]
+}
+
+/** A soft band along a highlighted edge and around its labels. */
+function EdgeHalo({ layout, id, zoom }: { layout: DiagramLayout; id: string; zoom: number }): React.JSX.Element | null {
+  const edge = layout.edges.get(id)
+  if (!edge || edge.points.length < 2) return null
+  const pad = 2 / zoom
+  return (
+    <g>
+      <path d={polylinePath(edge.points)} fill="none" stroke={ACCENT} strokeOpacity={0.3} strokeWidth={SELECTION.bandWidth / zoom} strokeLinecap="round" strokeLinejoin="round" />
+      {edge.labels.map((l, i) => (
+        <rect key={i} x={fmt(l.box.left - pad)} y={fmt(l.box.top - pad)} width={fmt(l.box.width + 2 * pad)} height={fmt(l.box.height + 2 * pad)} fill={ACCENT} fillOpacity={SELECTION.bandAlpha} stroke={ACCENT} strokeOpacity={0.6} strokeWidth={1 / zoom} />
+      ))}
+    </g>
+  )
+}
+
 /** Selection decorations of the selected views. */
 export const SelectionOverlay = memo(function SelectionOverlay({
   layout,
@@ -43,6 +94,9 @@ export const SelectionOverlay = memo(function SelectionOverlay({
   const band = SELECTION.bandWidth / zoom
   return (
     <g pointerEvents="none">
+      {highlightedEdges(layout, selected).map((id) => (
+        <EdgeHalo key={`halo-${id}`} layout={layout} id={id} zoom={zoom} />
+      ))}
       {selected.map((id) => {
         const node = layout.nodes.get(id)
         if (node) {
@@ -98,6 +152,9 @@ export const SelectionOverlay = memo(function SelectionOverlay({
             {edge.points.map((p, i) => (
               <Handle key={i} center={p} zoom={zoom} />
             ))}
+            {edge.slots?.map((slot, i) => (
+              <SlotHint key={`slot-${i}`} slot={slot} zoom={zoom} />
+            ))}
           </g>
         )
       })}
@@ -110,6 +167,8 @@ export type DragPreview =
   | { readonly kind: 'band'; readonly rect: Rect }
   | { readonly kind: 'line'; readonly from: Point; readonly to: Point }
   | { readonly kind: 'polyline'; readonly points: readonly Point[] }
+  /** Where a dragged edge end snaps to (e.g. the slot an IDEF0 arrow end takes on a box side). */
+  | { readonly kind: 'snap'; readonly point: Point }
 
 /** Drag feedback: skeleton boxes, rubber band, creation line, edited polyline. */
 export function DragOverlay({ preview, zoom }: { preview: DragPreview | null; zoom: number }): React.JSX.Element | null {
@@ -138,6 +197,14 @@ export function DragOverlay({ preview, zoom }: { preview: DragPreview | null; zo
           <line x1={fmt(preview.from.x)} y1={fmt(preview.from.y)} x2={fmt(preview.to.x)} y2={fmt(preview.to.y)} />
           <circle cx={fmt(preview.from.x)} cy={fmt(preview.from.y)} r={r} />
           <circle cx={fmt(preview.to.x)} cy={fmt(preview.to.y)} r={r} />
+        </g>
+      )
+    }
+    case 'snap': {
+      const r = SELECTION.createEdgeEndRadius + 2
+      return (
+        <g pointerEvents="none">
+          <circle cx={fmt(preview.point.x)} cy={fmt(preview.point.y)} r={r / zoom} fill={ACCENT} fillOpacity={0.25} stroke={ACCENT} strokeWidth={1.5 * px} />
         </g>
       )
     }

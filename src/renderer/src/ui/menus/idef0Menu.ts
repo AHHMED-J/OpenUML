@@ -17,6 +17,7 @@ export function idef0Menu(): MenuNode {
     visible: idef0Active,
     submenu: [
       { id: 'idef0.decompose', label: 'Decompose...', command: Idef0CommandIds.decompose },
+      { id: 'idef0.set-box-count', label: 'Set Number of Child Boxes...', command: Idef0CommandIds.setBoxCount },
       { id: 'idef0.go-parent', label: 'Go to Parent Diagram', command: Idef0CommandIds.goParent },
       { id: 'idef0.go-child', label: 'Go to Child Diagram', command: Idef0CommandIds.goChild },
       SEP,
@@ -29,6 +30,7 @@ export function idef0Menu(): MenuNode {
       },
       { id: 'idef0.tunnel-source', label: 'Tunnel Source End', command: Idef0CommandIds.tunnelEnd, args: { end: 'source' } },
       { id: 'idef0.tunnel-target', label: 'Tunnel Target End', command: Idef0CommandIds.tunnelEnd, args: { end: 'target' } },
+      { id: 'idef0.reset-route', label: 'Reset Arrow Route', command: Idef0CommandIds.resetRoute },
       SEP,
       { id: 'idef0.validate', label: 'Validate IDEF0 Model', command: Idef0CommandIds.validate },
       { id: 'idef0.node-index', label: 'Show Node Index', command: Idef0CommandIds.nodeIndex }
@@ -45,7 +47,9 @@ export function idef0FormatMenu(): MenuNode {
       { label: 'Status: Working', command: Idef0CommandIds.status('working'), checkbox: true },
       { label: 'Status: Draft', command: Idef0CommandIds.status('draft'), checkbox: true },
       { label: 'Status: Recommended', command: Idef0CommandIds.status('recommended'), checkbox: true },
-      { label: 'Status: Publication', command: Idef0CommandIds.status('publication'), checkbox: true }
+      { label: 'Status: Publication', command: Idef0CommandIds.status('publication'), checkbox: true },
+      SEP,
+      { label: 'Color Arrows by Role', command: Idef0CommandIds.colorByRole, checkbox: true }
     ]
   }
 }

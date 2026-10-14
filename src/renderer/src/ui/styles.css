@@ -609,6 +609,16 @@ textarea:focus {
   min-width: 0;
 }
 
+/* IDEF0: hovering an arrow label highlights the line it labels (editor only; exports carry no CSS). */
+.ou-diagram-editor .idef0-arrow:has(.idef0-arrow-label:hover) .idef0-arrow-line {
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 2px #4f99ff);
+}
+
+.ou-diagram-editor .idef0-arrow-label:hover rect {
+  fill: #e8f1ff;
+}
+
 .canvas-message {
   display: flex;
   flex-direction: column;
@@ -1579,5 +1589,30 @@ body.dock-dragging * {
     animation: none;
     width: 100%;
     opacity: 0.6;
+  }
+}
+
+/* Model Explorer > Highlight: the element pulses in red for two seconds (see diagram/editor/highlight.ts). */
+.view-highlight rect,
+.view-highlight polyline {
+  stroke: #e5484d;
+  animation: view-highlight-pulse 500ms ease-in-out 4;
+}
+
+@keyframes view-highlight-pulse {
+  0%,
+  100% {
+    stroke-opacity: 0.25;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-highlight rect,
+  .view-highlight polyline {
+    animation: none;
+    stroke-opacity: 0.9;
   }
 }

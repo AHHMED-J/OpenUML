@@ -7,13 +7,13 @@
 import type React from 'react'
 import { isKindOf, type EdgeView, type Elem, type UMLAssociation, type View } from '../../../model'
 import { fmt, relationshipNotation, type AssociationEndInfo, type Point, type RelationshipKind } from '../../core'
-import { buildEdgeLayout, type EdgeLabelSpec } from '../../layout/edges'
-import { braceList, nameEditText, nameOf, tagStrings } from '../../layout/helpers'
+import { buildEdgeLayout } from '../../layout/edges'
+import { braceList, nameOf, tagStrings } from '../../layout/helpers'
 import type { EdgeLayout, LayoutContext } from '../../layout/types'
 import { standardEdgeLabels } from '../../render/generic'
 import { EdgeShape } from '../../render/primitives'
 import type { EdgeNotation } from '../../render/registry'
-import { endPropertyText, roleNameText } from './strings'
+import { associationEndLabels } from './endLabels'
 
 function endInfo(end: Elem | null | undefined): AssociationEndInfo {
   if (!end) return {}
@@ -22,31 +22,6 @@ function endInfo(end: Elem | null | undefined): AssociationEndInfo {
     aggregation: (end['aggregation'] as AssociationEndInfo['aggregation']) ?? 'none',
     ownedByOpposite: end['ownerAttribute'] != null
   }
-}
-
-function endLabels(edge: EdgeView, end: Elem | null | undefined, side: 'tail' | 'head'): EdgeLabelSpec[] {
-  if (!end) return []
-  const showVis = edge['showVisibility'] === true
-  return [
-    {
-      field: `${side}RoleNameLabel`,
-      defaults: `${side}RoleName`,
-      text: roleNameText(end, showVis),
-      edit: { kind: 'name', elementId: end._id },
-      editText: nameEditText(end)
-    },
-    {
-      field: `${side}PropertyLabel`,
-      defaults: `${side}Property`,
-      text: edge['showProperty'] === false ? '' : endPropertyText(end)
-    },
-    {
-      field: `${side}MultiplicityLabel`,
-      defaults: `${side}Multiplicity`,
-      text: edge['showMultiplicity'] === false ? '' : String(end['multiplicity'] ?? ''),
-      edit: { kind: 'field', elementId: end._id, field: 'multiplicity' }
-    }
-  ]
 }
 
 const associationNotation: EdgeNotation = {
@@ -61,7 +36,7 @@ const associationNotation: EdgeNotation = {
       dash: n.dash,
       tailEnd: n.tail,
       headEnd: n.head,
-      labels: [...labels, ...endLabels(edge, a?.end1, 'tail'), ...endLabels(edge, a?.end2, 'head')]
+      labels: [...labels, ...associationEndLabels(edge, a?.end1, 'tail'), ...associationEndLabels(edge, a?.end2, 'head')]
     })
   }
 }

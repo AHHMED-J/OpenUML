@@ -79,7 +79,7 @@ export function layoutFunction(view: NodeView, ctx: LayoutContext): NodeLayout<F
       : null
     return { nameLines, numberLine, dreLine, lineWidth: IDEF0_STYLE.boxLine }
   }
-  return nodeLayout(view, {
+  const layout = nodeLayout(view, {
     minWidth,
     minHeight,
     style,
@@ -98,6 +98,8 @@ export function layoutFunction(view: NodeView, ctx: LayoutContext): NodeLayout<F
         : [],
     extraBounds: dre ? [{ left: view.left + (view.width ?? 0) - dreWidth, top: view.top + (view.height ?? 0) + 3, width: dreWidth, height: dreFont.size }] : []
   })
+  // The selected box resizes from anywhere on its outline: its side handles sit under the arrow ends.
+  return { ...layout, resizeOutline: true }
 }
 
 // ---------------------------------------------------------------------------------------------

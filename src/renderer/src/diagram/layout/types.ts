@@ -68,6 +68,11 @@ export interface NodeLayout<D = unknown> {
   readonly minWidth: number
   readonly minHeight: number
   readonly sizable: Sizable
+  /**
+   * The whole outline of the selected node resizes it, not only its handles (IDEF0 boxes, whose
+   * side handles sit under the arrow ends).
+   */
+  readonly resizeOutline?: boolean
   readonly movable: boolean
   /** Outline used to clip edge ends. */
   readonly outline: NodeOutline
@@ -131,6 +136,26 @@ export interface EdgeLabelLayout {
   readonly editText?: string
 }
 
+/**
+ * Where an empty editable edge label would go (e.g. an association end without multiplicity).
+ * Editor-only: double-clicking it edits the label, and it is hinted while the edge is selected;
+ * renderers and exporters never draw it and it is not part of the edge bounds.
+ */
+export interface EdgeLabelSlot {
+  readonly box: Rect
+  readonly font: Font
+  /** Muted hint shown in the slot while the edge is selected (e.g. `multiplicity`). */
+  readonly hint: string
+  /** Where the hint is drawn (centered on `box`) and in which (smaller, italic) font. */
+  readonly hintBox: Rect
+  readonly hintFont: Font
+  readonly edit: EditTarget
+  /** Initial editor text. */
+  readonly editText: string
+  /** End of the edge whose main edit this is (`EdgeLayout.endEdits`). */
+  readonly end?: 'tail' | 'head'
+}
+
 export interface EdgeLayout<D = unknown> {
   readonly kind: 'edge'
   readonly viewId: string
@@ -142,6 +167,13 @@ export interface EdgeLayout<D = unknown> {
   readonly tailEnd: EndSpec
   readonly headEnd: EndSpec
   readonly labels: readonly EdgeLabelLayout[]
+  /** Editor-only slots of empty editable labels (never drawn by renderers or exported). */
+  readonly slots?: readonly EdgeLabelSlot[]
+  /**
+   * The main inline edit of each end (association-style ends: the multiplicity), opened by
+   * double-clicking the edge near that end.
+   */
+  readonly endEdits?: { readonly tail?: EditTarget; readonly head?: EditTarget }
   readonly zIndex: number
   readonly style: ViewStyle
   /** Extra drawn areas (e.g. socket arcs) for export bounds. */
@@ -152,6 +184,8 @@ export interface EdgeLayout<D = unknown> {
   readonly fallbackEdit?: { readonly target: EditTarget; readonly text: string }
   /** Dragging the edge shifts it along this axis instead of editing bends (sequence messages). */
   readonly dragAxis?: 'vert'
+  /** Edge views drawn as one with this edge (an IDEF0 fork), highlighted with their labels when it is selected. */
+  readonly highlightGroup?: readonly string[]
   readonly data: D
 }
 

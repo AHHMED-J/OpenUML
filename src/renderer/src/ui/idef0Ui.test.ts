@@ -1,6 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ModelEngine } from '../commands'
 import { writeMdj } from '../format'
 import { buildOrderExample } from '../model/idef0-example'
@@ -11,9 +11,12 @@ import { explorerChildren, explorerLabel, typeOrder } from './explorer/tree'
 import { RoleIcon, TypeIcon, ToolIcon } from './icons'
 import { CommandRegistry } from '../commands'
 import { registerIdef0Commands } from '../diagram'
+import { buildAppMenu } from './menus/appMenu'
 import { idef0FormatMenu, idef0Menu } from './menus/idef0Menu'
 import { resolveMenu } from './menus/menuModel'
 import { idef0Context, idef0WarningCount } from './app/idef0'
+import { registerAppCommands } from './app/appCommands'
+import { Cmd } from './menus/commandIds'
 import { palettesFor } from './toolbox/palettes'
 import { uiStore } from './uiStore'
 
@@ -56,6 +59,80 @@ describe('Add Diagram entry', () => {
     expect((model['topFunction'] as Elem)['childDiagram']).toBe(child)
     expect((child['ownedViews'] as Elem[]).filter((v) => v._type === 'IDEF0FunctionView')).toHaveLength(3)
     expect(() => addDiagram(engine, model['topFunction'] as Elem, 'IDEF0Diagram')).toThrow()
+  })
+})
+
+describe('Add Diagram > IDEF0 Diagram on a function (Model Explorer)', () => {
+  const setup = (): { registry: CommandRegistry; fnId: string } => {
+    const ex = buildOrderExample()
+    projectStore.getState().openProject(writeMdj(ex.project), null)
+    const registry = new CommandRegistry()
+    registerAppCommands(registry)
+    const a2 = projectStore.getState().repository.get(ex.a2._id) as Elem
+    projectStore.getState().select({ elements: [a2._id] })
+    return { registry, fnId: a2._id }
+  }
+  const boxesOf = (fnId: string): number => {
+    const child = (projectStore.getState().repository.get(fnId) as Elem)['childDiagram'] as Elem | null
+    return child ? (child['ownedViews'] as Elem[]).filter((v) => v._type === 'IDEF0FunctionView').length : -1
+  }
+  const answer = (text: string | null): void => {
+    const modal = uiStore.getState().modal
+    expect(modal?.kind).toBe('prompt')
+    if (modal?.kind === 'prompt') {
+      uiStore.getState().openModal(null)
+      modal.resolve(text)
+    }
+  }
+
+  it('asks for the number of child boxes and builds that many', async () => {
+    const { registry, fnId } = setup()
+    const done = registry.execute(Cmd.modelAddDiagram, { kind: 'IDEF0Diagram' })
+    await Promise.resolve()
+    answer('5')
+    await done
+    expect(boxesOf(fnId)).toBe(5)
+  })
+
+  it('re-asks on an invalid answer and changes nothing when cancelled', async () => {
+    const { registry, fnId } = setup()
+    const depth = projectStore.getState().engine.undoDepth
+    const done = registry.execute(Cmd.modelAddDiagram, { kind: 'IDEF0Diagram' })
+    await Promise.resolve()
+    answer('9')
+    await new Promise((r) => setTimeout(r, 0))
+    answer(null)
+    await done
+    expect(boxesOf(fnId)).toBe(-1)
+    expect(projectStore.getState().engine.undoDepth).toBe(depth)
+  })
+
+  it('still creates a new IDEF0 model on a project without asking', async () => {
+    const { registry } = setup()
+    projectStore.getState().select({ elements: [] })
+    await registry.execute(Cmd.modelAddDiagram, { kind: 'IDEF0Diagram' })
+    expect(uiStore.getState().modal).toBeNull()
+  })
+})
+
+describe('File > Open Example', () => {
+  it('lists the bundled examples and opens one as an untitled, warning-free project', async () => {
+    const registry = new CommandRegistry()
+    registerAppCommands(registry)
+    const file = resolveMenu(buildAppMenu('darwin'), { commands: registry, platform: 'darwin' }).find((m) => m.kind === 'submenu' && m.label === 'File')
+    const entries = file?.kind === 'submenu' ? file.items.find((i) => i.kind === 'submenu' && i.label === 'Open Example') : undefined
+    expect(entries?.kind === 'submenu' ? entries.items.map((i) => (i.kind === 'item' ? i.label : '')) : []).toEqual(['Software Release (IDEF0)'])
+    vi.stubGlobal('document', { activeElement: null })
+    vi.stubGlobal('HTMLElement', class {})
+    projectStore.getState().newProject()
+    await registry.execute(Cmd.fileOpenExample, 'software-release-idef0')
+    const s = projectStore.getState()
+    expect(s.filePath).toBeNull()
+    expect(s.loadWarnings).toEqual([])
+    const model = (s.project.ownedElements as Elem[]).find((e) => e._type === 'IDEF0Model') as Elem
+    expect(((model['topFunction'] as Elem)['functions'] as Elem[]).length).toBe(6)
+    await registry.execute(Cmd.fileOpenExample, 'unknown')
+    vi.unstubAllGlobals()
   })
 })
 
@@ -106,7 +183,7 @@ describe('IDEF0 menus', () => {
     const ex = buildOrderExample()
     projectStore.getState().openProject(writeMdj(ex.project), null)
     const registry = new CommandRegistry()
-    registerIdef0Commands(registry, { promptBoxCount: async () => 3, openDiagram: () => undefined, showList: () => undefined, toast: () => undefined })
+    registerIdef0Commands(registry, { promptBoxCount: async () => 3, chooseBoxesToRemove: async () => null, openDiagram: () => undefined, showList: () => undefined, toast: () => undefined })
     const ctx = { commands: registry, platform: 'darwin' as const }
     projectStore.getState().openDiagram(ex.childDiagram._id)
     const model = resolveMenu([idef0Menu()], ctx)
@@ -115,6 +192,7 @@ describe('IDEF0 menus', () => {
     const labels = sub?.kind === 'submenu' ? sub.items.flatMap((i) => (i.kind === 'separator' ? [] : [i.label])) : []
     expect(labels).toEqual([
       'Decompose...',
+      'Set Number of Child Boxes...',
       'Go to Parent Diagram',
       'Go to Child Diagram',
       'Renumber Boxes',
@@ -122,6 +200,7 @@ describe('IDEF0 menus', () => {
       'Add Boundary Arrow',
       'Tunnel Source End',
       'Tunnel Target End',
+      'Reset Arrow Route',
       'Validate IDEF0 Model',
       'Show Node Index'
     ])
@@ -130,7 +209,9 @@ describe('IDEF0 menus', () => {
       ['Status: Working', true],
       ['Status: Draft', false],
       ['Status: Recommended', false],
-      ['Status: Publication', false]
+      ['Status: Publication', false],
+      [],
+      ['Color Arrows by Role', false]
     ])
     projectStore.getState().newProject()
     expect(resolveMenu([idef0Menu(), idef0FormatMenu()], ctx)).toEqual([])

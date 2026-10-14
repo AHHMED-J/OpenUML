@@ -111,6 +111,9 @@ describe('IDEF0 validation', () => {
   it('W07: an unlabeled branch whose trunk is also unlabeled', () => {
     const k = exampleKit()
     arrowNamed(k.top, 'Sales Policy')['name'] = ''
+    // The boundary trunk still carries the label of the A-0 arrow its port stands for.
+    expect(ids(k).filter((id) => id === 'W05' || id === 'W07')).toEqual([])
+    arrowNamed(k.model, 'Sales Policy')['name'] = ''
     const found = validateIdef0(k.model).filter((i) => i.id === 'W07')
     expect(found).toHaveLength(2)
   })
@@ -132,7 +135,7 @@ describe('IDEF0 validation', () => {
     expect(ids(k)).not.toContain('W09')
   })
 
-  it('W10: duplicate numbers, gaps and numbers that disagree with the staircase', () => {
+  it('W10: duplicate numbers and gaps; off-staircase numbers only when the diagram follows the staircase', () => {
     const k = exampleKit()
     k.example.a3['boxNumber'] = 2
     expect(ids(k)).toContain('W10')
@@ -142,6 +145,10 @@ describe('IDEF0 validation', () => {
     const k3 = exampleKit()
     k3.example.a1['boxNumber'] = 3
     k3.example.a3['boxNumber'] = 1
+    // Numbers chosen by the user are fine...
+    expect(ids(k3)).not.toContain('W10')
+    // ...unless the diagram asks for staircase numbering.
+    k3.child['autoNumber'] = true
     expect(ids(k3)).toContain('W10')
   })
 

@@ -179,6 +179,12 @@ describe('editor actions', () => {
       [50, 40],
       [50, 40]
     ])
+    // Make Same Size: the first (primary) box gives the size, positions stay.
+    expect(alignBoxes('make-same-size', boxes)).toEqual([
+      { left: 10, top: 0, width: 50, height: 20 },
+      { left: 100, top: 30, width: 50, height: 20 },
+      { left: 200, top: 10, width: 50, height: 20 }
+    ])
   })
 })
 
