@@ -20,8 +20,11 @@ import {
 import { segmentOrientation, type SegmentOrientation } from './routing'
 import { HIT_TOLERANCE, SELECTION } from './style'
 
-/** Which resize directions a node allows (`sizable` field). */
-export type Sizable = 'none' | 'horz' | 'vert' | 'ratio' | 'free'
+/**
+ * Which resize directions a node allows (`sizable` field). `grow`: only the right, bottom and
+ * bottom-right handles, the top-left corner stays (IDEF0 sheets).
+ */
+export type Sizable = 'none' | 'horz' | 'vert' | 'ratio' | 'free' | 'grow'
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
@@ -38,6 +41,8 @@ export function handlesFor(sizable: Sizable): readonly HandlePosition[] {
       return ['n', 's']
     case 'horz':
       return ['e', 'w']
+    case 'grow':
+      return ['e', 'se', 's']
     default:
       return []
   }

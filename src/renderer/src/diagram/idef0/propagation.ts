@@ -22,7 +22,7 @@
  */
 import { applyPlan, deleteFromModel, type ModelEngine, type OperationBuilder } from '../../commands'
 import {
-  IDEF0_AREA,
+  drawingAreaOf,
   diagramOfScope,
   effectiveArrowName,
   isIdef0Function,
@@ -79,10 +79,12 @@ function nodeViewOf(diagram: Elem | null, model: Elem, type: string): NodeView |
  * parent box follows the order of the boundary arrows (and the ICOM codes read in the same order).
  */
 function alongParentBox(port: Elem, role: BoundaryRole, box: NodeView): number {
-  const view = nodeViewOf(diagramOfScope(port._parent), port, 'IDEF0PortView')
+  const diagram = diagramOfScope(port._parent)
+  const view = nodeViewOf(diagram, port, 'IDEF0PortView')
   const vertical = role === 'input' || role === 'output'
-  const lo = vertical ? IDEF0_AREA.top : IDEF0_AREA.left
-  const hi = vertical ? IDEF0_AREA.bottom : IDEF0_AREA.right
+  const area = drawingAreaOf(diagram)
+  const lo = vertical ? area.top : area.left
+  const hi = vertical ? area.bottom : area.right
   const at = view ? (vertical ? view.top + view.height / 2 : view.left + view.width / 2) : (lo + hi) / 2
   const t = Math.max(0.1, Math.min(0.9, (at - lo) / (hi - lo)))
   return vertical ? box.top + t * box.height : box.left + t * box.width

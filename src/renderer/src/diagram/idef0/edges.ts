@@ -10,7 +10,7 @@ import { buildEdgeLayout, placeEdgeLabels, type EdgeLabelSpec } from '../layout/
 import { nameEditText } from '../layout/helpers'
 import type { EdgeLayout, LayoutContext } from '../layout/types'
 import type { EdgeNotation } from '../render/registry'
-import { AREA_RECT, PORT_DIR, SIDE_DIR, IDEF0_STYLE, dirVector, rectCenterOf, slotPoint } from './geometry'
+import { PORT_DIR, SIDE_DIR, IDEF0_STYLE, dirVector, rectCenterOf, slotPoint, areaRectOf } from './geometry'
 import { arrowLabelColor, arrowLineColor, arrowTextColor, isArrowView as isArrowEdge } from './colors'
 import { STUB, busOf, feedbackKind, longestSegment, routeArrowDetailed, routeBranch, trimEnd, trimStart, type RouteAdjust, type RouteEnd } from './routing'
 import { branchEnds, branchLimits, functionBoxes, hintsOf, plannedRuns, segmentOn, type ArrowEnds, type RunHandle } from './runs'
@@ -255,7 +255,7 @@ function routeArrowView(edge: EdgeView, ctx: LayoutContext): RoutedView {
     lane: laneOf(edge, tail, head, ctx),
     hint: hints,
     ...(preferred ? { preferred } : {}),
-    area: AREA_RECT,
+    area: areaRectOf(ctx.diagram),
     obstacles,
     limit: branchLimits(far)
   })

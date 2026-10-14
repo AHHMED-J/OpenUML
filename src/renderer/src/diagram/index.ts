@@ -58,7 +58,7 @@
  *
  *    `nodeLayout` computes the effective box (stored size grown to the minimum; exactly the
  *    minimum with auto-resize). Optional layout fields: `sizable` ('none' | 'horz' | 'vert' |
- *    'ratio' | 'free'), `movable`, `zIndex` (frame −1, messages 1, fragments 2), `endpoint`
+ *    'ratio' | 'free' | 'grow'), `movable`, `zIndex` (frame −1, messages 1, fragments 2), `endpoint`
  *    (edge attachment override), `subEndpoints` (sub-views such as a lifeline's line part that
  *    edges attach to), `extraBounds` (floating labels, for export bounds), `moveAxis` (move along
  *    one axis only), `hitAreas` (hit only there, e.g. a frame's border and label), `dividers`
