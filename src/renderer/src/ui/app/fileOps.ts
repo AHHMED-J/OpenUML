@@ -3,6 +3,7 @@
  * unsaved-changes prompt. Runs in the renderer through the preload bridge.
  */
 import { diagramToPngBase64, diagramToSvg } from '../../export'
+import { rename } from '../../commands'
 import { isKindOf, type Diagram } from '../../model'
 import { projectStore } from '../../store'
 import { loadJson, saveJson } from '../persist'
@@ -160,6 +161,21 @@ async function writeProject(path: string): Promise<void> {
   rememberWorkingDiagrams()
 }
 
+const DEFAULT_PROJECT_NAME = 'Untitled'
+
+/**
+ * A project still carrying the default name takes the name of the file it is saved as
+ * (`Order System.mdj` names it "Order System"), so the Model Explorer root matches the file.
+ * A name the user chose is kept.
+ */
+export function nameProjectAfterFile(path: string): void {
+  const { project, engine } = ps()
+  const name = project.name?.trim() ?? ''
+  if (name && name !== DEFAULT_PROJECT_NAME) return
+  const stem = baseName(path).replace(/\.mdj$/i, '').trim()
+  if (stem) rename(engine, project, stem)
+}
+
 /** Saves to the current path (or asks for one). Resolves false when cancelled or failed. */
 export async function saveProject(): Promise<boolean> {
   commitPendingEdits()
@@ -178,9 +194,11 @@ export async function saveProjectAs(): Promise<boolean> {
   commitPendingEdits()
   const b = requireBridge()
   const current = ps().filePath
-  let path = await b.chooseSavePath(current ? baseName(current) : 'Untitled.mdj', MDJ_FILTERS)
+  const projectName = ps().project.name?.trim()
+  let path = await b.chooseSavePath(current ? baseName(current) : `${projectName || DEFAULT_PROJECT_NAME}.mdj`, MDJ_FILTERS)
   if (!path) return false
   if (!/\.mdj$/i.test(path)) path += '.mdj'
+  nameProjectAfterFile(path)
   try {
     await writeProject(path)
     return true
