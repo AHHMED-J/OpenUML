@@ -9,7 +9,7 @@ import { setTextMeasurer } from '../layout/measurer'
 import { ensureNotations } from '../notations'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { DiagramEditor } from './DiagramEditor'
-import { SelectionOverlay } from './Overlays'
+import { DragOverlay, SelectionOverlay } from './Overlays'
 
 describe('DiagramEditor (static render)', () => {
   it('renders the diagram, grid and selection overlay without errors', () => {
@@ -81,5 +81,18 @@ describe('DiagramEditor (static render)', () => {
       })
     )
     expect(html).toContain('Diagram not found')
+  })
+
+  it('draws a window band solid and blue, a crossing band dashed and green', () => {
+    const rect = { left: 10, top: 20, width: 100, height: 50 }
+    const draw = (mode: 'contain' | 'intersect'): string =>
+      renderToStaticMarkup(createElement('svg', null, createElement(DragOverlay, { preview: { kind: 'band', rect, mode }, zoom: 1 }))).toLowerCase()
+    const window = draw('contain')
+    expect(window).toContain('stroke="#4f99ff"')
+    expect(window).not.toContain('stroke-dasharray')
+    const crossing = draw('intersect')
+    expect(crossing).toContain('stroke="#1f9d55"')
+    expect(crossing).toContain('stroke-dasharray="3 3"')
+    expect(crossing).toContain('rgba(31,157,85,0.10)')
   })
 })

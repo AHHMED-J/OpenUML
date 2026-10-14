@@ -215,20 +215,38 @@ export function edgeHitCursor(hit: EdgeHit): string {
   return 'crosshair'
 }
 
+/**
+ * How a rubber band selects: `contain` ("window") takes only views wholly inside it, `intersect`
+ * ("crossing") also takes views it merely touches.
+ */
 export type RubberBandMode = 'contain' | 'intersect'
 
-/** True when a rubber-band rectangle selects a node box. */
+/**
+ * The rubber-band mode for a drag (AutoCAD style): dragging left to right (or straight up/down)
+ * is a window selection (`contain`), dragging right to left a crossing selection (`intersect`).
+ */
+export function rubberBandModeFor(start: Point, end: Point): RubberBandMode {
+  return end.x < start.x ? 'intersect' : 'contain'
+}
+
+/**
+ * True when a rubber-band rectangle selects a node box. In `intersect` mode a box that wholly
+ * contains the band is not crossed: a band drawn inside a frame or container never selects it,
+ * only one that crosses its outline does.
+ */
 export function rubberBandSelectsRect(band: Rect, box: Rect, mode: RubberBandMode = 'contain'): boolean {
-  return mode === 'contain' ? rectContainsRect(band, box) : rectsIntersect(band, box)
+  return mode === 'contain' ? rectContainsRect(band, box) : rectsIntersect(band, box) && !rectContainsRect(box, band)
 }
 
 /**
  * True when a rubber-band rectangle selects an edge: in `contain` mode every vertex must lie in
- * the band, in `intersect` mode any segment touching the band is enough.
+ * the band, in `intersect` mode any segment touching the band is enough, or any of the edge's
+ * label boxes (`labels`) touching it.
  */
-export function rubberBandSelectsEdge(band: Rect, points: readonly Point[], mode: RubberBandMode = 'contain'): boolean {
+export function rubberBandSelectsEdge(band: Rect, points: readonly Point[], mode: RubberBandMode = 'contain', labels: readonly Rect[] = []): boolean {
   if (points.length === 0) return false
   if (mode === 'contain') return points.every((pt) => rectContainsPoint(band, pt))
+  if (labels.some((l) => rectsIntersect(band, l))) return true
   if (points.length === 1) return rectContainsPoint(band, points[0] as Point)
   for (let i = 0; i < points.length - 1; i++) {
     if (segmentIntersectsRect(points[i] as Point, points[i + 1] as Point, band)) return true
