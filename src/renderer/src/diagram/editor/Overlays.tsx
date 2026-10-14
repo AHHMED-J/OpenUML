@@ -5,7 +5,8 @@
 import { memo } from 'react'
 import type React from 'react'
 import { SELECTION, fmt, polylinePath, resizeHandles, type Point, type Rect } from '../core'
-import type { DiagramLayout } from '../layout/types'
+import type { DiagramLayout, EdgeLabelSlot } from '../layout/types'
+import { SvgText } from '../render/primitives'
 
 const ACCENT = SELECTION.color
 
@@ -28,6 +29,34 @@ function Handle({ center, zoom }: { center: Point; zoom: number }): React.JSX.El
   const s = SELECTION.handleSize / zoom
   return <rect x={fmt(center.x - s / 2)} y={fmt(center.y - s / 2)} width={fmt(s)} height={fmt(s)} fill={SELECTION.handleFill} stroke={ACCENT} strokeWidth={1 / zoom} />
 }
+
+/**
+ * Muted hint for an empty editable edge label (e.g. an association end's multiplicity): a faint
+ * dashed box with the hint text, shown only while the edge is selected (the diagram canvas is
+ * white in both themes; overlays are never exported).
+ */
+function SlotHint({ slot, zoom }: { slot: EdgeLabelSlot; zoom: number }): React.JSX.Element {
+  const b = slot.box
+  const pad = 2
+  return (
+    <g>
+      <rect
+        x={fmt(b.left - pad)}
+        y={fmt(b.top - pad / 2)}
+        width={fmt(b.width + 2 * pad)}
+        height={fmt(b.height + pad)}
+        rx={2}
+        fill={SLOT_HINT.fill}
+        stroke={SLOT_HINT.stroke}
+        strokeWidth={1 / zoom}
+        strokeDasharray={`${2 / zoom} ${2 / zoom}`}
+      />
+      <SvgText line={{ text: slot.hint, box: b, font: { ...slot.font, style: 2 }, align: 'center' }} color={SLOT_HINT.text} />
+    </g>
+  )
+}
+
+const SLOT_HINT = { fill: 'rgba(255,255,255,0.6)', stroke: 'rgba(110,118,129,0.55)', text: 'rgba(110,118,129,0.85)' } as const
 
 /** Edges highlighted because a selected edge is drawn as one with them (`EdgeLayout.highlightGroup`). */
 function highlightedEdges(layout: DiagramLayout, selected: readonly string[]): string[] {
@@ -122,6 +151,9 @@ export const SelectionOverlay = memo(function SelectionOverlay({
             <path d={polylinePath(edge.points)} fill="none" stroke={ACCENT} strokeWidth={px} strokeDasharray={`${3 / zoom} ${3 / zoom}`} />
             {edge.points.map((p, i) => (
               <Handle key={i} center={p} zoom={zoom} />
+            ))}
+            {edge.slots?.map((slot, i) => (
+              <SlotHint key={`slot-${i}`} slot={slot} zoom={zoom} />
             ))}
           </g>
         )
