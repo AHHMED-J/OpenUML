@@ -146,6 +146,9 @@ export interface EdgeLabelSlot {
   readonly font: Font
   /** Muted hint shown in the slot while the edge is selected (e.g. `multiplicity`). */
   readonly hint: string
+  /** Where the hint is drawn (centered on `box`) and in which (smaller, italic) font. */
+  readonly hintBox: Rect
+  readonly hintFont: Font
   readonly edit: EditTarget
   /** Initial editor text. */
   readonly editText: string
