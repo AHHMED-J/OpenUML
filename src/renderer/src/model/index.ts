@@ -46,6 +46,7 @@ export type { TimingNodeKind } from './factories-timing'
 export * from './structure-factories'
 export * from './factories-rad'
 export * from './idef0-numbering'
+export * from './idef0-titleblock'
 export {
   IDEF0_AREA,
   IDEF0_BOX,
