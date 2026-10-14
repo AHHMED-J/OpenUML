@@ -24,6 +24,20 @@ export interface SavePoint {
   readonly bypassCount: number
 }
 
+/**
+ * Runs at the end of every outermost transaction, inside it (its changes join the same undo
+ * step), with the builder holding the steps recorded so far. Used to keep derived values
+ * consistent whatever UI path made an edit (e.g. IDEF0 title blocks following their parent).
+ */
+export type TransactionHook = (b: OperationBuilder, repository: Repository) => void
+
+const transactionHooks: TransactionHook[] = []
+
+/** Registers a hook run at the end of every transaction of every engine (see `TransactionHook`). */
+export function registerTransactionHook(hook: TransactionHook): void {
+  if (!transactionHooks.includes(hook)) transactionHooks.push(hook)
+}
+
 /** Marker meaning "the saved state can no longer be reached through undo/redo". */
 const UNREACHABLE = '\u0000unreachable'
 
@@ -50,8 +64,8 @@ export class ModelEngine {
   ) {}
 
   /**
-   * Runs `build` as one operation named `name` and records it. Nested calls join the outer
-   * transaction. If `build` throws, its changes are reverted and the error is rethrown.
+   * Runs `build` as one operation named `name` and records it, after the transaction hooks
+   * (`registerTransactionHook`) had their say. Nested calls join the outer transaction. If `build` throws, its changes are reverted and the error is rethrown.
    * In read-only mode the changes are reverted and nothing is recorded.
    */
   transact<T>(name: string, build: (b: OperationBuilder) => T, options: TransactOptions = {}): T {
@@ -61,6 +75,7 @@ export class ModelEngine {
     let result: T
     try {
       result = build(builder)
+      if (builder.steps.length > 0) for (const hook of transactionHooks) hook(builder, this.repository)
     } catch (err) {
       runSteps(this.repository, builder.steps, false)
       throw err

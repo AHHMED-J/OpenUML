@@ -7,6 +7,8 @@
  *   `reorder`, `move`) that applies each change immediately and records the matching primitive
  *   step (`I`, `R`, `a`, `i`, `r`, `o`). Nested `transact` calls join the outer operation; a
  *   throwing build is rolled back. `{ bypass: true }` applies without entering history.
+ * - `registerTransactionHook(hook)`: runs at the end of every outermost transaction, inside it,
+ *   with the recorded steps (derived changes join the same undo step).
  * - `undo()`, `redo()`, `canUndo`, `canRedo`, `undoName`, `redoName`; stacks capped at 100.
  * - `isDirty` / `markSaved()` / `clearHistory()`; `subscribe(listener)` gets
  *   `{ type: 'execute' | 'undo' | 'redo', operation }` after each change.
