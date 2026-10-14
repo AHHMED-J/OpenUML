@@ -68,7 +68,7 @@ import {
 import { connectionRefusal, dropRefusal, refusalReason, withArticle, readableName } from './feedback'
 import { releaseActiveEditor, setActiveEditor, setContextEdgeEnd, takeReveal, type EditorHandle } from './activeEditor'
 import { edgeEditAt, edgeSlotAt, endElementAt } from './edgeEnds'
-import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
+import { bandSelection, hitTestDiagram, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
 import { HighlightOverlay } from './HighlightOverlay'
 import { applyQuickEdit } from './quickEditApply'
@@ -924,8 +924,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           if (!g.additive) setSelection([])
           return
         }
-        const ids = viewsInBand(l, g.rect)
-        setSelection(g.additive ? [...new Set([...selIds, ...ids])] : ids)
+        setSelection(bandSelection(l, g.rect, selIds, g.additive))
         return
       }
       case 'create-node': {
