@@ -10,7 +10,7 @@ import {
   type CommandDefinition,
   type CommandRegistry
 } from '../../commands'
-import { deleteIdef0Elements, getTextMeasurer, requestReveal } from '../../diagram'
+import { deleteIdef0Elements, getTextMeasurer, highlightViews, requestReveal } from '../../diagram'
 import { isKindOf, type DiagramKind, type Elem, type View } from '../../model'
 import { projectStore, selectedModels } from '../../store'
 import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
@@ -121,6 +121,14 @@ export function revealInDiagram(model: Elem): boolean {
   return true
 }
 
+/** Shows the selected element on its diagram and makes it pulse in red for two seconds. */
+function highlightSelected(): void {
+  const model = singleSelectedModel() ?? selectedModels(ps())[0]
+  if (!model) return
+  if (revealInDiagram(model)) highlightViews(ps().selectedViewIds)
+  else ui().toast('No diagrams to show')
+}
+
 function selectInDiagram(): void {
   const model = singleSelectedModel() ?? selectedModels(ps())[0]
   if (model && !revealInDiagram(model)) ui().toast('No diagrams to show')
@@ -222,6 +230,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
     }
   })
   add({ id: Cmd.editSelectInDiagram, label: 'Select in Diagram', isEnabled: () => selectedModels(ps()).length > 0, run: selectInDiagram })
+  add({ id: Cmd.editHighlight, label: 'Highlight', isEnabled: () => selectedModels(ps()).length > 0, run: highlightSelected })
   add({
     id: Cmd.editRename,
     label: 'Rename',

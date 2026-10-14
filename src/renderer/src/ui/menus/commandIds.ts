@@ -26,6 +26,7 @@ export const Cmd = {
   editMoveDown: 'edit.move-down',
   editSelectInExplorer: 'edit.select-in-explorer',
   editSelectInDiagram: 'edit.select-in-diagram',
+  editHighlight: 'edit.highlight',
   editRename: 'edit.rename',
   // Format
   formatLineRectilinear: 'format.linestyle.rectilinear',
