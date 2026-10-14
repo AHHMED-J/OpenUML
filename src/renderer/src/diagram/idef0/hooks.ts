@@ -1,5 +1,5 @@
-/** Registration of the IDEF0 editor hooks: auto-renumbering, rename sync, gestures and deletion. */
-import type { OperationBuilder } from '../../commands'
+/** Registration of the IDEF0 editor hooks: auto-renumbering, rename sync, title blocks, gestures and deletion. */
+import { registerTransactionHook, type OperationBuilder } from '../../commands'
 import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Diagram, type Elem } from '../../model'
 import { registerDiagramHooks, type DiagramEnv, type SegmentDrag } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
@@ -7,6 +7,7 @@ import { registerRenameHook } from '../editor/quickEditApply'
 import { deleteIdef0Views } from './deletion'
 import { arrowRunAt, createIdef0Edge, freeEnds, moveArrowRun, pickEnd, pickReconnect, reconnectIdef0 } from './gestures'
 import { syncLinkedNames } from './propagation'
+import { propagateTitleBlock } from './titleBlock'
 
 /** A diagram is titled with the name of the box it details. */
 function titleOf(diagram: Elem): string | null {
@@ -62,6 +63,8 @@ export function registerIdef0Hooks(): void {
     liveReconnect: true,
     pickReconnect
   })
+  // Author, date and status edits flow down to the child diagrams that still follow (any UI path).
+  registerTransactionHook(propagateTitleBlock)
   // Renaming an arrow renames its counterparts on the other levels.
   registerRenameHook((b, _repo, el) => syncLinkedNames(b, el))
   // Renaming a box renames the diagram that details it (and the A-0 title with the top function).
