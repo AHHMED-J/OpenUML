@@ -136,6 +136,23 @@ export interface EdgeLabelLayout {
   readonly editText?: string
 }
 
+/**
+ * Where an empty editable edge label would go (e.g. an association end without multiplicity).
+ * Editor-only: double-clicking it edits the label, and it is hinted while the edge is selected;
+ * renderers and exporters never draw it and it is not part of the edge bounds.
+ */
+export interface EdgeLabelSlot {
+  readonly box: Rect
+  readonly font: Font
+  /** Muted hint shown in the slot while the edge is selected (e.g. `multiplicity`). */
+  readonly hint: string
+  readonly edit: EditTarget
+  /** Initial editor text. */
+  readonly editText: string
+  /** End of the edge whose main edit this is (`EdgeLayout.endEdits`). */
+  readonly end?: 'tail' | 'head'
+}
+
 export interface EdgeLayout<D = unknown> {
   readonly kind: 'edge'
   readonly viewId: string
@@ -147,6 +164,13 @@ export interface EdgeLayout<D = unknown> {
   readonly tailEnd: EndSpec
   readonly headEnd: EndSpec
   readonly labels: readonly EdgeLabelLayout[]
+  /** Editor-only slots of empty editable labels (never drawn by renderers or exported). */
+  readonly slots?: readonly EdgeLabelSlot[]
+  /**
+   * The main inline edit of each end (association-style ends: the multiplicity), opened by
+   * double-clicking the edge near that end.
+   */
+  readonly endEdits?: { readonly tail?: EditTarget; readonly head?: EditTarget }
   readonly zIndex: number
   readonly style: ViewStyle
   /** Extra drawn areas (e.g. socket arcs) for export bounds. */
