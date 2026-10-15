@@ -10,7 +10,7 @@ import { writeFileAtomic } from './fileAccess'
 import { isProjectPath } from './ipcValidation'
 
 /** Largest project text kept (the same limit as an opened project file). */
-export const MAX_RECOVERY_BYTES = 256 * 1024 * 1024
+const MAX_RECOVERY_BYTES = 256 * 1024 * 1024
 const MAX_NAME_LENGTH = 300
 
 /** A valid snapshot from untrusted input (IPC or the recovery file), else null. */

@@ -13,7 +13,7 @@ const MAX_KEYS_PER_COMMAND = 4
 const MAX_COMMANDS = 1000
 
 /** The canonical descriptor of `descriptor`, or null when it is not a valid keystroke. */
-export function canonicalKeystroke(descriptor: string, platform: Platform): string | null {
+function canonicalKeystroke(descriptor: string, platform: Platform): string | null {
   const k = parseKeystroke(descriptor, platform)
   return k ? formatKeystroke(k) : null
 }
