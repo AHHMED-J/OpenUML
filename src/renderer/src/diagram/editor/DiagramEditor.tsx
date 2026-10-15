@@ -248,6 +248,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const liveFrame = useRef<number | null>(null)
   const liveFallback = useRef<DragPreview | null>(null)
   const [cursor, setCursor] = useState<string>('default')
+  /** Last pointer position over the canvas (diagram units), to refresh the cursor without a move. */
+  const lastPointer = useRef<Point | null>(null)
   const [editing, setEditing] = useState<QuickEditState | null>(null)
   const [viewport, setViewport] = useState({ width: 800, height: 600 })
   const pendingEdit = useRef<{ viewId: string; elementId?: string } | null>(null)
@@ -552,8 +554,13 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     []
   )
 
-  // Back to Select (Esc / A / the toolbox) drops a half-drawn node or edge of the previous tool.
+  // Back to Select (Esc / A / the toolbox) drops a half-drawn node or edge of the previous tool,
+  // and the cursor at once becomes what the Select tool shows there (not only after a move).
   useEffect(() => {
+    if (tool === null) {
+      if (lastPointer.current) updateHoverCursor(lastPointer.current)
+      else setCursor('default')
+    }
     const g = gesture.current
     if (tool !== null || !g || (g.type !== 'create-node' && g.type !== 'create-edge')) return
     gesture.current = null
@@ -777,6 +784,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>): void => {
     const g = gesture.current
     const p = toDiagram(e.clientX, e.clientY)
+    lastPointer.current = p
     if (!g) {
       updateHoverCursor(p)
       return
