@@ -1,10 +1,12 @@
 /**
- * The website viewer: model tree (left), diagram (center), breadcrumb (top). Clicking an IDEF0
- * box with a child diagram zooms into it; the breadcrumb or Backspace zooms back out. The shown
- * diagram is in the address (`page.html#<diagram id>`), so links and the browser's Back work.
- * Model text is only ever set as text (`textContent`), never parsed as HTML.
+ * The website viewer: model tree (left), diagram (center), breadcrumb and walk buttons (top), and
+ * under an IDEF0 diagram the ICOM list of the focused box (or of the sheet). Clicking an IDEF0 box
+ * with a child diagram zooms into it; the breadcrumb or Backspace zooms back out. ← / → (and the
+ * ◀ ▶ buttons) walk the model step by step: each diagram, and on IDEF0 diagrams each box,
+ * entering decomposed boxes. The shown diagram is in the address (`page.html#<diagram id>`), so
+ * links and the browser's Back work. Model text is only ever set as text, never parsed as HTML.
  */
-import type { DiagramDigest, TreeEntry, WebsiteDigest } from '../shared/website'
+import type { DiagramDigest, IcomEntry, TreeEntry, WebsiteDigest } from '../shared/website'
 import { MAX_SCALE } from './camera'
 import { ViewerEngine } from './engine'
 
@@ -13,6 +15,14 @@ const ZOOM_IN_MS = 380
 const ZOOM_OUT_MS = 420
 
 type Transition = 'cut' | 'in' | 'out'
+
+const ROLE_HEADINGS: ReadonlyArray<[IcomEntry['role'], string]> = [
+  ['input', 'Inputs'],
+  ['control', 'Controls'],
+  ['output', 'Outputs'],
+  ['mechanism', 'Mechanisms'],
+  ['call', 'Calls']
+]
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: { className?: string; text?: string; title?: string } = {}, ...children: Node[]): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag)
@@ -29,8 +39,16 @@ export class ViewerApp {
   private readonly treeRows = new Map<string, HTMLElement[]>()
   private readonly expanded = new Set<string>()
   private readonly treeRoot: HTMLElement
+  private readonly walkLabel: HTMLElement
+  private readonly prevButton: HTMLButtonElement
+  private readonly nextButton: HTMLButtonElement
+  private readonly icomPanel: HTMLElement
   private currentId: string | null = null
   private navigating = false
+  /** Position in `data.steps` (-1 when the shown diagram is not part of the walk). */
+  private stepIndex = -1
+  /** The IDEF0 box whose arrows are listed and lit (null: the whole sheet). */
+  private focusedBox: string | null = null
 
   constructor(
     readonly root: HTMLElement,
@@ -41,7 +59,12 @@ export class ViewerApp {
     this.crumbs.setAttribute('aria-label', 'Diagram path')
     const present = h('button', { text: '▶ Present', title: 'Presentation mode (coming in a later version)' })
     present.hidden = true
-    const top = h('header', { className: 'ouv-top' }, h('span', { className: 'ouv-title', text: data.title, title: data.title }), this.crumbs, present)
+    this.prevButton = this.button('◀', 'Previous step (←)', () => void this.walk(-1))
+    this.nextButton = this.button('▶', 'Next step (→)', () => void this.walk(1))
+    this.walkLabel = h('span', { className: 'ouv-walk-label' })
+    const walk = h('div', { className: 'ouv-walk' }, this.prevButton, this.walkLabel, this.nextButton)
+    walk.hidden = data.steps.length < 2
+    const top = h('header', { className: 'ouv-top' }, h('span', { className: 'ouv-title', text: data.title, title: data.title }), this.crumbs, walk, present)
     this.treeRoot = h('aside', { className: 'ouv-tree' })
     this.treeRoot.setAttribute('aria-label', 'Model')
     const stage = h('div')
@@ -52,7 +75,9 @@ export class ViewerApp {
       this.button('Fit', 'Show the whole diagram (0)', () => this.fitAll(true)),
       this.button('+', 'Zoom in (+)', () => void this.engine.zoomBy(1.25))
     )
-    const main = h('main', { className: 'ouv-main' }, stage, zoom)
+    this.icomPanel = h('section', { className: 'ouv-icom' })
+    this.icomPanel.setAttribute('aria-label', 'Arrows')
+    const main = h('main', { className: 'ouv-main' }, h('div', { className: 'ouv-canvas' }, stage, zoom), this.icomPanel)
     const foot = h('footer', { className: 'ouv-foot', text: `Made with ${data.generator}. Works offline; nothing is sent anywhere.` })
     root.replaceChildren(h('div', { className: 'ouv' }, top, this.treeRoot, main, foot))
 
@@ -141,6 +166,9 @@ export class ViewerApp {
       if (decodeURIComponent(location.hash.slice(1)) !== id) location.hash = encodeURIComponent(id)
       this.renderCrumbs()
       this.markCurrent()
+      this.focusedBox = null
+      this.syncStep(id, null)
+      this.renderIcom()
     } finally {
       this.navigating = false
     }
@@ -168,12 +196,107 @@ export class ViewerApp {
       void this.show(child, 'in', viewId)
       return
     }
+    if (viewId && d.boxes[viewId]) {
+      this.focusBox(viewId)
+      return
+    }
     const element = viewId ? d.views[viewId] : null
-    this.highlightElement(element ?? null)
+    if (!element) this.focusBox(null)
+    else this.highlightElement(element)
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // Guided walk and ICOM list
+
+  /** Points the walk at `view` on `diagram` (or the whole diagram) when that is a step. */
+  private syncStep(diagram: string, view: string | null): void {
+    const index = this.data.steps.findIndex((s) => s.diagram === diagram && s.view === view)
+    if (index >= 0) this.stepIndex = index
+    else if (this.data.steps[this.stepIndex]?.diagram !== diagram) this.stepIndex = this.data.steps.findIndex((s) => s.diagram === diagram)
+    this.renderWalk()
+  }
+
+  private renderWalk(): void {
+    const total = this.data.steps.length
+    this.walkLabel.textContent = this.stepIndex >= 0 ? `${this.stepIndex + 1} / ${total}` : `– / ${total}`
+    this.prevButton.disabled = this.stepIndex <= 0
+    this.nextButton.disabled = this.stepIndex >= total - 1
+  }
+
+  /** Goes `delta` steps along the walk (zooming into a box that opens the next diagram). */
+  private async walk(delta: number): Promise<void> {
+    if (this.navigating) return
+    const from = this.data.steps[this.stepIndex]
+    const index = Math.max(0, Math.min(this.data.steps.length - 1, (this.stepIndex < 0 ? -1 : this.stepIndex) + delta))
+    const step = this.data.steps[index]
+    if (!step || index === this.stepIndex) return
+    if (step.diagram !== this.currentId) {
+      const drilled = from?.view && this.diagram(from.diagram)?.drill[from.view] === step.diagram
+      this.engine.highlight(null)
+      await this.show(step.diagram, drilled ? 'in' : this.transitionTo(step.diagram), drilled ? from.view : null)
+    }
+    this.stepIndex = index
+    this.focusBox(step.view)
+  }
+
+  /** Lists and lights the arrows of `view` (an IDEF0 box), or of the whole sheet when null. */
+  private focusBox(view: string | null): void {
+    const d = this.diagram(this.currentId)
+    if (!d) return
+    const box = view ? d.boxes[view] : undefined
+    this.focusedBox = box ? view : null
+    if (box && view) this.engine.highlight(new Set([view, ...box.icom.flatMap((e) => e.views)]))
+    else this.engine.highlight(null)
+    if (this.currentId) this.syncStep(this.currentId, this.focusedBox)
+    this.renderIcom()
+  }
+
+  private renderIcom(): void {
+    const d = this.diagram(this.currentId)
+    const box = d && this.focusedBox ? d.boxes[this.focusedBox] : undefined
+    const entries = box ? box.icom : (d?.icom ?? [])
+    this.icomPanel.hidden = !d || (Object.keys(d.boxes).length === 0 && entries.length === 0)
+    if (this.icomPanel.hidden || !d) return
+    const title = box ? box.label : d.context ? `${d.label}: arrows of its box` : `${d.label}: arrows crossing the sheet boundary`
+    const columns = ROLE_HEADINGS.filter(([role]) => role !== 'call' || entries.some((e) => e.role === 'call')).map(([role, heading]) => {
+      const rows = entries.filter((e) => e.role === role)
+      const list = h('ul')
+      if (rows.length === 0) list.append(h('li', { className: 'ouv-icom-none', text: 'None' }))
+      for (const entry of rows) list.append(this.icomRow(entry))
+      return h('div', { className: `ouv-icom-col role-${role}` }, h('h3', { text: `${heading} (${rows.length})` }), list)
+    })
+    const hint = box ? 'Click an arrow to show it on the diagram.' : 'Click a box (or use ← →) to see its arrows.'
+    this.icomPanel.replaceChildren(
+      h('header', {}, h('strong', { text: title }), h('span', { className: 'ouv-icom-hint', text: hint })),
+      h('div', { className: 'ouv-icom-cols' }, ...columns)
+    )
+  }
+
+  private icomRow(entry: IcomEntry): HTMLLIElement {
+    const b = h(
+      'button',
+      { className: 'ouv-icom-row', title: [entry.code, entry.name, entry.detail].filter(Boolean).join(' · ') },
+      h('span', { className: 'ouv-icom-code', text: entry.code }),
+      h('span', { className: 'ouv-icom-text' }, h('span', { className: 'ouv-icom-name', text: entry.name || '(unnamed)' }), h('span', { className: 'ouv-icom-detail', text: entry.detail }))
+    )
+    b.type = 'button'
+    b.disabled = entry.views.length === 0
+    b.addEventListener('click', () => {
+      const lit = new Set(entry.views)
+      if (this.focusedBox) lit.add(this.focusedBox)
+      this.engine.highlight(lit)
+    })
+    return h('li', {}, b)
   }
 
   /** Emphasizes the views of `elementId` on the shown diagram (null clears). */
   private highlightElement(elementId: string | null): void {
+    const d = this.diagram(this.currentId)
+    const boxView = elementId && d ? Object.keys(d.boxes).find((v) => d.views[v] === elementId) : undefined
+    if (boxView) {
+      this.focusBox(boxView)
+      return
+    }
     const views = elementId ? (this.data.elements[elementId]?.views ?? []).filter((v) => v.diagram === this.currentId).map((v) => v.view) : []
     this.engine.highlight(views.length > 0 ? new Set(views) : null)
   }
@@ -183,7 +306,9 @@ export class ViewerApp {
     const target = e.target as HTMLElement | null
     if (target && (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
     const d = this.diagram(this.currentId)
-    if (e.key === 'Escape') this.engine.highlight(null)
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') void this.walk(1)
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') void this.walk(-1)
+    else if (e.key === 'Escape') this.focusBox(null)
     else if (e.key === '+' || e.key === '=') void this.engine.zoomBy(1.25)
     else if (e.key === '-') void this.engine.zoomBy(1 / 1.25)
     else if (e.key === '0') this.fitAll(true)
