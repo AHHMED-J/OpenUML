@@ -187,9 +187,11 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
         submenu: [
           { label: 'PNG...', command: Cmd.fileExportPng },
           { label: 'SVG...', command: Cmd.fileExportSvg },
+          { label: 'PDF...', command: Cmd.fileExportPdf },
           SEP,
           { label: 'All to PNGs...', command: Cmd.fileExportAllPng },
-          { label: 'All to SVGs...', command: Cmd.fileExportAllSvg }
+          { label: 'All to SVGs...', command: Cmd.fileExportAllSvg },
+          { label: 'All to One PDF...', command: Cmd.fileExportAllPdf }
         ]
       },
       ...(mac
