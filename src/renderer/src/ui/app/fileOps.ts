@@ -2,7 +2,7 @@
  * Project lifecycle: new, open (dialog, recent, OS), save, save as, close, export, and the
  * unsaved-changes prompt. Runs in the renderer through the preload bridge.
  */
-import { diagramToPngBase64, diagramToSvg } from '../../export'
+import { diagramToPdfPage, diagramToPngBase64, diagramToSvg } from '../../export'
 import { rename } from '../../commands'
 import { isKindOf, type Diagram } from '../../model'
 import { projectStore } from '../../store'
@@ -269,7 +269,7 @@ function activeDiagramOrThrow(): Diagram {
   return d
 }
 
-export async function exportDiagram(format: 'png' | 'svg'): Promise<void> {
+export async function exportDiagram(format: 'png' | 'svg' | 'pdf'): Promise<void> {
   const b = requireBridge()
   const diagram = activeDiagramOrThrow()
   const name = `${exportFileName(diagram.name)}.${format}`
@@ -278,8 +278,22 @@ export async function exportDiagram(format: 'png' | 'svg'): Promise<void> {
   if (!path) return
   if (!path.toLowerCase().endsWith(`.${format}`)) path += `.${format}`
   if (format === 'svg') await b.writeTextFile(path, diagramToSvg(diagram._id))
+  else if (format === 'pdf') await b.writePdf(path, [diagramToPdfPage(diagram._id)])
   else await b.writeBinaryFile(path, await diagramToPngBase64(diagram._id, 2))
   ui().toast(`Exported ${baseName(path)}`)
+}
+
+/** Every diagram of the project in one PDF, one page per diagram (model order). */
+export async function exportAllDiagramsPdf(): Promise<void> {
+  const b = requireBridge()
+  const diagrams = ps().repository.diagrams()
+  if (diagrams.length === 0) throw new Error('No diagram to export.')
+  const name = ps().filePath ? baseName(ps().filePath as string).replace(/\.mdj$/i, '') : ps().project.name
+  let path = await b.chooseSavePath(`${exportFileName(name ?? '')}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }])
+  if (!path) return
+  if (!path.toLowerCase().endsWith('.pdf')) path += '.pdf'
+  await b.writePdf(path, diagrams.map((d) => diagramToPdfPage(d._id)))
+  ui().toast(`Exported ${diagrams.length} diagram${diagrams.length === 1 ? '' : 's'} to ${baseName(path)}`)
 }
 
 /** Owner chain joined by `::` (for unique export names). */

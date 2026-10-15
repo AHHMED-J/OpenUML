@@ -14,6 +14,8 @@ export const Cmd = {
   fileExportSvg: 'file.export-diagram-as.svg',
   fileExportAllPng: 'file.export-diagram-as.all-to-pngs',
   fileExportAllSvg: 'file.export-diagram-as.all-to-svgs',
+  fileExportPdf: 'file.export-diagram-as.pdf',
+  fileExportAllPdf: 'file.export-diagram-as.all-to-pdf',
   appPreferences: 'app.preferences',
   helpAbout: 'help.about',
   helpDocumentation: 'help.documentation',

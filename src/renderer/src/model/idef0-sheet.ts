@@ -149,6 +149,8 @@ export const SHEET_UNITS_PER_MM = IDEF0_SHEET.width / 210
 export interface SheetPreset extends SheetSize {
   readonly id: string
   readonly label: string
+  /** The paper it stands for (millimetres, in the sheet's orientation); absent for the default sheet. */
+  readonly paperMm?: SheetSize
 }
 
 function paper(id: string, label: string, shortMm: number, longMm: number): SheetPreset[] {
@@ -156,8 +158,8 @@ function paper(id: string, label: string, shortMm: number, longMm: number): Shee
   const short = units(shortMm)
   const long = units(longMm)
   return [
-    { id: `${id}-landscape`, label: `${label} Landscape`, width: long, height: short },
-    { id: `${id}-portrait`, label: `${label} Portrait`, width: short, height: long }
+    { id: `${id}-landscape`, label: `${label} Landscape`, width: long, height: short, paperMm: { width: longMm, height: shortMm } },
+    { id: `${id}-portrait`, label: `${label} Portrait`, width: short, height: long, paperMm: { width: shortMm, height: longMm } }
   ]
 }
 

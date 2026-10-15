@@ -24,6 +24,7 @@ import { checkForUpdates, offerUpdate } from './updates'
 import {
   closeWindow,
   exportAllDiagrams,
+  exportAllDiagramsPdf,
   exportDiagram,
   newProject,
   openExample,
@@ -205,6 +206,13 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({ id: Cmd.fileClose, label: 'Close', run: () => closeWindow() })
   add({ id: Cmd.fileExportPng, label: 'Export Diagram as PNG...', run: () => exportDiagram('png'), isEnabled: () => hasDiagram() && bridge !== null })
   add({ id: Cmd.fileExportSvg, label: 'Export Diagram as SVG...', run: () => exportDiagram('svg'), isEnabled: () => hasDiagram() && bridge !== null })
+  add({ id: Cmd.fileExportPdf, label: 'Export Diagram as PDF...', run: () => exportDiagram('pdf'), isEnabled: () => hasDiagram() && bridge !== null })
+  add({
+    id: Cmd.fileExportAllPdf,
+    label: 'Export All Diagrams to One PDF...',
+    run: () => exportAllDiagramsPdf(),
+    isEnabled: () => bridge !== null && ps().repository.diagrams().length > 0
+  })
   add({
     id: Cmd.fileExportAllPng,
     label: 'Export All Diagrams to PNGs...',

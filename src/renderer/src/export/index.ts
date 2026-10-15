@@ -7,14 +7,19 @@
  * - `diagramToPngBase64(diagramId, scale = 2, options?)` → base64 PNG (no `data:` prefix),
  *   rasterized from the same SVG at `scale`, on a white background by default
  *   (`options.background: null` for transparent).
+ * - `diagramToPdfPage(diagramId)` → one PDF page (SVG + page size) for `bridge.writePdf`; IDEF0
+ *   sheets with a paper size print on that paper.
  * - `renderDiagramSvg(diagram, repository, measurer, options?)` is the pure core (tests, batch export).
  */
 import { isKindOf, type Diagram } from '../model'
 import { projectStore } from '../store'
 import { getTextMeasurer } from '../diagram/layout/measurer'
+import type { PdfPage } from '../../../shared/ipc'
+import { pdfPageOf } from './pdf'
 import { renderDiagramSvg, type SvgExportOptions } from './svg'
 
 export { renderDiagramSvg, type RenderedSvg, type SvgExportOptions } from './svg'
+export { pdfPageOf } from './pdf'
 
 function diagramById(diagramId: string): Diagram {
   const d = projectStore.getState().repository.get(diagramId)
@@ -26,6 +31,11 @@ function diagramById(diagramId: string): Diagram {
 export function diagramToSvg(diagramId: string, options: SvgExportOptions = {}): string {
   const { repository } = projectStore.getState()
   return renderDiagramSvg(diagramById(diagramId), repository, getTextMeasurer(), options).svg
+}
+
+/** One PDF page of a diagram of the open project (see `pdfPageOf`). */
+export function diagramToPdfPage(diagramId: string): PdfPage {
+  return pdfPageOf(diagramById(diagramId), projectStore.getState().repository, getTextMeasurer())
 }
 
 export interface PngExportOptions {
