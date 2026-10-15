@@ -30,6 +30,9 @@ export function PreferencesDialog(): React.JSX.Element {
           <button className="button" onClick={() => uiStore.getState().resetPrefs()}>
             Restore Defaults
           </button>
+          <button className="button" onClick={() => uiStore.getState().openModal({ kind: 'shortcuts' })}>
+            Keyboard Shortcuts...
+          </button>
           <span className="spacer" />
           <button className="button primary" onClick={close}>
             Done

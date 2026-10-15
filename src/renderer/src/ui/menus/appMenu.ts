@@ -159,6 +159,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       { id: 'app.check-for-updates', label: 'Check for Updates...', command: Cmd.helpCheckForUpdates },
       SEP,
       { id: 'app.preferences', label: 'Preferences...', command: Cmd.appPreferences },
+      { id: 'app.keyboard-shortcuts', label: 'Keyboard Shortcuts...', command: Cmd.appKeyboardShortcuts },
       SEP,
       { label: 'Services', role: 'services' },
       SEP,
@@ -196,7 +197,13 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       },
       ...(mac
         ? []
-        : [SEP, { id: 'file.preferences', label: 'Preferences...', command: Cmd.appPreferences }, SEP, { label: 'Exit', role: 'quit' }])
+        : [
+            SEP,
+            { id: 'file.preferences', label: 'Preferences...', command: Cmd.appPreferences },
+            { id: 'file.keyboard-shortcuts', label: 'Keyboard Shortcuts...', command: Cmd.appKeyboardShortcuts },
+            SEP,
+            { label: 'Exit', role: 'quit' }
+          ])
     ]
   }
   const edit: MenuNode = {
@@ -217,7 +224,9 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       SEP,
       { id: 'edit.select-all', label: 'Select All', command: Cmd.editSelectAll },
       { id: 'edit.select-in-explorer', label: 'Select in Explorer', command: Cmd.editSelectInExplorer },
-      { id: 'edit.select-in-diagram', label: 'Select in Diagram', command: Cmd.editSelectInDiagram }
+      { id: 'edit.select-in-diagram', label: 'Select in Diagram', command: Cmd.editSelectInDiagram },
+      SEP,
+      { id: 'edit.find', label: 'Find in Model Explorer', command: Cmd.explorerFind }
     ]
   }
   const format: MenuNode = { id: 'format', label: 'Format', submenu: formatItems }

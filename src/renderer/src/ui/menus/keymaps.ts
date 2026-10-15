@@ -34,6 +34,7 @@ export const DEFAULT_KEYMAP: readonly KeyBinding[] = [
   { key: 'cmdctrl-a', command: Cmd.editSelectAll },
   { key: 'cmdctrl-e', command: Cmd.editSelectInExplorer },
   { key: 'cmdctrl-d', command: Cmd.editSelectInDiagram },
+  { key: 'cmdctrl-f', command: Cmd.explorerFind },
   // Format
   { key: 'cmdctrl-l', command: Cmd.formatLineRectilinear },
   { key: 'cmdctrl-b', command: Cmd.formatLineOblique },

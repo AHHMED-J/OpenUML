@@ -12,7 +12,7 @@ import { WHEN_TOOL_ACTIVE } from '../menus/keymaps'
 import { resolveMenu, toNativeMenu, type MenuContext } from '../menus/menuModel'
 import { uiStore } from '../uiStore'
 import { bridge, isTextInputFocused, platform } from './bridge'
-import { initCommands, keymap, registry, reportError, runCommand } from './commands'
+import { applyKeybindings, initCommands, keymap, registry, reportError, runCommand } from './commands'
 import { handleCloseRequest, openProjectPath, windowTitle } from './fileOps'
 import { decodeMenuCommand } from '../menus/menuModel'
 import { discardRecovery, offerRecovery, startAutosave } from './autosave'
@@ -90,6 +90,10 @@ export function startShell(): () => void {
     uiStore.subscribe((s, prev) => {
       if (s.prefs.radAutoThread !== prev.prefs.radAutoThread) setRadAutoThread(s.prefs.radAutoThread)
       if (s.appVersion !== prev.appVersion) syncTitle()
+      if (s.keybindings !== prev.keybindings) {
+        applyKeybindings(s.keybindings)
+        scheduleMenu()
+      }
     })
   )
   cleanups.push(

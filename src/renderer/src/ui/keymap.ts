@@ -195,6 +195,21 @@ export class Keymap {
     this.addAll(bindings)
   }
 
+  /** Replaces every binding (and clears the warnings), e.g. after the user customized shortcuts. */
+  reset(bindings: readonly KeyBinding[]): void {
+    this.byKey.clear()
+    this.byCommand.clear()
+    this.warnings.length = 0
+    this.addAll(bindings)
+  }
+
+  /** Every canonical descriptor bound to `command`, the primary one first. */
+  keystrokesFor(command: string): string[] {
+    const primary = this.byCommand.get(command)
+    const others = [...this.byKey.values()].filter((b) => b.command === command && b.descriptor !== primary).map((b) => b.descriptor)
+    return primary ? [primary, ...others] : others
+  }
+
   /** Adds bindings; a later binding for the same keystroke overrides the earlier one (with a warning). */
   addAll(bindings: readonly KeyBinding[]): void {
     for (const b of bindings) {
