@@ -39,7 +39,8 @@ button { font: inherit; color: inherit; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
 .ouv-label.inert { cursor: default; color: var(--muted); }
 .ouv-label.diagram { font-weight: 600; }
-.ouv-main { grid-area: main; position: relative; min-width: 0; min-height: 0; }
+.ouv-main { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.ouv-canvas { position: relative; flex: 1; min-height: 160px; }
 .ouv-stage { position: absolute; inset: 0; overflow: hidden; background: var(--canvas); cursor: grab; touch-action: none; }
 .ouv-stage.ouv-panning { cursor: grabbing; }
 .ouv-diagram { display: block; width: 100%; height: 100%; user-select: none; }
@@ -52,6 +53,35 @@ button { font: inherit; color: inherit; }
 .ouv-zoom button { min-width: 32px; height: 28px; border: 1px solid var(--border); border-radius: 6px;
   background: var(--panel); cursor: pointer; }
 .ouv-zoom button:hover { background: var(--hover); }
+.ouv-walk { display: flex; align-items: center; gap: 4px; flex: none; }
+.ouv-walk[hidden] { display: none; }
+.ouv-walk button { min-width: 30px; height: 26px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--panel); cursor: pointer; }
+.ouv-walk button:hover:not(:disabled) { background: var(--hover); }
+.ouv-walk button:disabled { opacity: 0.4; cursor: default; }
+.ouv-walk-label { min-width: 56px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ouv-icom { flex: none; max-height: 34%; overflow: auto; background: var(--panel);
+  border-top: 1px solid var(--border); padding: 8px 14px 10px; }
+.ouv-icom[hidden] { display: none; }
+.ouv-icom header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.ouv-icom-hint { color: var(--muted); font-size: 12px; }
+.ouv-icom-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 4px 16px; }
+.ouv-icom h3 { margin: 0 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.ouv-icom ul { list-style: none; margin: 0; padding: 0; }
+.ouv-icom-row { display: flex; align-items: baseline; gap: 6px; width: 100%; border: none; background: none;
+  padding: 2px 4px; border-radius: 4px; text-align: left; cursor: pointer; }
+.ouv-icom-row:hover:not(:disabled) { background: var(--hover); }
+.ouv-icom-row:disabled { cursor: default; }
+.ouv-icom-code { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 28px; }
+.ouv-icom-text { display: flex; flex-direction: column; min-width: 0; }
+.ouv-icom-detail { color: var(--muted); font-size: 12px; }
+.ouv-icom-none { color: var(--muted); padding: 2px 4px; }
+.role-input h3 { color: #2f6fdb; } .role-control h3 { color: #b7791f; } .role-output h3 { color: #1f9d55; }
+.role-mechanism h3 { color: #805ad5; } .role-call h3 { color: var(--muted); }
+@media (prefers-color-scheme: dark) {
+  .role-input h3 { color: #6ea2f5; } .role-control h3 { color: #e0a84e; } .role-output h3 { color: #4cc38a; }
+  .role-mechanism h3 { color: #b39af0; }
+}
 .ouv-foot { grid-area: foot; padding: 3px 14px; font-size: 11px; color: var(--muted);
   background: var(--panel); border-top: 1px solid var(--border); }
 .ouv-error { padding: 24px; }
