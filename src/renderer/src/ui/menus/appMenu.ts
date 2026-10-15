@@ -195,6 +195,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
           { label: 'All to One PDF...', command: Cmd.fileExportAllPdf }
         ]
       },
+      { id: 'file.export-interactive-website', label: 'Export Interactive Website...', command: Cmd.fileExportWebsite },
       ...(mac
         ? []
         : [
