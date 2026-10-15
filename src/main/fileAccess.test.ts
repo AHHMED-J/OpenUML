@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -131,6 +131,16 @@ describe('writeFileAtomic', () => {
     await expect(writeFileAtomic(path, { bad: true } as unknown as string)).rejects.toThrow()
     expect(await readFile(path, 'utf8')).toBe('original')
     expect(await readdir(dir)).toEqual(['model.mdj'])
+  })
+
+  it('keeps the permissions of the replaced file', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'openuml-'))
+    const path = join(dir, 'model.mdj')
+    await writeFile(path, 'old')
+    await chmod(path, 0o600)
+    await writeFileAtomic(path, 'new')
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+    expect(await readFile(path, 'utf8')).toBe('new')
   })
 
   it('writes through a symbolic link', async () => {

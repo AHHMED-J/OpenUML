@@ -2,7 +2,7 @@
  * File-system guards for the IPC handlers: which paths the renderer may read and write, and
  * crash-safe writing. Kept free of Electron so it can be unit tested.
  */
-import { mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { isAbsolutePath } from './ipcValidation'
 
@@ -123,7 +123,8 @@ export async function readProjectFile(path: string, requireProjectTarget: boolea
 /**
  * Writes `data` to `path` without ever leaving a half-written file there: the data goes to a
  * temporary file in the same folder, which then replaces the target. Missing folders are created;
- * a symbolic link at `path` keeps pointing to the (replaced) file it links to.
+ * a symbolic link at `path` keeps pointing to the (replaced) file it links to, and a replaced file
+ * keeps its permissions.
  */
 export async function writeFileAtomic(path: string, data: string | Buffer): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
@@ -131,6 +132,8 @@ export async function writeFileAtomic(path: string, data: string | Buffer): Prom
   const tmp = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`)
   try {
     await writeFile(tmp, data)
+    const mode = await stat(target).then((info) => info.mode & 0o7777, () => null)
+    if (mode !== null) await chmod(tmp, mode)
     await rename(tmp, target)
   } catch (err) {
     await rm(tmp, { force: true })
