@@ -151,7 +151,7 @@ export interface ContextMenuState {
 }
 
 /** A newer release found by the update check. */
-export interface AvailableUpdate {
+interface AvailableUpdate {
   readonly version: string
   /** Release page to download it from. */
   readonly url: string

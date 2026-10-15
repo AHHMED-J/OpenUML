@@ -5,9 +5,9 @@
  */
 import type { PdfPage } from '../shared/ipc'
 
-export const MAX_PDF_PAGES = 500
+const MAX_PDF_PAGES = 500
 /** Largest page side in CSS pixels (about 5.3 m). */
-export const MAX_PAGE_PX = 20000
+const MAX_PAGE_PX = 20000
 const MAX_SVG_LENGTH = 64 * 1024 * 1024
 const MAX_TOTAL_LENGTH = 256 * 1024 * 1024
 
