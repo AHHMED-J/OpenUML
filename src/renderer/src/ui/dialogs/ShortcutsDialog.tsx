@@ -3,7 +3,7 @@
  * combination; a keystroke another command uses moves after confirmation; × removes one; Reset
  * restores a command's defaults. Changes apply at once (menus included) and are kept per viewer.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { bridge, platform } from '../app/bridge'
 import { keymap, registry } from '../app/commands'
@@ -51,17 +51,32 @@ export function ShortcutsDialog(): React.JSX.Element {
     ? rows.filter((r) => r.title.toLowerCase().includes(q) || current(r.id).some((k) => displayKeystroke(k, platform).toLowerCase().includes(q) || k.includes(q)))
     : rows
 
-  const record = async (command: string, e: React.KeyboardEvent): Promise<void> => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.key === 'Escape' || e.key === 'Tab') {
+  const recordButton = useRef<HTMLButtonElement>(null)
+  // While recording, the next key combination is captured before anything else sees it (the
+  // dialog's Esc, the menus, the search field), wherever the focus is.
+  useEffect(() => {
+    if (!recording) return
+    recordButton.current?.focus()
+    const command = recording
+    const onKey = (e: KeyboardEvent): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape' || e.key === 'Tab') {
+        setRecording(null)
+        return
+      }
+      const key = eventToDescriptor(e)
+      // Lone modifier presses wait for the rest of the combination.
+      if (!key) return
       setRecording(null)
-      return
+      void assign(command, key)
     }
-    const key = eventToDescriptor(e.nativeEvent)
-    // Lone modifier presses wait for the rest of the combination.
-    if (!key) return
-    setRecording(null)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new recording restarts the capture
+  }, [recording])
+
+  const assign = async (command: string, key: string): Promise<void> => {
     if (current(command).includes(key)) return
     const owner = keymap.match(key)?.command ?? null
     if (owner && owner !== command && !(await confirmMove(key, titleOf(owner), titleOf(command)))) return
@@ -120,7 +135,7 @@ export function ShortcutsDialog(): React.JSX.Element {
                   </kbd>
                 ))}
                 {recording === row.id ? (
-                  <button className="button recording" autoFocus onKeyDown={(e) => void record(row.id, e)} onBlur={() => setRecording(null)}>
+                  <button ref={recordButton} className="button recording" onClick={() => setRecording(null)}>
                     Press keys… (Esc cancels)
                   </button>
                 ) : (
