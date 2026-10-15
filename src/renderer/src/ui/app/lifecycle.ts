@@ -15,6 +15,8 @@ import { bridge, isTextInputFocused, platform } from './bridge'
 import { initCommands, keymap, registry, reportError, runCommand } from './commands'
 import { handleCloseRequest, openProjectPath, windowTitle } from './fileOps'
 import { decodeMenuCommand } from '../menus/menuModel'
+import { discardRecovery, offerRecovery, startAutosave } from './autosave'
+import { startUpdates } from './updates'
 
 export function menuContext(): MenuContext {
   return {
@@ -27,7 +29,7 @@ export function menuContext(): MenuContext {
 
 function syncTitle(): void {
   const s = projectStore.getState()
-  const title = windowTitle(s.filePath, s.project.name, s.dirty)
+  const title = windowTitle(s.filePath, s.project.name, s.dirty, uiStore.getState().appVersion)
   if (bridge) bridge.setDirty(s.dirty, title)
   else document.title = title
 }
@@ -87,6 +89,7 @@ export function startShell(): () => void {
   cleanups.push(
     uiStore.subscribe((s, prev) => {
       if (s.prefs.radAutoThread !== prev.prefs.radAutoThread) setRadAutoThread(s.prefs.radAutoThread)
+      if (s.appVersion !== prev.appVersion) syncTitle()
     })
   )
   cleanups.push(
@@ -99,7 +102,14 @@ export function startShell(): () => void {
   )
   cleanups.push(
     uiStore.subscribe((s, prev) => {
-      if (s.panels !== prev.panels || s.dock !== prev.dock || s.prefs !== prev.prefs || s.recentFiles !== prev.recentFiles || s.sortBy !== prev.sortBy) {
+      if (
+        s.panels !== prev.panels ||
+        s.dock !== prev.dock ||
+        s.prefs !== prev.prefs ||
+        s.recentFiles !== prev.recentFiles ||
+        s.sortBy !== prev.sortBy ||
+        s.update !== prev.update
+      ) {
         scheduleMenu()
       }
     })
@@ -116,6 +126,9 @@ export function startShell(): () => void {
     if (menuTimer !== null) clearTimeout(menuTimer)
   })
 
+  cleanups.push(startUpdates())
+  cleanups.push(startAutosave())
+
   window.addEventListener('keydown', onKeyDown)
   cleanups.push(() => window.removeEventListener('keydown', onKeyDown))
 
@@ -126,11 +139,14 @@ export function startShell(): () => void {
         runCommand(command, args)
       })
     )
-    cleanups.push(bridge.onCloseRequested(() => void handleCloseRequest().catch(reportError)))
+    cleanups.push(bridge.onCloseRequested(() => void handleCloseRequest(discardRecovery).catch(reportError)))
     cleanups.push(bridge.onOpenFile((path) => void openProjectPath(path).catch(reportError)))
-    void bridge
-      .takeStartupFile()
-      .then((path) => (path ? openProjectPath(path, false) : undefined))
+    const b = bridge
+    // Unsaved work of a session that ended abruptly first, then the file the app was opened with
+    // (which asks before replacing recovered work).
+    void offerRecovery()
+      .then(() => b.takeStartupFile())
+      .then((path) => (path ? openProjectPath(path) : undefined))
       .catch(reportError)
   }
 

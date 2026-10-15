@@ -15,10 +15,10 @@ const MDJ_FILTERS = [{ name: 'Models', extensions: ['mdj'] }]
 const ps = () => projectStore.getState()
 const ui = () => uiStore.getState()
 
-/** Window title: `OpenUML — name.mdj •` (bullet when there are unsaved changes). */
-export function windowTitle(filePath: string | null, projectName: string, dirty: boolean): string {
+/** Window title: `OpenUML 0.1.4 — name.mdj •` (bullet when there are unsaved changes). */
+export function windowTitle(filePath: string | null, projectName: string, dirty: boolean, version: string | null = null): string {
   const name = filePath ? baseName(filePath) : projectName || 'Untitled'
-  return `OpenUML — ${name}${dirty ? ' •' : ''}`
+  return `OpenUML${version ? ` ${version}` : ''} — ${name}${dirty ? ' •' : ''}`
 }
 
 function requireBridge(): NonNullable<typeof bridge> {
@@ -226,12 +226,32 @@ export function closeWindow(): void {
   window.close()
 }
 
-/** Window close requested by the main process while dirty. */
-export async function handleCloseRequest(): Promise<void> {
+/**
+ * Window close requested by the main process while dirty. `beforeClose` runs once the user
+ * saved or discarded the changes, just before the window closes.
+ */
+export async function handleCloseRequest(beforeClose?: () => Promise<void>): Promise<void> {
   if (await confirmDiscardChanges()) {
     rememberWorkingDiagrams()
+    await beforeClose?.()
     bridge?.confirmClose()
   }
+}
+
+/**
+ * Auto-save: writes the project to its file when it has one and unsaved changes, without moving
+ * the focus or asking anything. Throws when the write fails.
+ */
+export async function saveSilently(): Promise<void> {
+  const path = ps().filePath
+  if (!path || !ps().dirty || !bridge) return
+  await writeProject(path)
+}
+
+/** Opens work recovered after a crash: the project text and its file (if any), as not saved. */
+export function loadRecoveredProject(text: string, path: string | null): void {
+  loadProject(text, path, 'the recovered project')
+  ps().markUnsaved()
 }
 
 // ---------------------------------------------------------------------------------------------

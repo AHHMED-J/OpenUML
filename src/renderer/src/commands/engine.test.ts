@@ -383,6 +383,17 @@ describe('dirty flag', () => {
     expect(engine.isDirty).toBe(false)
   })
 
+  it('markUnsaved makes the current state unsaved until the next save', () => {
+    const { engine, model } = setup()
+    engine.markUnsaved()
+    expect(engine.isDirty).toBe(true)
+    setFields(engine, model, { name: 'A' })
+    engine.undo()
+    expect(engine.isDirty).toBe(true)
+    engine.markSaved()
+    expect(engine.isDirty).toBe(false)
+  })
+
   it('read-only mode makes edits no-ops', () => {
     const { engine, model } = setup()
     engine.readOnly = true

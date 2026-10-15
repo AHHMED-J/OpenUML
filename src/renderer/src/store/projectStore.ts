@@ -41,6 +41,8 @@ export interface ProjectState {
    * serialized) as saved, optionally under a new path.
    */
   markSaved(path?: string | null, point?: SavePoint): void
+  /** Marks the open project as having unsaved changes (e.g. recovered after a crash). */
+  markUnsaved(): void
   undo(): void
   redo(): void
   /** Opens (or focuses) a diagram tab and makes it active. */
@@ -120,6 +122,12 @@ export function createProjectStore(): ProjectStore {
         const { engine } = get()
         engine.markSaved(point)
         set({ ...derived(engine), ...(path !== undefined ? { filePath: path } : {}) })
+      },
+
+      markUnsaved() {
+        const { engine } = get()
+        engine.markUnsaved()
+        set(derived(engine))
       },
 
       undo() {
