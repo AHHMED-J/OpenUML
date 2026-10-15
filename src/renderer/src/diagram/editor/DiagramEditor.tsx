@@ -1137,11 +1137,14 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     e.preventDefault()
   }
 
+  const releaseSpace = (): void => {
+    if (!spaceDown.current) return
+    spaceDown.current = false
+    setCursor('default')
+  }
+
   const onKeyUp = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === ' ') {
-      spaceDown.current = false
-      setCursor('default')
-    }
+    if (e.key === ' ') releaseSpace()
   }
 
   if (!diagram || !layout) {
@@ -1161,6 +1164,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
       onFocus={() => setActiveEditor(handle)}
+      // The Space key-up is lost when the focus leaves (another app, a panel): stop panning then.
+      onBlur={releaseSpace}
       style={{ position: 'relative', overflow: 'auto', width: '100%', height: '100%', outline: 'none', background: COLORS.background }}
     >
       <div style={{ position: 'relative', width, height }}>
