@@ -18,6 +18,7 @@ import {
   defaultName,
   nextName
 } from './view-builders'
+import { listField, ownedElementsOf } from './fields'
 
 export type RadNodeKind =
   | 'RADRole'
@@ -128,11 +129,6 @@ export function radAutoThread(): boolean {
 // ---------------------------------------------------------------------------------------------
 // Diagram
 
-function ownedElementsOf(e: Elem): Elem[] {
-  const list = e['ownedElements']
-  return Array.isArray(list) ? (list as Elem[]) : []
-}
-
 /**
  * Plans a RAD diagram: inside a `RADProcess` it is added directly; otherwise a process
  * (`RADProcess<n>`, no roles yet) is created under `owner` and the diagram goes inside it.
@@ -208,14 +204,13 @@ function nodeViewOf(spec: RadNodeSpec, model: Elem, bounds: Bounds, container: V
   return view
 }
 
-/** Whether `line` (or any path of lines) leads from `from` to `to` inside `role`. */
-export function radReaches(role: Elem, from: Elem, to: Elem): boolean {
-  const lines = (role['stateLines'] as Elem[] | undefined) ?? []
-  const seen = new Set<Elem>([from])
+/** Elements reachable from `from` by following the state lines of its role (excluding `from` unless on a cycle). */
+export function radReachableFrom(role: Elem, from: Elem): Set<Elem> {
+  const lines = listField(role, 'stateLines')
+  const seen = new Set<Elem>()
   const queue: Elem[] = [from]
   while (queue.length > 0) {
     const cur = queue.pop() as Elem
-    if (cur === to) return true
     for (const l of lines) {
       const next = l['target'] as Elem | null
       if (l['source'] === cur && next && !seen.has(next)) {
@@ -224,7 +219,12 @@ export function radReaches(role: Elem, from: Elem, to: Elem): boolean {
       }
     }
   }
-  return false
+  return seen
+}
+
+/** Whether a path of state lines leads from `from` to `to` inside `role` (always true for `from` itself). */
+export function radReaches(role: Elem, from: Elem, to: Elem): boolean {
+  return from === to || radReachableFrom(role, from).has(to)
 }
 
 function hasOutgoing(role: Elem, element: Elem): boolean {

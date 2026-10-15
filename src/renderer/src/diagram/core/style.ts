@@ -26,9 +26,6 @@ export function isRectilinearStyle(style: LineStyle): boolean {
   return style === LineStyle.Rectilinear || style === LineStyle.RoundedRectilinear
 }
 
-/** `FreelineEdgeView.lineMode` codes. */
-const LineMode = { Solid: 0, Dot: 1, Dash: 2 } as const
-
 /** `EdgeParasiticView.edgePosition` codes: the anchor an edge label is placed from. */
 export const EdgePosition = { Head: 0, Middle: 1, Tail: 2 } as const
 export type EdgePosition = (typeof EdgePosition)[keyof typeof EdgePosition]
@@ -102,11 +99,6 @@ export type LineDash = 'solid' | 'dot' | 'dash'
 /** Dash array for a named line dash. */
 export function dashArray(dash: LineDash): readonly number[] {
   return DASH[dash]
-}
-
-/** Converts a persisted `lineMode` code to a named dash. */
-export function lineModeToDash(mode: number): LineDash {
-  return mode === LineMode.Dot ? 'dot' : mode === LineMode.Dash ? 'dash' : 'solid'
 }
 
 // ---------------------------------------------------------------------------

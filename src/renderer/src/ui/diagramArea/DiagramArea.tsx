@@ -6,7 +6,7 @@ import { projectStore } from '../../store'
 import { PanelBoundary } from '../components/PanelBoundary'
 import { TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { diagramLabel, useOpenDiagrams } from './WorkingDiagrams'
+import { diagramLabel, openDiagramContextMenu, useOpenDiagrams } from './WorkingDiagrams'
 
 class EditorBoundary extends Component<{ children: React.ReactNode; resetKey: string }, { error: Error | null }> {
   state: { error: Error | null } = { error: null }
@@ -66,10 +66,7 @@ function DiagramTabs(): React.JSX.Element | null {
                 requestAnimationFrame(() => (document.querySelector('.tab.active') as HTMLElement | null)?.focus())
               }
             }}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              uiStore.getState().openContextMenu({ x: e.clientX, y: e.clientY, menu: 'working-diagrams', targetId: d._id })
-            }}
+            onContextMenu={(e) => openDiagramContextMenu(e, d._id)}
           >
             <TypeIcon type={d._type} />
             <span className="tab-label">{diagramLabel(d)}</span>

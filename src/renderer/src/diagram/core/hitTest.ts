@@ -7,7 +7,6 @@
 import {
   distance,
   distancePointToSegment,
-  inflateRect,
   rectContainsPoint,
   rectContainsRect,
   rectRight,
@@ -160,20 +159,6 @@ export function resizeByHandle(
     if (north) top = bottom - height
   }
   return { left, top, width, height }
-}
-
-/**
- * Node hit test. A selected node's box is enlarged by the handle size (in screen px) so its
- * handles can be grabbed.
- */
-export function hitTestNode(
-  box: Rect,
-  p: Point,
-  options: { selected?: boolean; zoom?: number; tolerance?: number } = {}
-): boolean {
-  const zoom = options.zoom ?? 1
-  const grow = (options.selected ? SELECTION.handleSize / zoom : 0) + (options.tolerance ?? 0)
-  return rectContainsPoint(inflateRect(box, grow), p)
 }
 
 export type EdgeHit =

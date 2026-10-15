@@ -8,7 +8,6 @@ import {
   frameViewOf,
   matchingSheetPreset,
   sheetMinimumOf,
-  sheetPreset,
   sheetSizeOf,
   type Diagram,
   type Elem,
@@ -29,6 +28,12 @@ import { decomposeFunction } from './decompose'
 import { areaRectOf } from './geometry'
 import type { FrameData } from './layout'
 import { applySheetSizeToChildren, fitSheetToContent, setSheetSize } from './sheet'
+
+function preset(id: string): (typeof SHEET_PRESETS)[number] {
+  const found = SHEET_PRESETS.find((p) => p.id === id)
+  if (!found) throw new Error(`No sheet preset ${id}`)
+  return found
+}
 import { measurer, newKit } from './testkit'
 
 const EXAMPLE = readFileSync(new URL('../../../../../examples/software-release-idef0.mdj', import.meta.url), 'utf8')
@@ -199,7 +204,7 @@ describe('IDEF0 sheet: resizing the frame', () => {
     expect(ex.engine.undoDepth).toBe(depth + 1)
     ex.engine.undo()
     expect(writeMdj(ex.engine.repository.project as Elem)).toBe(before)
-    setSheetSize(ex.env(child), sheetPreset('tabloid-portrait')!)
+    setSheetSize(ex.env(child), preset('tabloid-portrait'))
     expect(ex.engine.undoDepth).toBe(depth + 1)
     ex.engine.undo()
     expect(writeMdj(ex.engine.repository.project as Elem)).toBe(before)
@@ -241,8 +246,8 @@ describe('IDEF0 sheet: presets', () => {
       expect(orientation === 'landscape' ? p.width > p.height : p.width < p.height).toBe(true)
       expect(Math.max(p.width, p.height) / Math.min(p.width, p.height)).toBeCloseTo(paper[name] as number, 1)
     }
-    expect(sheetPreset('a3-landscape')).toMatchObject({ width: 2016, height: 1424 })
-    expect(sheetPreset('a4-portrait')).toMatchObject({ width: 1008, height: 1424 })
+    expect(preset('a3-landscape')).toMatchObject({ width: 2016, height: 1424 })
+    expect(preset('a4-portrait')).toMatchObject({ width: 1008, height: 1424 })
   })
 
   it('Sheet Size commands set the preset (checked) and Fit to Content shrinks back, each one undo step', () => {
@@ -288,7 +293,7 @@ describe('IDEF0 sheet: child diagrams', () => {
 
   it('a new child diagram (Decompose, Explorer add) takes the sheet size of its parent, with its ports on the edges', () => {
     const kit = newKit()
-    setSheetSize(kit.envOf(kit.child), sheetPreset('a3-landscape')!)
+    setSheetSize(kit.envOf(kit.child), preset('a3-landscape'))
     const a1 = decomposeFunction(kit.engine, boxOf(kit.child, 1), 3)
     expect(sheetSizeOf(a1)).toEqual({ width: 2016, height: 1424 })
     expect(frameViewOf(a1)).toMatchObject({ left: 8, top: 8, width: 2016, height: 1424 })

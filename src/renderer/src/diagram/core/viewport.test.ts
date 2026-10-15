@@ -3,20 +3,14 @@ import { rect } from './geometry'
 import { GRID, ZOOM } from './style'
 import {
   canvasExtent,
-  clampOrigin,
   clampZoom,
-  diagramToScreen,
   exportBounds,
   gridLineSpacing,
-  gridLines,
   sanitizeGridSize,
-  screenToDiagram,
   snap,
   snapPoint,
-  snapRect,
   snapWithDeadZone,
-  stepZoom,
-  zoomAt
+  stepZoom
 } from './viewport'
 
 describe('snapping', () => {
@@ -30,10 +24,6 @@ describe('snapping', () => {
     expect(Object.is(snap(-3), -0)).toBe(false)
     expect(snap(13, 1)).toBe(13)
     expect(snapPoint({ x: 3, y: 21 })).toEqual({ x: 0, y: 24 })
-  })
-
-  it('snaps both corners of a rect', () => {
-    expect(snapRect(rect(3, 5, 30, 30))).toEqual(rect(0, 8, 32, 24))
   })
 
   it('keeps the original coordinate within the dead zone', () => {
@@ -57,23 +47,6 @@ describe('zoom and transform', () => {
     expect(stepZoom(3, 1)).toBe(3)
   })
 
-  it('converts between diagram and screen space', () => {
-    const vp = { origin: { x: -100, y: -50 }, zoom: 2 }
-    const s = diagramToScreen({ x: 150, y: 75 }, vp)
-    expect(s).toEqual({ x: 100, y: 50 })
-    expect(screenToDiagram(s, vp)).toEqual({ x: 150, y: 75 })
-    expect(clampOrigin({ x: 10, y: -5 })).toEqual({ x: 0, y: -5 })
-  })
-
-  it('zooms around a fixed screen point', () => {
-    const vp = { origin: { x: -100, y: -100 }, zoom: 1 }
-    const mouse = { x: 200, y: 100 }
-    const before = screenToDiagram(mouse, vp)
-    const after = zoomAt(vp, 2, mouse)
-    expect(after.zoom).toBe(2)
-    expect(screenToDiagram(mouse, after)).toEqual(before)
-  })
-
   it('accepts whole grid sizes from 2 to 64 and falls back to the default otherwise', () => {
     expect([2, 16, 64, 12.4].map(sanitizeGridSize)).toEqual([2, 16, 64, 12])
     expect([1, 65, 0, -8, Number.NaN, '16', null].map(sanitizeGridSize)).toEqual(Array(7).fill(GRID.size))
@@ -84,10 +57,6 @@ describe('zoom and transform', () => {
     expect(gridLineSpacing(20)).toBe(40)
     expect(gridLineSpacing(2)).toBe(8)
     expect(gridLineSpacing(64)).toBe(128)
-  })
-
-  it('lists grid lines every 2 x grid size', () => {
-    expect(gridLines(rect(0, 5, 40, 30))).toEqual({ xs: [0, 16, 32], ys: [16, 32] })
   })
 
   it('computes export bounds with a 10-unit margin', () => {

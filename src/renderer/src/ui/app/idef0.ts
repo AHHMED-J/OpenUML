@@ -1,5 +1,5 @@
 /** Shell side of the IDEF0 commands: the box-count prompt, result lists and opening diagrams. */
-import { registerIdef0Commands, validateIdef0, type Idef0CommandContext } from '../../diagram'
+import { registerIdef0Commands, validateDiagram, type Idef0CommandContext } from '../../diagram'
 import type { CommandRegistry } from '../../commands'
 import { activeDiagram, projectStore } from '../../store'
 import { chooseRows, uiStore } from '../uiStore'
@@ -60,5 +60,5 @@ export function idef0WarningCount(): number {
   if (!diagram || diagram._type !== 'IDEF0Diagram') return 0
   let model = diagram._parent
   while (model && model._type !== 'IDEF0Model') model = model._parent
-  return model ? validateIdef0(model).filter((i) => i.diagramId === diagram._id).length : 0
+  return model ? validateDiagram(model, diagram).length : 0
 }

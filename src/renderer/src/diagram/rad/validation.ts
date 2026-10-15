@@ -3,7 +3,7 @@
  * and nothing is corrected automatically. Pure: reads the model, plus element positions through the
  * optional `position` callback (the checks that depend on the drawing are skipped without it).
  */
-import { isKindOf, type Elem } from '../../model'
+import { isKindOf, listField, radReachableFrom, type Elem } from '../../model'
 import { isGerundName } from './strings'
 
 export type RadWarningCode =
@@ -62,43 +62,20 @@ function warn(code: RadWarningCode, element: Elem): RadWarning {
   return { code, level: LEVELS[code], elementId: element._id, message: MESSAGES[code] }
 }
 
-function list(el: Elem, field: string): Elem[] {
-  const value = el[field]
-  return Array.isArray(value) ? (value as Elem[]) : []
-}
-
 function roleOf(el: Elem | null | undefined): Elem | null {
   return el && isKindOf(el._parent, 'RADRole') ? el._parent : null
 }
 
-/** Elements reachable from `from` by following the state lines of its role (excluding `from`). */
-function reachableFrom(role: Elem, from: Elem): Set<Elem> {
-  const lines = list(role, 'stateLines')
-  const seen = new Set<Elem>()
-  const queue: Elem[] = [from]
-  while (queue.length > 0) {
-    const cur = queue.pop() as Elem
-    for (const l of lines) {
-      const next = l['target'] as Elem | null
-      if (l['source'] === cur && next && !seen.has(next)) {
-        seen.add(next)
-        queue.push(next)
-      }
-    }
-  }
-  return seen
-}
-
 function branchesOf(role: Elem, refinement: Elem): Elem[] {
-  return list(role, 'elements').filter((e) => isKindOf(e, 'RADBranch') && e['refinement'] === refinement)
+  return listField(role, 'elements').filter((e) => isKindOf(e, 'RADBranch') && e['refinement'] === refinement)
 }
 
 function roleWarnings(role: Elem, options: RadValidationOptions, out: RadWarning[]): void {
   const name = typeof role['name'] === 'string' ? role['name'].trim() : ''
   if (name !== '' && !isGerundName(name)) out.push(warn('role-gerund', role))
 
-  const elements = list(role, 'elements')
-  const lines = list(role, 'stateLines')
+  const elements = listField(role, 'elements')
+  const lines = listField(role, 'stateLines')
   const position = options.position
   if (position) {
     // The first element of the thread (no incoming line, not a branch) is expected in the leftmost column.
@@ -114,7 +91,7 @@ function roleWarnings(role: Elem, options: RadValidationOptions, out: RadWarning
   for (const e of elements) {
     if (isKindOf(e, 'RADInteraction')) {
       const process = role._parent
-      const linked = list(process ?? role, 'interactions').some((l) => l['source'] === e || l['target'] === e)
+      const linked = listField(process ?? role, 'interactions').some((l) => l['source'] === e || l['target'] === e)
       const external = typeof e['externalParty'] === 'string' && e['externalParty'].trim() !== ''
       if (!linked && !external) out.push(warn('interaction-unlinked', e))
     }
@@ -128,7 +105,7 @@ function roleWarnings(role: Elem, options: RadValidationOptions, out: RadWarning
       const branches = branchesOf(role, e)
       if (branches.length < 2) out.push(warn('refinement-lonely', e))
       if (isKindOf(e, 'RADPartRefinement') && branches.length >= 2) {
-        const reaches = branches.map((b) => reachableFrom(role, b))
+        const reaches = branches.map((b) => radReachableFrom(role, b))
         const [firstReach, ...restReach] = reaches as [Set<Elem>, ...Set<Elem>[]]
         const common = [...firstReach].filter((x) => restReach.every((r) => r.has(x)))
         if (common.length === 0) out.push(warn('part-no-merge', e))
@@ -151,8 +128,8 @@ function roleWarnings(role: Elem, options: RadValidationOptions, out: RadWarning
 /** All warnings of a process, roles first. */
 export function radWarnings(process: Elem, options: RadValidationOptions = {}): RadWarning[] {
   const out: RadWarning[] = []
-  for (const role of list(process, 'roles')) roleWarnings(role, options, out)
-  for (const link of list(process, 'interactions')) {
+  for (const role of listField(process, 'roles')) roleWarnings(role, options, out)
+  for (const link of listField(process, 'interactions')) {
     const a = roleOf(link['source'] as Elem | null)
     const b = roleOf(link['target'] as Elem | null)
     if (a && a === b) out.push(warn('interaction-same-role', link))

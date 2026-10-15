@@ -1,10 +1,8 @@
 /** High-level model edits. Each function is one user gesture = one undoable operation. */
 import { ElementReader, parseFragment, remapIds } from '../format'
 import {
-  createItemView,
   fieldOf,
   isKindOf,
-  ITEM_BINDINGS,
   planDiagram,
   planEdge,
   planFeature,
@@ -21,7 +19,6 @@ import {
   type FeatureKind,
   type NodeRequest,
   type NodeView,
-  type Point,
   type View
 } from '../model'
 import type { OperationBuilder } from './builder'
@@ -100,14 +97,10 @@ export const addAttribute = (engine: ModelEngine, owner: Elem, props?: Record<st
   addFeature(engine, owner, 'Attribute', props)
 export const addOperation = (engine: ModelEngine, owner: Elem, props?: Record<string, unknown>): Elem =>
   addFeature(engine, owner, 'Operation', props)
-export const addParameter = (engine: ModelEngine, owner: Elem, props?: Record<string, unknown>): Elem =>
-  addFeature(engine, owner, 'Parameter', props)
 export const addEnumerationLiteral = (engine: ModelEngine, owner: Elem, props?: Record<string, unknown>): Elem =>
   addFeature(engine, owner, 'EnumerationLiteral', props)
 export const addExtensionPoint = (engine: ModelEngine, owner: Elem, props?: Record<string, unknown>): Elem =>
   addFeature(engine, owner, 'ExtensionPoint', props)
-export const addOperand = (engine: ModelEngine, owner: Elem, props?: Record<string, unknown>): Elem =>
-  addFeature(engine, owner, 'Operand', props)
 
 // ---------------------------------------------------------------------------------------------
 // Properties
@@ -227,48 +220,8 @@ export function setViewBounds(engine: ModelEngine, view: NodeView, bounds: Parti
   })
 }
 
-export function setEdgePoints(engine: ModelEngine, edge: View, points: readonly Point[]): void {
-  engine.transact('Change Edge', (b) => b.set(edge, 'points', [...points]))
-}
-
-/** Reconnects an edge end to another view (model ends are not changed). */
-export function reconnectEdge(engine: ModelEngine, edge: View, end: 'head' | 'tail', view: View): void {
-  engine.transact('Reconnect', (b) => b.set(edge, end, view))
-}
-
 // ---------------------------------------------------------------------------------------------
 // Housekeeping and import
-
-/**
- * Brings the item views of a view's list compartments in line with its model (adds missing item
- * views, removes stale ones). Applied as a bypass operation, as rendering housekeeping.
- */
-export function syncItemViews(engine: ModelEngine, view: View): void {
-  const model = view.model
-  if (!model) return
-  const plans: Array<{ compartment: NodeView; missing: Elem[]; stale: View[] }> = []
-  for (const binding of ITEM_BINDINGS) {
-    const compartment = view[binding.compartmentField]
-    const items = model[binding.modelField]
-    if (!isKindOf(compartment as Elem, 'NodeView') || !Array.isArray(items)) continue
-    const c = compartment as NodeView
-    const shown = new Set(c.subViews.map((v) => v.model))
-    const missing = (items as Elem[]).filter((item) => !shown.has(item))
-    const stale = c.subViews.filter((v) => !v.model || !(items as Elem[]).includes(v.model))
-    if (missing.length > 0 || stale.length > 0) plans.push({ compartment: c, missing, stale })
-  }
-  if (plans.length === 0) return
-  engine.transact(
-    'Synchronize Views',
-    (b) => {
-      for (const { compartment, missing, stale } of plans) {
-        for (const v of stale) b.remove(v)
-        for (const item of missing) b.insert(compartment, 'subViews', createItemView(compartment, item))
-      }
-    },
-    { bypass: true }
-  )
-}
 
 /**
  * Imports a `.mfj` fragment under `owner.ownedElements` with fresh IDs. Applied as a bypass

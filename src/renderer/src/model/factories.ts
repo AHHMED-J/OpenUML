@@ -97,6 +97,7 @@ import {
   type StructureEdgeKind,
   type StructureNodeKind
 } from './structure-factories'
+import { ownedElementsOf } from './fields'
 
 /** Insert `element` into `owner[field]` (at `index`, default: end; `obj` fields are assigned). */
 export interface Insertion {
@@ -191,11 +192,6 @@ const WRAPPED_IN_MODEL: ReadonlySet<DiagramKind> = new Set<DiagramKind>(['Compon
 
 export interface DiagramPlan extends CreationPlan {
   readonly diagram: Diagram
-}
-
-function ownedElementsOf(el: Elem): Elem[] {
-  const list = el['ownedElements']
-  return Array.isArray(list) ? (list as Elem[]) : []
 }
 
 /** Creates `child` (detached) inside `parent.ownedElements`. */

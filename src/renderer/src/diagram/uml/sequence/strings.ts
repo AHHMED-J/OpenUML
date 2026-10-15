@@ -8,15 +8,10 @@
  *
  * Parsers return null on a syntax error (the edit is then rejected).
  */
-import { isKindOf, type Elem, type UMLParameter } from '../../../model'
+import { isKindOf, stringField, type Elem, type UMLParameter } from '../../../model'
 import { parseQuickEditPrefix } from '../../editor/quickEditSyntax'
 import { nameOf, stereotypeName, visibilitySymbol } from '../../layout/helpers'
 import { typeText } from '../class/strings'
-
-function str(el: Elem | null | undefined, field: string): string {
-  const v = el?.[field]
-  return typeof v === 'string' ? v : ''
-}
 
 // ---------------------------------------------------------------------------------------------
 // Lifelines
@@ -31,7 +26,7 @@ export function lifelineType(lifeline: Elem | null | undefined): unknown {
 /** `name[selector]: Type` as drawn in the lifeline header. */
 export function lifelineHeaderText(lifeline: Elem | null | undefined): string {
   if (!lifeline) return ''
-  const selector = str(lifeline, 'selector')
+  const selector = stringField(lifeline, 'selector')
   const type = typeText(lifelineType(lifeline))
   return `${nameOf(lifeline)}${selector ? `[${selector}]` : ''}${type ? `: ${type}` : ''}`
 }
@@ -80,19 +75,19 @@ export function messageLabelText(message: Elem | null | undefined, options: Mess
   if (!message) return options.sequenceNumber
   let prefix = ''
   if (options.sequenceNumber) prefix += `${options.sequenceNumber} `
-  const guard = str(message, 'guard')
+  const guard = stringField(message, 'guard')
   if (guard) prefix += `[${guard}] `
-  const iteration = str(message, 'iteration')
+  const iteration = stringField(message, 'iteration')
   if (iteration) prefix += `${message['isConcurrentIteration'] === true ? '*||' : '*'}[${iteration}] `
 
   let body = ''
-  const target = str(message, 'assignmentTarget')
+  const target = stringField(message, 'assignmentTarget')
   if (target) body += `${target} = `
   body += messageDisplayName(message)
   if (options.showSignature) {
     const sig = message['signature'] as Elem | null | undefined
     const op = isKindOf(sig, 'UMLOperation') ? sig : null
-    const args = str(message, 'arguments')
+    const args = stringField(message, 'arguments')
     if (args) body += `(${args})`
     else if (op) body += `(${parametersOf(op).filter((p) => p.direction !== 'return').map(parameterText).join(', ')})`
     const ret = op ? parametersOf(op).find((p) => p.direction === 'return') : undefined
@@ -107,8 +102,8 @@ export function messageLabelText(message: Elem | null | undefined, options: Mess
 export function messageEditText(message: Elem | null | undefined): string {
   if (!message) return ''
   const st = stereotypeName(message)
-  const target = str(message, 'assignmentTarget')
-  const args = str(message, 'arguments')
+  const target = stringField(message, 'assignmentTarget')
+  const args = stringField(message, 'arguments')
   return `${st ? `<<${st}>> ` : ''}${target ? `${target} = ` : ''}${messageDisplayName(message)}${args ? `(${args})` : ''}`
 }
 

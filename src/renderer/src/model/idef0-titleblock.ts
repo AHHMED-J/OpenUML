@@ -6,15 +6,11 @@
 import { isKindOf } from './metamodel'
 import { functionsOfDiagram, modelOf } from './idef0-numbering'
 import type { Elem } from './types'
+import { listField } from './fields'
 
 /** Title block fields a child diagram inherits from its parent diagram (the sheet number is per sheet). */
 export const INHERITED_TITLE_FIELDS = ['author', 'date', 'status'] as const
 export type InheritedTitleField = (typeof INHERITED_TITLE_FIELDS)[number]
-
-function list(el: Elem | null | undefined, field: string): Elem[] {
-  const value = el?.[field]
-  return Array.isArray(value) ? (value as Elem[]) : []
-}
 
 /**
  * The sheet number after `parent` among `existing`, keeping its format: the numeric suffix of
@@ -48,9 +44,9 @@ export function diagramsOfIdef0Model(el: Elem | null | undefined): Elem[] {
   if (!model) return []
   const out: Elem[] = []
   const visit = (owner: Elem): void => {
-    for (const child of list(owner, 'ownedElements')) if (isKindOf(child, 'IDEF0Diagram')) out.push(child)
-    for (const fn of list(owner, 'functions')) visit(fn)
-    for (const child of list(owner, 'ownedElements')) if (isKindOf(child, 'IDEF0Function')) visit(child)
+    for (const child of listField(owner, 'ownedElements')) if (isKindOf(child, 'IDEF0Diagram')) out.push(child)
+    for (const fn of listField(owner, 'functions')) visit(fn)
+    for (const child of listField(owner, 'ownedElements')) if (isKindOf(child, 'IDEF0Function')) visit(child)
   }
   visit(model)
   return out

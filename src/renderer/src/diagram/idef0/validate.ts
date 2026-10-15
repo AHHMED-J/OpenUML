@@ -9,9 +9,10 @@ import {
   isContextDiagram,
   isIdef0Function,
   isKindOf,
+  listField,
   planRenumber,
-  rootArrow,
   roleOf,
+  rootArrow,
   type Elem
 } from '../../model'
 
@@ -33,11 +34,6 @@ const GENERIC_NAMES = new Set(['function', 'activity', 'process', 'input', 'outp
 const VERBS = new Set(
   `accept add analyze approve archive assemble assess assign audit authorize bill build calculate cancel check classify close collect compile complete compute configure confirm control convert coordinate create decide define deliver deploy design detect develop diagnose dispatch distribute document edit enter estimate evaluate examine execute export extract fill filter forecast generate handle identify implement import inspect install integrate invoice issue launch load log maintain manage manufacture map measure merge monitor negotiate notify open operate optimize organize pack pay perform pick plan post prepare print process procure produce program publish purchase queue rate receive record register reject release repair replace report request reserve resolve review route sample save schedule screen search select sell send serve ship sign sort store submit supply support test track train transfer transform translate transmit update upload validate verify view weigh write`.split(/\s+/)
 )
-
-function list(el: Elem | null | undefined, field: string): Elem[] {
-  const value = el?.[field]
-  return Array.isArray(value) ? (value as Elem[]) : []
-}
 
 function nameOf(el: Elem): string {
   return ((el['name'] as string | undefined) ?? '').trim()
@@ -64,9 +60,9 @@ function validateScope(scope: Elem, issues: IdefIssue[]): void {
     issues.push({ id, severity: 'warning', elementId: el._id, diagramId, message })
   }
   const isModel = isKindOf(scope, 'IDEF0Model')
-  const arrows = list(scope, 'arrows')
-  const ports = list(scope, 'ports')
-  const boxes: Elem[] = isModel ? (scope['topFunction'] ? [scope['topFunction'] as Elem] : []) : list(scope, 'functions')
+  const arrows = listField(scope, 'arrows')
+  const ports = listField(scope, 'ports')
+  const boxes: Elem[] = isModel ? (scope['topFunction'] ? [scope['topFunction'] as Elem] : []) : listField(scope, 'functions')
   const views = diagram ? functionViewsOf(diagram) : []
 
   // W01 / W02 / W10: box counts and numbering.
@@ -126,7 +122,7 @@ function validateScope(scope: Elem, issues: IdefIssue[]): void {
     }
     // W09: every untunneled parent arrow appears on the child diagram.
     if (child && child._parent === fn) {
-      const childPorts = list(fn, 'ports')
+      const childPorts = listField(fn, 'ports')
       for (const a of arrows) {
         const entering = a['target'] === fn && roleOf(a) !== 'call'
         const leaving = a['source'] === fn && roleOf(a) !== 'call'
@@ -197,7 +193,7 @@ export function validateIdef0(model: Elem): IdefIssue[] {
   const issues: IdefIssue[] = []
   const visit = (scope: Elem): void => {
     validateScope(scope, issues)
-    for (const fn of list(scope, 'functions')) visit(fn)
+    for (const fn of listField(scope, 'functions')) visit(fn)
   }
   const top = model['topFunction'] as Elem | null
   validateScope(model, issues)

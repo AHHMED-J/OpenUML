@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { buildOrderExample } from './idef0-example'
-import { arrowDisplayName, arrowPositionAt, arrowRoleLabel, boxArrowGroups, rolesAt } from './idef0-numbering'
+import { arrowDisplayName, arrowRoleLabel, boxArrowGroups, rolesAt, type Idef0Role } from './idef0-numbering'
 import { createElement } from './index'
 import type { Elem, View } from './types'
+
+/** 1-based position of `arrow` among the arrows of `role` at `fn` (0 when it is not attached there). */
+function arrowPositionAt(arrow: Elem, fn: Elem, role: Idef0Role): number {
+  const group = boxArrowGroups(fn).find((g) => g.role === role)
+  return (group?.arrows.indexOf(arrow) ?? -1) + 1
+}
 
 function addArrow(scope: Elem, diagram: Elem, props: Record<string, unknown>, points: Array<[number, number]>): Elem {
   const arrow = createElement('IDEF0Arrow', { ...props, _parent: scope })

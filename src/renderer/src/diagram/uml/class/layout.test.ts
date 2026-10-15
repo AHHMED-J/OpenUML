@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addAttribute, addEnumerationLiteral, addOperation, addParameter, setFields } from '../../../commands'
+import { addAttribute, addEnumerationLiteral, addFeature, addOperation, setFields } from '../../../commands'
 import type { Elem, NodeView } from '../../../model'
 import { BOLD_CHAR, CHAR, testDiagram } from '../../testUtils'
 import type { NodeLayout } from '../../layout/types'
@@ -126,9 +126,9 @@ describe('classifier layout', () => {
     const attr = addAttribute(t.engine, model, { name: 'size', type: 'int', multiplicity: '0..1', defaultValue: '3', isReadOnly: true, visibility: 'private' })
     expect(attributeText(attr)).toBe('-size: int[0..1] = 3 {readOnly}')
     const op = addOperation(t.engine, model, { name: 'find', visibility: 'protected', isQuery: true })
-    addParameter(t.engine, op, { name: 'key', type: 'String' })
-    addParameter(t.engine, op, { name: 'out', direction: 'out', type: 'int' })
-    addParameter(t.engine, op, { name: '', direction: 'return', type: 'Item', multiplicity: '*' })
+    addFeature(t.engine, op, 'Parameter', { name: 'key', type: 'String' })
+    addFeature(t.engine, op, 'Parameter', { name: 'out', direction: 'out', type: 'int' })
+    addFeature(t.engine, op, 'Parameter', { name: '', direction: 'return', type: 'Item', multiplicity: '*' })
     expect(operationText(op)).toBe('#find(key: String, out out: int): Item[*] {query}')
     expect(operationText(op, { showOperationSignature: false })).toBe('#find()')
     // Width follows the widest row.
