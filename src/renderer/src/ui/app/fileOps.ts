@@ -40,10 +40,16 @@ interface WorkingDiagrams {
   readonly active: string | null
 }
 
+/** The working diagrams remembered per file path (empty when the stored value is unusable). */
+function loadWorkingDiagrams(): Record<string, WorkingDiagrams> {
+  const all = loadJson<unknown>('workingDiagrams', {})
+  return all && typeof all === 'object' && !Array.isArray(all) ? (all as Record<string, WorkingDiagrams>) : {}
+}
+
 function rememberWorkingDiagrams(): void {
   const s = ps()
   if (!s.filePath) return
-  const all = loadJson<Record<string, WorkingDiagrams>>('workingDiagrams', {})
+  const all = loadWorkingDiagrams()
   // Re-insert so the entry moves to the end (most recent) of the key order.
   delete all[s.filePath]
   all[s.filePath] = { open: s.openDiagramIds, active: s.activeDiagramId }
@@ -53,8 +59,8 @@ function rememberWorkingDiagrams(): void {
 }
 
 function restoreWorkingDiagrams(path: string): void {
-  const saved = loadJson<Record<string, WorkingDiagrams>>('workingDiagrams', {})[path]
-  if (!saved || !Array.isArray(saved.open)) return
+  const saved = loadWorkingDiagrams()[path]
+  if (!saved || typeof saved !== 'object' || !Array.isArray(saved.open)) return
   const s = ps()
   for (const id of saved.open) if (typeof id === 'string' && isKindOf(s.repository.get(id), 'Diagram')) ps().openDiagram(id)
   if (saved.active && isKindOf(ps().repository.get(saved.active), 'Diagram')) ps().openDiagram(saved.active)
@@ -166,21 +172,20 @@ const DEFAULT_PROJECT_NAME = 'Untitled'
 /**
  * A project still carrying the default name takes the name of the file it is saved as
  * (`Order System.mdj` names it "Order System"), so the Model Explorer root matches the file.
- * A name the user chose is kept.
+ * A name the user chose is kept. Returns true when the project was renamed.
  */
-export function nameProjectAfterFile(path: string): void {
+export function nameProjectAfterFile(path: string): boolean {
   const { project, engine } = ps()
   const name = project.name?.trim() ?? ''
-  if (name && name !== DEFAULT_PROJECT_NAME) return
+  if (name && name !== DEFAULT_PROJECT_NAME) return false
   const stem = baseName(path).replace(/\.mdj$/i, '').trim()
-  if (stem) rename(engine, project, stem)
+  if (!stem) return false
+  rename(engine, project, stem)
+  return true
 }
 
-/** Saves to the current path (or asks for one). Resolves false when cancelled or failed. */
-export async function saveProject(): Promise<boolean> {
-  commitPendingEdits()
-  const path = ps().filePath
-  if (!path) return saveProjectAs()
+/** Writes the project to `path`; a failure is reported in a toast. Resolves false when it failed. */
+async function writeOrReport(path: string): Promise<boolean> {
   try {
     await writeProject(path)
     return true
@@ -188,6 +193,14 @@ export async function saveProject(): Promise<boolean> {
     ui().toast(`Failed to save ${baseName(path)}: ${err instanceof Error ? err.message : String(err)}`, 'error')
     return false
   }
+}
+
+/** Saves to the current path (or asks for one). Resolves false when cancelled or failed. */
+export async function saveProject(): Promise<boolean> {
+  commitPendingEdits()
+  const path = ps().filePath
+  if (!path) return saveProjectAs()
+  return writeOrReport(path)
 }
 
 export async function saveProjectAs(): Promise<boolean> {
@@ -198,14 +211,13 @@ export async function saveProjectAs(): Promise<boolean> {
   let path = await b.chooseSavePath(current ? baseName(current) : `${projectName || DEFAULT_PROJECT_NAME}.mdj`, MDJ_FILTERS)
   if (!path) return false
   if (!/\.mdj$/i.test(path)) path += '.mdj'
-  nameProjectAfterFile(path)
-  try {
-    await writeProject(path)
-    return true
-  } catch (err) {
-    ui().toast(`Failed to save ${baseName(path)}: ${err instanceof Error ? err.message : String(err)}`, 'error')
-    return false
-  }
+  const { engine } = ps()
+  const renamed = nameProjectAfterFile(path)
+  const renameOp = engine.savePoint.top
+  if (await writeOrReport(path)) return true
+  // The file was not written: the project keeps its old name (unless edited meanwhile).
+  if (renamed && ps().engine === engine && engine.savePoint.top === renameOp) engine.undo()
+  return false
 }
 
 /** File > Close: closes the window (the close handler asks about unsaved changes). */
