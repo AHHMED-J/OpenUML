@@ -58,7 +58,7 @@
  *
  *    `nodeLayout` computes the effective box (stored size grown to the minimum; exactly the
  *    minimum with auto-resize). Optional layout fields: `sizable` ('none' | 'horz' | 'vert' |
- *    'ratio' | 'free'), `movable`, `zIndex` (frame −1, messages 1, fragments 2), `endpoint`
+ *    'ratio' | 'free' | 'grow'), `movable`, `zIndex` (frame −1, messages 1, fragments 2), `endpoint`
  *    (edge attachment override), `subEndpoints` (sub-views such as a lifeline's line part that
  *    edges attach to), `extraBounds` (floating labels, for export bounds), `moveAxis` (move along
  *    one axis only), `hitAreas` (hit only there, e.g. a frame's border and label), `dividers`
@@ -100,7 +100,7 @@ ensureNotations()
 
 // Editor and commands
 export { DiagramEditor, type DiagramEditorProps, type ToolSelection } from './editor/DiagramEditor'
-export { registerDiagramCommands, DiagramCommandIds, copySelection, pasteClipboard, getClipboardPayload, type DiagramCommandContext } from './commands'
+export { registerDiagramCommands, DiagramCommandIds, copySelection, pasteClipboard, type DiagramCommandContext } from './commands'
 export { getActiveEditor, getContextEdgeEnd, requestReveal, type ContextEdgeEnd, type EditorHandle } from './editor/activeEditor'
 export { highlightViews } from './editor/highlight'
 export {
@@ -128,7 +128,7 @@ export * from './clipboard'
 
 // Layout
 export type * from './layout/types'
-export { computeDiagramLayout, viewLayout, type LayoutOptions } from './layout/layoutDiagram'
+export { computeDiagramLayout, type LayoutOptions } from './layout/layoutDiagram'
 export * from './layout/helpers'
 export * from './layout/edges'
 export { getTextMeasurer, setTextMeasurer } from './layout/measurer'
@@ -163,7 +163,7 @@ export {
   issueItems,
   registerIdef0Commands,
   setBoxNumber,
-  validateIdef0,
+  validateDiagram,
   type Idef0CommandContext,
   type Idef0ListItem,
   type IdefIssue

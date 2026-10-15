@@ -5,12 +5,7 @@
 
 export const HIGHLIGHT_MS = 2000
 
-interface Highlight {
-  readonly viewIds: readonly string[]
-  readonly until: number
-}
-
-let current: Highlight | null = null
+let current: readonly string[] | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 const listeners = new Set<() => void>()
 
@@ -19,9 +14,9 @@ function notify(): void {
 }
 
 /** Pulses `viewIds` for `HIGHLIGHT_MS`; a new request replaces the previous one. */
-export function highlightViews(viewIds: readonly string[], now = Date.now()): void {
+export function highlightViews(viewIds: readonly string[]): void {
   if (timer) clearTimeout(timer)
-  current = viewIds.length > 0 ? { viewIds: [...viewIds], until: now + HIGHLIGHT_MS } : null
+  current = viewIds.length > 0 ? [...viewIds] : null
   timer = current
     ? setTimeout(() => {
         current = null
@@ -34,7 +29,7 @@ export function highlightViews(viewIds: readonly string[], now = Date.now()): vo
 
 /** The view ids currently highlighted (empty when none). */
 export function highlightedViewIds(): readonly string[] {
-  return current?.viewIds ?? NONE
+  return current ?? NONE
 }
 
 export function subscribeHighlight(listener: () => void): () => void {

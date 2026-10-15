@@ -17,6 +17,7 @@ import {
   nextName
 } from './view-builders'
 import type { BehaviorNodeSpec } from './factories-statemachine'
+import { ownedElementsOf } from './fields'
 
 export type TimingNodeKind = 'TimingLifeline' | 'TimingState' | 'TimeSegment' | 'TimeTick' | 'TimeConstraint' | 'DurationConstraint'
 export type TimingEdgeKind = 'TimingMessage'
@@ -47,11 +48,6 @@ export const TIMING_EDGE_KINDS = {
 
 export function isTimingNodeKind(kind: string): kind is TimingNodeKind {
   return Object.prototype.hasOwnProperty.call(TIMING_NODE_KINDS, kind)
-}
-
-function ownedElementsOf(el: Elem): Elem[] {
-  const list = el['ownedElements']
-  return Array.isArray(list) ? (list as Elem[]) : []
 }
 
 /**

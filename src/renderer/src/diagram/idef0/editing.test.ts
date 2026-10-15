@@ -152,9 +152,8 @@ describe('arrow gestures', () => {
     const onLeft = createIdef0Edge(env, layout, tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + 4, y: box.top + box.height / 2 })
     const onTop = createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + box.width / 2, y: box.top + 4 })
     const onBottom = createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + box.width / 2, y: box.top + box.height - 4 })
-    const onRight = createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + box.width - 4, y: box.top + box.height / 2 })
+    expect(() => createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + box.width - 4, y: box.top + box.height / 2 })).toThrow(/right side of a box/)
     expect(onLeft && onTop && onBottom).toBeTruthy()
-    expect(onRight).toBeNull()
     expect((k.top['arrows'] as Elem[]).map((a) => a['role'])).toEqual(['input', 'control', 'mechanism'])
     expect(k.engine.undoName).toBe('Create Arrow')
   })
@@ -204,7 +203,7 @@ describe('arrow gestures', () => {
     expect(edgeLayoutOf(k.layoutOf(k.child), joinView).headEnd.style).toBe('flat')
     expect(edgeLayoutOf(k.layoutOf(k.child), forkView).headEnd.style).toBe('solidArrow')
     // A branch may not feed back into its own trunk.
-    expect(createIdef0Edge(env, k.layoutOf(k.child), { kind: 'IDEF0Arrow' }, forkView._id, trunk._id, { x: 0, y: 0 }, { x: 0, y: 0 })).toBeNull()
+    expect(() => createIdef0Edge(env, k.layoutOf(k.child), { kind: 'IDEF0Arrow' }, forkView._id, trunk._id, { x: 0, y: 0 }, { x: 0, y: 0 })).toThrow(/can't end on another arrow/)
     void b1
   })
 
@@ -216,7 +215,7 @@ describe('arrow gestures', () => {
     const first = createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: 0, y: 0 })
     expect(first).toBeTruthy()
     expect((b1.model as Elem)['calledFunction']).toBe(b2.model)
-    expect(createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b3._id, { x: 0, y: 0 }, { x: 0, y: 0 })).toBeNull()
+    expect(() => createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b3._id, { x: 0, y: 0 }, { x: 0, y: 0 })).toThrow('This box already has a call arrow')
     const free = createIdef0Edge(env, k.layoutOf(k.child), tool, b3._id, null, { x: 0, y: 0 }, { x: 0, y: 0 })
     expect(free).toBeTruthy()
     expect((k.repository.get(free!) as View)['head']).toBeNull()

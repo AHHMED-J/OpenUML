@@ -2,7 +2,8 @@
  * Project lifecycle: new, open (dialog, recent, OS), save, save as, close, export, and the
  * unsaved-changes prompt. Runs in the renderer through the preload bridge.
  */
-import { diagramToPngBase64, diagramToSvg } from '../../export'
+import { diagramToPdfPage, diagramToPngBase64, diagramToSvg } from '../../export'
+import { rename } from '../../commands'
 import { isKindOf, type Diagram } from '../../model'
 import { projectStore } from '../../store'
 import { loadJson, saveJson } from '../persist'
@@ -14,10 +15,10 @@ const MDJ_FILTERS = [{ name: 'Models', extensions: ['mdj'] }]
 const ps = () => projectStore.getState()
 const ui = () => uiStore.getState()
 
-/** Window title: `OpenUML — name.mdj •` (bullet when there are unsaved changes). */
-export function windowTitle(filePath: string | null, projectName: string, dirty: boolean): string {
+/** Window title: `OpenUML 0.1.4 — name.mdj •` (bullet when there are unsaved changes). */
+export function windowTitle(filePath: string | null, projectName: string, dirty: boolean, version: string | null = null): string {
   const name = filePath ? baseName(filePath) : projectName || 'Untitled'
-  return `OpenUML — ${name}${dirty ? ' •' : ''}`
+  return `OpenUML${version ? ` ${version}` : ''} — ${name}${dirty ? ' •' : ''}`
 }
 
 function requireBridge(): NonNullable<typeof bridge> {
@@ -39,10 +40,16 @@ interface WorkingDiagrams {
   readonly active: string | null
 }
 
+/** The working diagrams remembered per file path (empty when the stored value is unusable). */
+function loadWorkingDiagrams(): Record<string, WorkingDiagrams> {
+  const all = loadJson<unknown>('workingDiagrams', {})
+  return all && typeof all === 'object' && !Array.isArray(all) ? (all as Record<string, WorkingDiagrams>) : {}
+}
+
 function rememberWorkingDiagrams(): void {
   const s = ps()
   if (!s.filePath) return
-  const all = loadJson<Record<string, WorkingDiagrams>>('workingDiagrams', {})
+  const all = loadWorkingDiagrams()
   // Re-insert so the entry moves to the end (most recent) of the key order.
   delete all[s.filePath]
   all[s.filePath] = { open: s.openDiagramIds, active: s.activeDiagramId }
@@ -52,8 +59,8 @@ function rememberWorkingDiagrams(): void {
 }
 
 function restoreWorkingDiagrams(path: string): void {
-  const saved = loadJson<Record<string, WorkingDiagrams>>('workingDiagrams', {})[path]
-  if (!saved || !Array.isArray(saved.open)) return
+  const saved = loadWorkingDiagrams()[path]
+  if (!saved || typeof saved !== 'object' || !Array.isArray(saved.open)) return
   const s = ps()
   for (const id of saved.open) if (typeof id === 'string' && isKindOf(s.repository.get(id), 'Diagram')) ps().openDiagram(id)
   if (saved.active && isKindOf(ps().repository.get(saved.active), 'Diagram')) ps().openDiagram(saved.active)
@@ -160,11 +167,25 @@ async function writeProject(path: string): Promise<void> {
   rememberWorkingDiagrams()
 }
 
-/** Saves to the current path (or asks for one). Resolves false when cancelled or failed. */
-export async function saveProject(): Promise<boolean> {
-  commitPendingEdits()
-  const path = ps().filePath
-  if (!path) return saveProjectAs()
+const DEFAULT_PROJECT_NAME = 'Untitled'
+
+/**
+ * A project still carrying the default name takes the name of the file it is saved as
+ * (`Order System.mdj` names it "Order System"), so the Model Explorer root matches the file.
+ * A name the user chose is kept. Returns true when the project was renamed.
+ */
+export function nameProjectAfterFile(path: string): boolean {
+  const { project, engine } = ps()
+  const name = project.name?.trim() ?? ''
+  if (name && name !== DEFAULT_PROJECT_NAME) return false
+  const stem = baseName(path).replace(/\.mdj$/i, '').trim()
+  if (!stem) return false
+  rename(engine, project, stem)
+  return true
+}
+
+/** Writes the project to `path`; a failure is reported in a toast. Resolves false when it failed. */
+async function writeOrReport(path: string): Promise<boolean> {
   try {
     await writeProject(path)
     return true
@@ -174,20 +195,29 @@ export async function saveProject(): Promise<boolean> {
   }
 }
 
+/** Saves to the current path (or asks for one). Resolves false when cancelled or failed. */
+export async function saveProject(): Promise<boolean> {
+  commitPendingEdits()
+  const path = ps().filePath
+  if (!path) return saveProjectAs()
+  return writeOrReport(path)
+}
+
 export async function saveProjectAs(): Promise<boolean> {
   commitPendingEdits()
   const b = requireBridge()
   const current = ps().filePath
-  let path = await b.chooseSavePath(current ? baseName(current) : 'Untitled.mdj', MDJ_FILTERS)
+  const projectName = ps().project.name?.trim()
+  let path = await b.chooseSavePath(current ? baseName(current) : `${projectName || DEFAULT_PROJECT_NAME}.mdj`, MDJ_FILTERS)
   if (!path) return false
   if (!/\.mdj$/i.test(path)) path += '.mdj'
-  try {
-    await writeProject(path)
-    return true
-  } catch (err) {
-    ui().toast(`Failed to save ${baseName(path)}: ${err instanceof Error ? err.message : String(err)}`, 'error')
-    return false
-  }
+  const { engine } = ps()
+  const renamed = nameProjectAfterFile(path)
+  const renameOp = engine.savePoint.top
+  if (await writeOrReport(path)) return true
+  // The file was not written: the project keeps its old name (unless edited meanwhile).
+  if (renamed && ps().engine === engine && engine.savePoint.top === renameOp) engine.undo()
+  return false
 }
 
 /** File > Close: closes the window (the close handler asks about unsaved changes). */
@@ -196,12 +226,32 @@ export function closeWindow(): void {
   window.close()
 }
 
-/** Window close requested by the main process while dirty. */
-export async function handleCloseRequest(): Promise<void> {
+/**
+ * Window close requested by the main process while dirty. `beforeClose` runs once the user
+ * saved or discarded the changes, just before the window closes.
+ */
+export async function handleCloseRequest(beforeClose?: () => Promise<void>): Promise<void> {
   if (await confirmDiscardChanges()) {
     rememberWorkingDiagrams()
+    await beforeClose?.()
     bridge?.confirmClose()
   }
+}
+
+/**
+ * Auto-save: writes the project to its file when it has one and unsaved changes, without moving
+ * the focus or asking anything. Throws when the write fails.
+ */
+export async function saveSilently(): Promise<void> {
+  const path = ps().filePath
+  if (!path || !ps().dirty || !bridge) return
+  await writeProject(path)
+}
+
+/** Opens work recovered after a crash: the project text and its file (if any), as not saved. */
+export function loadRecoveredProject(text: string, path: string | null): void {
+  loadProject(text, path, 'the recovered project')
+  ps().markUnsaved()
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -219,7 +269,7 @@ function activeDiagramOrThrow(): Diagram {
   return d
 }
 
-export async function exportDiagram(format: 'png' | 'svg'): Promise<void> {
+export async function exportDiagram(format: 'png' | 'svg' | 'pdf'): Promise<void> {
   const b = requireBridge()
   const diagram = activeDiagramOrThrow()
   const name = `${exportFileName(diagram.name)}.${format}`
@@ -228,8 +278,22 @@ export async function exportDiagram(format: 'png' | 'svg'): Promise<void> {
   if (!path) return
   if (!path.toLowerCase().endsWith(`.${format}`)) path += `.${format}`
   if (format === 'svg') await b.writeTextFile(path, diagramToSvg(diagram._id))
+  else if (format === 'pdf') await b.writePdf(path, [diagramToPdfPage(diagram._id)])
   else await b.writeBinaryFile(path, await diagramToPngBase64(diagram._id, 2))
   ui().toast(`Exported ${baseName(path)}`)
+}
+
+/** Every diagram of the project in one PDF, one page per diagram (model order). */
+export async function exportAllDiagramsPdf(): Promise<void> {
+  const b = requireBridge()
+  const diagrams = ps().repository.diagrams()
+  if (diagrams.length === 0) throw new Error('No diagram to export.')
+  const name = ps().filePath ? baseName(ps().filePath as string).replace(/\.mdj$/i, '') : ps().project.name
+  let path = await b.chooseSavePath(`${exportFileName(name ?? '')}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }])
+  if (!path) return
+  if (!path.toLowerCase().endsWith('.pdf')) path += '.pdf'
+  await b.writePdf(path, diagrams.map((d) => diagramToPdfPage(d._id)))
+  ui().toast(`Exported ${diagrams.length} diagram${diagrams.length === 1 ? '' : 's'} to ${baseName(path)}`)
 }
 
 /** Owner chain joined by `::` (for unique export names). */

@@ -8,14 +8,10 @@ import { isCssColor } from '../../format/cssColor'
 import type { Elem, View } from '../../model'
 import { isArrowView } from './colors'
 import { linkedArrows } from './propagation'
+import { listField } from '../../model'
 
 /** Fields of an arrow view the Style editor colors as one logical arrow. */
 const FLOW_COLOR_FIELDS = new Set(['lineColor', 'fontColor'])
-
-function list(el: Elem | null | undefined, field: string): Elem[] {
-  const value = el?.[field]
-  return Array.isArray(value) ? (value as Elem[]) : []
-}
 
 /**
  * The arrows forming one logical arrow with `arrow`: itself, its branches (and theirs), and the
@@ -26,7 +22,7 @@ export function arrowFlow(arrow: Elem): Elem[] {
   const queue = [arrow]
   while (queue.length > 0 && seen.size < 1024) {
     const a = queue.shift() as Elem
-    const branches = list(a._parent, 'arrows').filter((b) => b['source'] === a || b['target'] === a)
+    const branches = listField(a._parent, 'arrows').filter((b) => b['source'] === a || b['target'] === a)
     for (const next of [...branches, ...linkedArrows(a)]) {
       if (seen.has(next)) continue
       seen.add(next)

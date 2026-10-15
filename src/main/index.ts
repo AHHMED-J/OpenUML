@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { IpcChannels, type MenuItemSpec } from '../shared/ipc'
+import { IpcChannels, type MenuItemSpec, type PdfPage, type UpdateCheckResult } from '../shared/ipc'
 import { APP_ENTRY_URL, APP_ORIGIN, APP_SCHEME, resolveAppAsset } from './appProtocol'
 import { FileAccess, readProjectFile, writeFileAtomic } from './fileAccess'
 import {
@@ -14,6 +15,9 @@ import {
   sanitizeMessageBox,
   sanitizeTitle
 } from './ipcValidation'
+import { pdfHtml, sanitizePdfPages } from './pdf'
+import { RecoveryStore, sanitizeSnapshot } from './recovery'
+import { isNewerVersion, LATEST_RELEASE_API, MAX_RELEASE_JSON_BYTES, parseLatestRelease } from './updates'
 import appIcon from '../../resources/icon.png?asset'
 
 let mainWindow: BrowserWindow | null = null
@@ -25,6 +29,8 @@ let startupFile: string | null = findFileArgument(process.argv, process.cwd())
 let rendererReady = false
 /** Paths the renderer may read and write (see `FileAccess`). */
 const fileAccess = new FileAccess()
+/** Unsaved work kept for recovery after a crash (created once the app is ready). */
+let recovery: RecoveryStore | null = null
 
 /** The Vite dev server, honored in development only (never in an installed app). */
 const devServerUrl = !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined
@@ -71,7 +77,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 800,
     minHeight: 500,
-    title: 'OpenUML',
+    title: `OpenUML ${app.getVersion()}`,
     show: false,
     // macOS and Windows take the icon from the application bundle; Linux needs it on the window.
     ...(process.platform === 'linux' ? { icon: appIcon } : {}),
@@ -215,6 +221,48 @@ function on(channel: string, listener: (event: IpcMainEvent, ...args: unknown[])
   })
 }
 
+/** Asks GitHub for the latest release and compares it with the running version. */
+async function checkForUpdates(): Promise<UpdateCheckResult> {
+  const current = app.getVersion()
+  const response = await net.fetch(LATEST_RELEASE_API, {
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': `OpenUML/${current}` },
+    signal: AbortSignal.timeout(15_000)
+  })
+  // No release published yet.
+  if (response.status === 404) return { current, latest: null, url: null, available: false }
+  if (!response.ok) throw new Error(`GitHub answered ${response.status}`)
+  const text = await response.text()
+  if (text.length > MAX_RELEASE_JSON_BYTES) throw new Error('Unexpected answer from GitHub')
+  const latest = parseLatestRelease(JSON.parse(text))
+  return { current, latest: latest?.version ?? null, url: latest?.url ?? null, available: latest ? isNewerVersion(latest.version, current) : false }
+}
+
+/**
+ * Prints `pages` to PDF in a hidden window that runs no JavaScript and loads nothing but the
+ * generated document (see `pdfHtml`).
+ */
+async function printPdf(pages: PdfPage[]): Promise<Buffer> {
+  const folder = await mkdtemp(join(app.getPath('temp'), 'openuml-pdf-'))
+  const file = join(folder, 'export.html')
+  const window = new BrowserWindow({
+    show: false,
+    webPreferences: { javascript: false, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false }
+  })
+  window.webContents.on('will-navigate', (event) => event.preventDefault())
+  try {
+    await writeFile(file, pdfHtml(pages), 'utf8')
+    await window.loadFile(file)
+    return await window.webContents.printToPDF({
+      printBackground: true,
+      preferCSSPageSize: true,
+      margins: { top: 0, bottom: 0, left: 0, right: 0 }
+    })
+  } finally {
+    window.destroy()
+    await rm(folder, { recursive: true, force: true })
+  }
+}
+
 function registerIpc(): void {
   on(IpcChannels.setMenu, (_event, menu) => {
     const template = toMenuTemplate(sanitizeMenu(menu))
@@ -327,6 +375,35 @@ function registerIpc(): void {
     if (isProjectPath(path)) app.addRecentDocument(path)
   })
 
+  handle(IpcChannels.getAppInfo, () => ({ version: app.getVersion() }))
+
+  handle(IpcChannels.checkForUpdates, () => checkForUpdates())
+
+  handle(IpcChannels.saveRecovery, async (_event, raw) => {
+    const snapshot = sanitizeSnapshot(raw)
+    if (!snapshot || !recovery) return
+    // Only a file this session may write is remembered: recovery never widens file access.
+    if (snapshot.filePath && !fileAccess.canWrite(snapshot.filePath)) snapshot.filePath = null
+    await recovery.save(snapshot)
+  })
+
+  handle(IpcChannels.readRecovery, async () => {
+    const snapshot = (await recovery?.read()) ?? null
+    // The recovered project may be saved back to its file, as when it was open.
+    if (snapshot?.filePath) fileAccess.grantFile(snapshot.filePath)
+    return snapshot
+  })
+
+  handle(IpcChannels.clearRecovery, async () => {
+    await recovery?.clear()
+  })
+
+  handle(IpcChannels.writePdf, async (_event, path, rawPages) => {
+    const pages = sanitizePdfPages(rawPages)
+    if (!pages || !(await fileAccess.canWriteResolved(path))) throw denied(path)
+    return writeFileAtomic(path as string, await printPdf(pages))
+  })
+
   handle(IpcChannels.takeStartupFile, () => {
     rendererReady = true
     const path = startupFile
@@ -350,6 +427,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(() => {
+    recovery = new RecoveryStore(app.getPath('userData'))
     registerAppProtocol()
     restrictPermissions()
     registerIpc()

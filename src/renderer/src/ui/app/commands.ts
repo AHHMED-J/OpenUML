@@ -5,6 +5,7 @@
 import { CommandRegistry } from '../../commands'
 import { registerDiagramCommands } from '../../diagram'
 import { projectStore, registerCoreCommands } from '../../store'
+import { effectiveBindings, type KeybindingOverrides } from '../keybindings'
 import { Keymap } from '../keymap'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
 import { DEFAULT_KEYMAP } from '../menus/keymaps'
@@ -19,6 +20,12 @@ export const registry = new CommandRegistry()
 export const keymap = new Keymap(platform, DEFAULT_KEYMAP)
 
 let initialized = false
+
+/** Puts the default shortcuts, with the user's customizations, into effect. */
+export function applyKeybindings(overrides: KeybindingOverrides): void {
+  keymap.reset(effectiveBindings(DEFAULT_KEYMAP, overrides, platform))
+  for (const warning of keymap.warnings) console.warn(warning)
+}
 
 /**
  * Registers all commands once: the diagram module's first, then the core commands (except
@@ -50,7 +57,7 @@ export function initCommands(): void {
   registerIdef0(registry)
   registerAssociationEndCommands(registry)
   registerAppCommands(registry)
-  for (const warning of keymap.warnings) console.warn(warning)
+  applyKeybindings(uiStore.getState().keybindings)
 }
 
 export function reportError(err: unknown): void {

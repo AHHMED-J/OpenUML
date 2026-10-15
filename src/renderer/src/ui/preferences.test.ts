@@ -35,4 +35,11 @@ describe('preferences', () => {
     expect(JSON.parse(data.get('openuml.preferences') ?? '{}')).toMatchObject({ gridSize: 16, defaultFontSize: 20 })
     expect(createUiStore().getState().prefs).toMatchObject({ gridSize: 16, defaultFontSize: 20 })
   })
+
+  it('keeps an offered auto-save interval and the update check flag', () => {
+    stubStorage({ 'openuml.preferences': JSON.stringify({ autoSaveSeconds: 300, checkForUpdates: false }) })
+    expect(createUiStore().getState().prefs).toMatchObject({ autoSaveSeconds: 300, checkForUpdates: false })
+    stubStorage({ 'openuml.preferences': JSON.stringify({ autoSaveSeconds: 7, checkForUpdates: 'no' }) })
+    expect(createUiStore().getState().prefs).toMatchObject({ autoSaveSeconds: 60, checkForUpdates: true })
+  })
 })

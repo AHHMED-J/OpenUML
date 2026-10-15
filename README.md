@@ -38,9 +38,18 @@ for which file to pick.
   association-end sections, plus a Style editor and a Documentation editor.
 - **Undo/redo** for every change (one step per gesture), with unsaved-change tracking.
 - **Files** – New, Open, Open Recent, *Open Example* (bundled models from `examples/`, e.g. a six-box IDEF0 software
-  release process), Save, Save As; export the current diagram (or all diagrams) to PNG or SVG.
+  release process), Save, Save As; export the current diagram (or all diagrams) to PNG or SVG, or to PDF
+  (one diagram, or every diagram in one file; IDEF0 sheets sized to a paper print on that paper).
+- **Your work is protected** – a project with a file is saved automatically every minute while it has unsaved
+  changes (*Preferences > Files*, from 30 seconds to 10 minutes, or off), and unsaved work is kept aside so that,
+  if OpenUML closes unexpectedly, the next start offers to recover it.
 - **Commands** – native application menu, context menus, keyboard shortcuts (`Cmd` on macOS, `Ctrl` elsewhere)
-  and a command palette (`Cmd/Ctrl+Shift+P`).
+  that you can change in *Keyboard Shortcuts* (any command, conflicts asked about, reset per command or all),
+  a command palette (`Cmd/Ctrl+Shift+P`) and `Cmd/Ctrl+F` to search the Model Explorer.
+- **Updates** – the window title shows the version you run. At startup and once a day OpenUML asks GitHub for the
+  latest release (only that request, no personal data) and, when a newer one exists, offers it in the status bar;
+  *Download* opens its release page. Turn it off in *Preferences > Updates*, or check by hand with
+  *Check for Updates…*.
 - **Themes** – light and dark, following the system setting by default; preferences for grid, snap and default
   font size.
 

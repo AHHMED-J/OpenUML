@@ -3,7 +3,22 @@
  * result lists, opening diagrams); the model changes are the functions of `decompose.ts`.
  */
 import { setFieldsOfAll, type CommandRegistry } from '../../commands'
-import { buildNodeIndex, isContextDiagram, isIdef0Function, isKindOf, modelOf, nodeNumber, roleOf, type Diagram, type Elem, type View } from '../../model'
+import {
+  SHEET_PRESETS,
+  buildNodeIndex,
+  frameViewOf,
+  isContextDiagram,
+  isIdef0Function,
+  isKindOf,
+  matchingSheetPreset,
+  modelOf,
+  nodeNumber,
+  roleOf,
+  sheetSizeOf,
+  type Diagram,
+  type Elem,
+  type View
+} from '../../model'
 import { activeDiagram, projectStore, selectedViews } from '../../store'
 import { getTextMeasurer } from '../layout/measurer'
 import { addChildBoxes, childBoxes, removeChildBoxes } from './boxCount'
@@ -12,6 +27,8 @@ import { hasRouteHints, resetArrowRoutes } from './gestures'
 import { callTarget, childTarget, parentTarget, type DiagramTarget } from './navigation'
 import { validateIdef0, type IdefIssue } from './validate'
 import { STATUS_STAGES, statusLabel } from './strings'
+import { applyTitleBlockToChildren, descendantDiagramsOf } from './titleBlock'
+import { applySheetSizeToChildren, fitSheetToContent, setSheetSize } from './sheet'
 
 export const Idef0CommandIds = {
   decompose: 'idef0.decompose',
@@ -24,9 +41,14 @@ export const Idef0CommandIds = {
   nodeIndex: 'idef0.node-index',
   tunnelEnd: 'idef0.tunnel-end',
   resetRoute: 'idef0.reset-route',
+  applyTitleBlock: 'idef0.apply-title-block',
+  applySheetSize: 'idef0.apply-sheet-size',
   addBoundary: (role: string) => `idef0.add-boundary-${role}`,
   colorByRole: 'format.idef0.color-by-role',
-  status: (stage: string) => `format.idef0.status.${stage}`
+  status: (stage: string) => `format.idef0.status.${stage}`,
+  /** Format > IDEF0 > Sheet Size presets (`SHEET_PRESETS` ids). */
+  sheetSize: (preset: string) => `format.idef0.sheet-size.${preset}`,
+  sheetFit: 'format.idef0.sheet-size.fit'
 } as const
 
 /** One row of a result list: click selects `elementId` or opens `diagramId`. */
@@ -257,6 +279,58 @@ export function registerIdef0Commands(registry: CommandRegistry, ctx: Idef0Comma
     run: () => {
       const d = idefDiagram()
       if (d) resetArrowRoutes(envOf(d), selectedArrowViews())
+    }
+  })
+  add({
+    id: Idef0CommandIds.applyTitleBlock,
+    label: 'Apply Title Block to Child Diagrams',
+    isEnabled: () => {
+      const d = idefDiagram()
+      return !!d && descendantDiagramsOf(d).length > 0
+    },
+    run: () => {
+      const d = idefDiagram()
+      if (!d) return
+      const n = applyTitleBlockToChildren(state().engine, d)
+      ctx.toast(n === 0 ? 'The child diagrams already have this title block' : `Applied the title block to ${n} child diagram${n === 1 ? '' : 's'}`)
+    }
+  })
+  add({
+    id: Idef0CommandIds.applySheetSize,
+    label: 'Apply Sheet Size to Child Diagrams',
+    isEnabled: () => {
+      const d = idefDiagram()
+      return !!d && descendantDiagramsOf(d).length > 0
+    },
+    run: () => {
+      const d = idefDiagram()
+      if (!d) return
+      const n = applySheetSizeToChildren(state().engine, getTextMeasurer(), d)
+      ctx.toast(n === 0 ? 'The child diagrams already have this sheet size' : `Applied the sheet size to ${n} child diagram${n === 1 ? '' : 's'}`)
+    }
+  })
+  for (const preset of SHEET_PRESETS) {
+    add({
+      id: Idef0CommandIds.sheetSize(preset.id),
+      label: `Sheet Size: ${preset.label}`,
+      isEnabled: () => !!frameViewOf(idefDiagram()),
+      isChecked: () => matchingSheetPreset(idefDiagram())?.id === preset.id,
+      run: () => {
+        const d = idefDiagram()
+        if (!d) return
+        setSheetSize(envOf(d), preset, `Sheet Size: ${preset.label}`)
+        const size = sheetSizeOf(d)
+        if (size.width !== preset.width || size.height !== preset.height) ctx.toast(`The sheet is ${size.width} × ${size.height} to hold the diagram`)
+      }
+    })
+  }
+  add({
+    id: Idef0CommandIds.sheetFit,
+    label: 'Sheet Size: Fit to Content',
+    isEnabled: () => !!frameViewOf(idefDiagram()),
+    run: () => {
+      const d = idefDiagram()
+      if (d && !fitSheetToContent(envOf(d))) ctx.toast('The sheet already fits the diagram')
     }
   })
   for (const role of ['input', 'control', 'output', 'mechanism'] as const) {

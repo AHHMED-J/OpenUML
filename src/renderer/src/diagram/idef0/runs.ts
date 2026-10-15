@@ -15,7 +15,7 @@
 import type { EdgeView, View } from '../../model'
 import type { Point, Rect } from '../core'
 import type { LayoutContext } from '../layout/types'
-import { AREA_RECT } from './geometry'
+import { areaRectOf } from './geometry'
 import { busOf, resolveRun, routeArrowDetailed, type RouteAdjust, type RouteEnd, type RunAxis, type RunLimit, type RunValues } from './routing'
 
 /** Gap between parallel runs given separate lanes. */
@@ -125,7 +125,8 @@ function candidateOf(edge: EdgeView, ctx: LayoutContext, ends: ArrowEnds): Candi
   if (!tail || !head || !(tail.port || head.port)) return null
   const far = branchEnds(edge, ctx, ends)
   const obstacles = functionBoxes(ctx)
-  const routed = routeArrowDetailed({ tail, head, area: AREA_RECT, obstacles })
+  const area = areaRectOf(ctx.diagram)
+  const routed = routeArrowDetailed({ tail, head, area, obstacles })
   const hints = hintsOf(edge)
   const spanOf = (axis: RunAxis, own: readonly Point[]): [number, number] => {
     const values = [...own, ...far.map((e) => e.point)].map((p) => (axis === 'y' ? p.x : p.y))
@@ -140,7 +141,7 @@ function candidateOf(edge: EdgeView, ctx: LayoutContext, ends: ArrowEnds): Candi
   const run = routed.adjust
   if (!run) return null
   const limits = branchLimits(far)
-  const limited = routeArrowDetailed({ tail, head, area: AREA_RECT, obstacles, limit: limits, ...(hints[run.axis] !== undefined ? { hint: hints } : {}) }).adjust
+  const limited = routeArrowDetailed({ tail, head, area, obstacles, limit: limits, ...(hints[run.axis] !== undefined ? { hint: hints } : {}) }).adjust
   if (!limited) return null
   const hinted = hints[run.axis] !== undefined ? limited.value : undefined
   return { id: edge._id, axis: run.axis, natural: run.value, min: limited.min, max: limited.max, span: spanOf(run.axis, routed.points), hinted }

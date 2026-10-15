@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { readMdj, validateModel, writeMdj } from '../../format'
-import { arrowPositionAt, icomCodes, type Diagram, type Elem, type NodeView, type View } from '../../model'
+import { boxArrowGroups, icomCodes, type Diagram, type Elem, type Idef0Role, type NodeView, type View } from '../../model'
 import { addBoundaryArrow, decomposeFunction, syncPorts, toggleTunnel } from './decompose'
 import { createIdef0Edge } from './gestures'
 import { propagateUp } from './propagation'
 import { exampleKit, measurer, newKit, type IdefKit } from './testkit'
 import { validateIdef0 } from './validate'
+
+/** 1-based position of `arrow` among the arrows of `role` at `fn` (0 when it is not attached there). */
+function arrowPositionAt(arrow: Elem, fn: Elem, role: Idef0Role): number {
+  const group = boxArrowGroups(fn).find((g) => g.role === role)
+  return (group?.arrows.indexOf(arrow) ?? -1) + 1
+}
 
 const arrows = (scope: Elem): Elem[] => scope['arrows'] as Elem[]
 const ports = (scope: Elem): Elem[] => scope['ports'] as Elem[]

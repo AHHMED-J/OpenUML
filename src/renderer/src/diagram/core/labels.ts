@@ -120,11 +120,6 @@ export function placeNodeLabel(node: Rect, params: PolarParams, size: Size): Rec
   return labelBoxAt(polarLabelCenter(nodeAnchor(node), params), size)
 }
 
-/** New `(alpha, distance)` for a node-attached label dragged to `box`. */
-export function nodeLabelParamsFromBox(node: Rect, box: Rect): PolarParams {
-  return polarParamsFor(nodeAnchor(node), { x: box.left + box.width / 2, y: box.top + box.height / 2 })
-}
-
 // ---------------------------------------------------------------------------
 // Defaults (spec 03 §3.4)
 // ---------------------------------------------------------------------------

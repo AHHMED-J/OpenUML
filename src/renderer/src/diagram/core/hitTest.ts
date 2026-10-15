@@ -7,7 +7,6 @@
 import {
   distance,
   distancePointToSegment,
-  inflateRect,
   rectContainsPoint,
   rectContainsRect,
   rectRight,
@@ -20,8 +19,11 @@ import {
 import { segmentOrientation, type SegmentOrientation } from './routing'
 import { HIT_TOLERANCE, SELECTION } from './style'
 
-/** Which resize directions a node allows (`sizable` field). */
-export type Sizable = 'none' | 'horz' | 'vert' | 'ratio' | 'free'
+/**
+ * Which resize directions a node allows (`sizable` field). `grow`: only the right, bottom and
+ * bottom-right handles, the top-left corner stays (IDEF0 sheets).
+ */
+export type Sizable = 'none' | 'horz' | 'vert' | 'ratio' | 'free' | 'grow'
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
@@ -38,6 +40,8 @@ export function handlesFor(sizable: Sizable): readonly HandlePosition[] {
       return ['n', 's']
     case 'horz':
       return ['e', 'w']
+    case 'grow':
+      return ['e', 'se', 's']
     default:
       return []
   }
@@ -157,20 +161,6 @@ export function resizeByHandle(
   return { left, top, width, height }
 }
 
-/**
- * Node hit test. A selected node's box is enlarged by the handle size (in screen px) so its
- * handles can be grabbed.
- */
-export function hitTestNode(
-  box: Rect,
-  p: Point,
-  options: { selected?: boolean; zoom?: number; tolerance?: number } = {}
-): boolean {
-  const zoom = options.zoom ?? 1
-  const grow = (options.selected ? SELECTION.handleSize / zoom : 0) + (options.tolerance ?? 0)
-  return rectContainsPoint(inflateRect(box, grow), p)
-}
-
 export type EdgeHit =
   | { kind: 'vertex'; index: number; isEnd: boolean }
   | { kind: 'segment'; index: number; orientation: SegmentOrientation }
@@ -215,20 +205,38 @@ export function edgeHitCursor(hit: EdgeHit): string {
   return 'crosshair'
 }
 
+/**
+ * How a rubber band selects: `contain` ("window") takes only views wholly inside it, `intersect`
+ * ("crossing") also takes views it merely touches.
+ */
 export type RubberBandMode = 'contain' | 'intersect'
 
-/** True when a rubber-band rectangle selects a node box. */
+/**
+ * The rubber-band mode for a drag (AutoCAD style): dragging left to right (or straight up/down)
+ * is a window selection (`contain`), dragging right to left a crossing selection (`intersect`).
+ */
+export function rubberBandModeFor(start: Point, end: Point): RubberBandMode {
+  return end.x < start.x ? 'intersect' : 'contain'
+}
+
+/**
+ * True when a rubber-band rectangle selects a node box. In `intersect` mode a box that wholly
+ * contains the band is not crossed: a band drawn inside a frame or container never selects it,
+ * only one that crosses its outline does.
+ */
 export function rubberBandSelectsRect(band: Rect, box: Rect, mode: RubberBandMode = 'contain'): boolean {
-  return mode === 'contain' ? rectContainsRect(band, box) : rectsIntersect(band, box)
+  return mode === 'contain' ? rectContainsRect(band, box) : rectsIntersect(band, box) && !rectContainsRect(box, band)
 }
 
 /**
  * True when a rubber-band rectangle selects an edge: in `contain` mode every vertex must lie in
- * the band, in `intersect` mode any segment touching the band is enough.
+ * the band, in `intersect` mode any segment touching the band is enough, or any of the edge's
+ * label boxes (`labels`) touching it.
  */
-export function rubberBandSelectsEdge(band: Rect, points: readonly Point[], mode: RubberBandMode = 'contain'): boolean {
+export function rubberBandSelectsEdge(band: Rect, points: readonly Point[], mode: RubberBandMode = 'contain', labels: readonly Rect[] = []): boolean {
   if (points.length === 0) return false
   if (mode === 'contain') return points.every((pt) => rectContainsPoint(band, pt))
+  if (labels.some((l) => rectsIntersect(band, l))) return true
   if (points.length === 1) return rectContainsPoint(band, points[0] as Point)
   for (let i = 0; i < points.length - 1; i++) {
     if (segmentIntersectsRect(points[i] as Point, points[i + 1] as Point, band)) return true

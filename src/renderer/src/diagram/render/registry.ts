@@ -108,10 +108,6 @@ export function hasNodeNotation(viewType: string): boolean {
   return nodeNotations.has(viewType)
 }
 
-export function hasEdgeNotation(viewType: string): boolean {
-  return edgeNotations.has(viewType)
-}
-
 function typeOnly(viewType: string): View {
   return { _type: viewType } as unknown as View
 }

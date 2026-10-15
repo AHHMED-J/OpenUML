@@ -6,7 +6,11 @@ import {
   IDEF0_AREA,
   IDEF0_BOX,
   IDEF0_PORT_SIZE,
+  areaOfSheet,
+  drawingAreaOf,
   slotOffsets,
+  type DrawingArea,
+  type Elem,
   type Idef0Side
 } from '../../model'
 import { JUNCTION_MARGIN, type Point, type Rect } from '../core'
@@ -39,12 +43,22 @@ export const IDEF0_STYLE = {
   boxPadding: 8
 } as const
 
-/** The drawing area as a rectangle. */
-export const AREA_RECT: Rect = {
-  left: IDEF0_AREA.left,
-  top: IDEF0_AREA.top,
-  width: IDEF0_AREA.right - IDEF0_AREA.left,
-  height: IDEF0_AREA.bottom - IDEF0_AREA.top
+/** A drawing area as a rectangle. */
+function areaRect(area: DrawingArea): Rect {
+  return { left: area.left, top: area.top, width: area.right - area.left, height: area.bottom - area.top }
+}
+
+/** The drawing area of the default sheet as a rectangle. */
+export const AREA_RECT: Rect = areaRect(IDEF0_AREA)
+
+/** The drawing area of `diagram` (its sheet size, see `model/idef0-sheet.ts`) as a rectangle. */
+export function areaRectOf(diagram: Elem | null | undefined): Rect {
+  return areaRect(drawingAreaOf(diagram))
+}
+
+/** The drawing area of a sheet of the size of `sheet` (e.g. the box of a frame layout) as a rectangle. */
+export function areaRectOfSheet(sheet: { readonly width: number; readonly height: number }): Rect {
+  return areaRect(areaOfSheet(sheet))
 }
 
 /** Outward normal of a box side (away from the box). */

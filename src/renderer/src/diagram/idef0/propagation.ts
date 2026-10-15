@@ -22,11 +22,12 @@
  */
 import { applyPlan, deleteFromModel, type ModelEngine, type OperationBuilder } from '../../commands'
 import {
-  IDEF0_AREA,
   diagramOfScope,
+  drawingAreaOf,
   effectiveArrowName,
   isIdef0Function,
   isKindOf,
+  listField,
   planBoundaryArrow,
   roleOf,
   type Diagram,
@@ -45,18 +46,13 @@ export interface LevelEnv {
 type BoundaryRole = 'input' | 'control' | 'output' | 'mechanism'
 const BOUNDARY_ROLES: readonly string[] = ['input', 'control', 'output', 'mechanism']
 
-function list(el: Elem | null | undefined, field: string): Elem[] {
-  const value = el?.[field]
-  return Array.isArray(value) ? (value as Elem[]) : []
-}
-
 function isPort(el: unknown): el is Elem {
   return !!el && isKindOf(el as Elem, 'IDEF0Port')
 }
 
 /** The arrows of a port's scope that start or end at the port. */
 function arrowsAtPort(port: Elem): Elem[] {
-  return list(port._parent, 'arrows').filter((a) => a['source'] === port || a['target'] === port)
+  return listField(port._parent, 'arrows').filter((a) => a['source'] === port || a['target'] === port)
 }
 
 /** Whether `arrow` is tunneled at its end on `port` (its unconnected end). */
@@ -70,7 +66,7 @@ function boxDiagramOf(fn: Elem): Elem | null {
 }
 
 function nodeViewOf(diagram: Elem | null, model: Elem, type: string): NodeView | null {
-  return (list(diagram, 'ownedViews').find((v) => v._type === type && (v as View)['model'] === model) as NodeView | undefined) ?? null
+  return (listField(diagram, 'ownedViews').find((v) => v._type === type && (v as View)['model'] === model) as NodeView | undefined) ?? null
 }
 
 /**
@@ -79,10 +75,12 @@ function nodeViewOf(diagram: Elem | null, model: Elem, type: string): NodeView |
  * parent box follows the order of the boundary arrows (and the ICOM codes read in the same order).
  */
 function alongParentBox(port: Elem, role: BoundaryRole, box: NodeView): number {
-  const view = nodeViewOf(diagramOfScope(port._parent), port, 'IDEF0PortView')
+  const diagram = diagramOfScope(port._parent)
+  const view = nodeViewOf(diagram, port, 'IDEF0PortView')
   const vertical = role === 'input' || role === 'output'
-  const lo = vertical ? IDEF0_AREA.top : IDEF0_AREA.left
-  const hi = vertical ? IDEF0_AREA.bottom : IDEF0_AREA.right
+  const area = drawingAreaOf(diagram)
+  const lo = vertical ? area.top : area.left
+  const hi = vertical ? area.bottom : area.right
   const at = view ? (vertical ? view.top + view.height / 2 : view.left + view.width / 2) : (lo + hi) / 2
   const t = Math.max(0.1, Math.min(0.9, (at - lo) / (hi - lo)))
   return vertical ? box.top + t * box.height : box.left + t * box.width
@@ -147,9 +145,9 @@ function passThroughPort(arrow: Elem, excluded: ReadonlySet<Elem> = new Set()): 
   const port = box === target ? source : target
   if (!box || !isPort(port) || port._parent !== arrow._parent) return null
   const live = (a: Elem): boolean => a !== arrow && !excluded.has(a)
-  const others = list(arrow._parent, 'arrows').filter(live)
+  const others = listField(arrow._parent, 'arrows').filter(live)
   if (others.some((a) => a['source'] === arrow || a['target'] === arrow || a['source'] === port || a['target'] === port)) return null
-  if (list(box, 'ports').some((p) => !excluded.has(p) && p['corresponds'] === arrow)) return null
+  if (listField(box, 'ports').some((p) => !excluded.has(p) && p['corresponds'] === arrow)) return null
   return port
 }
 
@@ -197,7 +195,7 @@ export function childCounterparts(arrow: Elem): { ports: Elem[]; arrows: Elem[] 
   const arrows: Elem[] = []
   for (const end of [arrow['source'], arrow['target']] as Array<Elem | null>) {
     if (!isIdef0Function(end) || !end['childDiagram']) continue
-    for (const port of list(end, 'ports')) {
+    for (const port of listField(end, 'ports')) {
       if (port['corresponds'] !== arrow || ports.includes(port)) continue
       ports.push(port)
       const queue = arrowsAtPort(port)
@@ -205,7 +203,7 @@ export function childCounterparts(arrow: Elem): { ports: Elem[]; arrows: Elem[] 
         const a = queue.shift() as Elem
         if (arrows.includes(a)) continue
         arrows.push(a)
-        queue.push(...list(end, 'arrows').filter((x) => x['source'] === a || x['target'] === a))
+        queue.push(...listField(end, 'arrows').filter((x) => x['source'] === a || x['target'] === a))
       }
     }
   }
@@ -228,7 +226,7 @@ export function linkedArrows(arrow: Elem): Elem[] {
         const up = end['corresponds'] as Elem | null
         if (up && arrowsAtPort(end).length === 1) next.push(up)
       } else if (isIdef0Function(end)) {
-        for (const port of list(end, 'ports')) {
+        for (const port of listField(end, 'ports')) {
           if (port['corresponds'] !== a) continue
           const fed = arrowsAtPort(port)
           if (fed.length === 1) next.push(fed[0] as Elem)
@@ -251,7 +249,7 @@ function inheritingBranches(arrow: Elem): Elem[] {
   const queue = [arrow]
   while (queue.length > 0 && out.length < 256) {
     const trunk = queue.shift() as Elem
-    for (const a of list(trunk._parent, 'arrows')) {
+    for (const a of listField(trunk._parent, 'arrows')) {
       if ((a['source'] !== trunk && a['target'] !== trunk) || a === arrow || out.includes(a) || a['name']) continue
       out.push(a)
       queue.push(a)

@@ -8,6 +8,7 @@
  *   `EdgeView`, `UMLClassifier`, ...). Narrow with `isKindOf(el, 'NodeView')`.
  * - `Font` (`View.font`) and `Points` (`EdgeView.points`) are immutable value objects; assign a
  *   new value to change them. Codec helpers: `parseFont`/`formatFont`, `parsePoints`/`formatPoints`.
+ * - Defensive reads (`fields.ts`): `listField(el, field)`, `stringField(el, field)`, `ownedElementsOf(el)`.
  * - Never mutate elements that are in a repository directly; use `commands/` so the change is
  *   undoable and the UI re-renders.
  *
@@ -34,6 +35,7 @@
  * - `planFeature(owner, 'Attribute' | 'Operation' | ...)`, `planItemViews(...)`, `createItemView(...)`.
  */
 export * from './types'
+export * from './fields'
 export * from './values'
 export * from './errors'
 export { generateId } from './id'
@@ -46,12 +48,12 @@ export type { TimingNodeKind } from './factories-timing'
 export * from './structure-factories'
 export * from './factories-rad'
 export * from './idef0-numbering'
+export * from './idef0-titleblock'
+export * from './idef0-sheet'
 export {
-  IDEF0_AREA,
   IDEF0_BOX,
   IDEF0_CONTEXT_BOX,
   IDEF0_PORT_SIZE,
-  IDEF0_SHEET,
   diagramOfScope,
   planBoundaryArrow,
   planDecompose,

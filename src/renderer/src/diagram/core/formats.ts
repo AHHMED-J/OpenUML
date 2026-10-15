@@ -5,14 +5,8 @@
  */
 import { FontStyle, GENERIC_FONT_FAMILY, type Font } from './style'
 
-// The encoders are implemented once, in the model module (`model/values.ts`), and re-exported
-// here under the names the diagram code uses.
-export {
-  parsePoints,
-  formatPoints as serializePoints,
-  parseFont,
-  formatFont as serializeFont
-} from '../../model'
+// The decoders are implemented once, in the model module (`model/values.ts`), and re-exported here.
+export { parsePoints, parseFont } from '../../model'
 
 export function isBold(font: Font): boolean {
   return font.style === FontStyle.Bold || font.style === FontStyle.BoldItalic

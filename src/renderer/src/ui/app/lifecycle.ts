@@ -8,12 +8,15 @@ import { projectStore } from '../../store'
 import { bindingToDispatch, eventToDescriptor } from '../keymap'
 import { buildAppMenu } from '../menus/appMenu'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
+import { WHEN_TOOL_ACTIVE } from '../menus/keymaps'
 import { resolveMenu, toNativeMenu, type MenuContext } from '../menus/menuModel'
 import { uiStore } from '../uiStore'
 import { bridge, isTextInputFocused, platform } from './bridge'
-import { initCommands, keymap, registry, reportError, runCommand } from './commands'
+import { applyKeybindings, initCommands, keymap, registry, reportError, runCommand } from './commands'
 import { handleCloseRequest, openProjectPath, windowTitle } from './fileOps'
 import { decodeMenuCommand } from '../menus/menuModel'
+import { discardRecovery, offerRecovery, startAutosave } from './autosave'
+import { startUpdates } from './updates'
 
 export function menuContext(): MenuContext {
   return {
@@ -26,7 +29,7 @@ export function menuContext(): MenuContext {
 
 function syncTitle(): void {
   const s = projectStore.getState()
-  const title = windowTitle(s.filePath, s.project.name, s.dirty)
+  const title = windowTitle(s.filePath, s.project.name, s.dirty, uiStore.getState().appVersion)
   if (bridge) bridge.setDirty(s.dirty, title)
   else document.title = title
 }
@@ -44,6 +47,8 @@ function syncMenu(): void {
 }
 
 const TEXT_BLOCKED_COMMANDS: ReadonlySet<string> = new Set([Cmd.toolSelect])
+const NO_CONTEXT_KEYS: ReadonlySet<string> = new Set()
+const TOOL_ACTIVE_KEYS: ReadonlySet<string> = new Set([WHEN_TOOL_ACTIVE])
 
 function onKeyDown(e: KeyboardEvent): void {
   if (e.defaultPrevented || e.isComposing) return
@@ -54,7 +59,11 @@ function onKeyDown(e: KeyboardEvent): void {
   if (ui.modal || ui.contextMenu) return
   // Menu accelerators are dispatched here as well (see `bindingToDispatch`): the native menu only
   // receives keys the page leaves unhandled, so this is the single path for the canvas and panels.
-  const binding = bindingToDispatch(keymap, descriptor, { textFocused: isTextInputFocused(), textBlockedCommands: TEXT_BLOCKED_COMMANDS })
+  const binding = bindingToDispatch(keymap, descriptor, {
+    textFocused: isTextInputFocused(),
+    textBlockedCommands: TEXT_BLOCKED_COMMANDS,
+    contextKeys: ui.tool ? TOOL_ACTIVE_KEYS : NO_CONTEXT_KEYS
+  })
   if (!binding) return
   e.preventDefault()
   e.stopPropagation()
@@ -80,6 +89,11 @@ export function startShell(): () => void {
   cleanups.push(
     uiStore.subscribe((s, prev) => {
       if (s.prefs.radAutoThread !== prev.prefs.radAutoThread) setRadAutoThread(s.prefs.radAutoThread)
+      if (s.appVersion !== prev.appVersion) syncTitle()
+      if (s.keybindings !== prev.keybindings) {
+        applyKeybindings(s.keybindings)
+        scheduleMenu()
+      }
     })
   )
   cleanups.push(
@@ -92,7 +106,14 @@ export function startShell(): () => void {
   )
   cleanups.push(
     uiStore.subscribe((s, prev) => {
-      if (s.panels !== prev.panels || s.dock !== prev.dock || s.prefs !== prev.prefs || s.recentFiles !== prev.recentFiles || s.sortBy !== prev.sortBy) {
+      if (
+        s.panels !== prev.panels ||
+        s.dock !== prev.dock ||
+        s.prefs !== prev.prefs ||
+        s.recentFiles !== prev.recentFiles ||
+        s.sortBy !== prev.sortBy ||
+        s.update !== prev.update
+      ) {
         scheduleMenu()
       }
     })
@@ -109,6 +130,9 @@ export function startShell(): () => void {
     if (menuTimer !== null) clearTimeout(menuTimer)
   })
 
+  cleanups.push(startUpdates())
+  cleanups.push(startAutosave())
+
   window.addEventListener('keydown', onKeyDown)
   cleanups.push(() => window.removeEventListener('keydown', onKeyDown))
 
@@ -119,11 +143,14 @@ export function startShell(): () => void {
         runCommand(command, args)
       })
     )
-    cleanups.push(bridge.onCloseRequested(() => void handleCloseRequest().catch(reportError)))
+    cleanups.push(bridge.onCloseRequested(() => void handleCloseRequest(discardRecovery).catch(reportError)))
     cleanups.push(bridge.onOpenFile((path) => void openProjectPath(path).catch(reportError)))
-    void bridge
-      .takeStartupFile()
-      .then((path) => (path ? openProjectPath(path, false) : undefined))
+    const b = bridge
+    // Unsaved work of a session that ended abruptly first, then the file the app was opened with
+    // (which asks before replacing recovered work).
+    void offerRecovery()
+      .then(() => b.takeStartupFile())
+      .then((path) => (path ? openProjectPath(path) : undefined))
       .catch(reportError)
   }
 

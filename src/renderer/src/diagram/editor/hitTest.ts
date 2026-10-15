@@ -8,11 +8,13 @@ import {
   handleAt,
   hitTestEdge,
   rectContainsPoint,
+  rectsIntersect,
   rubberBandSelectsEdge,
   rubberBandSelectsRect,
   type HandlePosition,
   type Point,
   type Rect,
+  type RubberBandMode,
   type SegmentOrientation
 } from '../core'
 import type { DiagramLayout, EditRegion, EdgeLabelLayout, NodeDivider } from '../layout/types'
@@ -115,17 +117,31 @@ export function hitTestDiagram(layout: DiagramLayout, p: Point, options: HitOpti
   return null
 }
 
-/** Views fully enclosed by a rubber band (spec 02 §7.2). */
-export function viewsInBand(layout: DiagramLayout, band: Rect): string[] {
+/**
+ * Views a rubber band selects (spec 02 §7.2). A `contain` ("window") band takes nodes whose box
+ * and edges whose whole routed polyline lie inside it (an edge's labels go with the edge). An
+ * `intersect` ("crossing") band also takes nodes whose box (or a label beside it) it touches and
+ * edges whose polyline or labels it touches, but never a frame or container it lies wholly inside.
+ */
+export function viewsInBand(layout: DiagramLayout, band: Rect, mode: RubberBandMode = 'contain'): string[] {
   const ids: string[] = []
   for (const id of layout.order) {
     const node = layout.nodes.get(id)
     if (node) {
-      if (rubberBandSelectsRect(band, node.box, 'contain')) ids.push(id)
+      if (rubberBandSelectsRect(band, node.box, mode) || (mode === 'intersect' && (node.outerHitAreas?.some((r) => rectsIntersect(band, r)) ?? false))) ids.push(id)
       continue
     }
     const edge = layout.edges.get(id)
-    if (edge && rubberBandSelectsEdge(band, edge.points, 'contain')) ids.push(id)
+    if (edge && rubberBandSelectsEdge(band, edge.points, mode, edge.labels.map((l) => l.box))) ids.push(id)
   }
   return ids
+}
+
+/**
+ * The selection after a rubber band: the views it selects in `mode` (`viewsInBand`), added to
+ * `current` when the band is additive (Shift / Cmd / Ctrl held).
+ */
+export function bandSelection(layout: DiagramLayout, band: Rect, current: readonly string[], additive: boolean, mode: RubberBandMode = 'contain'): string[] {
+  const ids = viewsInBand(layout, band, mode)
+  return additive ? [...new Set([...current, ...ids])] : ids
 }

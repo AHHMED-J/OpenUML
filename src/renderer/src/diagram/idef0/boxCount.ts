@@ -9,6 +9,7 @@
  */
 import {
   IDEF0_AREA,
+  drawingAreaOf,
   createElement,
   functionViewsOf,
   isContextDiagram,
@@ -17,6 +18,7 @@ import {
   planCloseGaps,
   scopeOf,
   staircaseBox,
+  type DrawingArea,
   staircaseOrder,
   type Elem,
   type NodeView
@@ -60,30 +62,35 @@ export function childBoxes(diagram: Elem): ChildBoxInfo[] {
   })
 }
 
-/** Whether the views still sit where the default staircase of `count` boxes puts them (untouched by hand). */
-function isDefaultStaircase(views: readonly NodeView[], count: number): boolean {
-  return views.every((v, i) => {
-    const s = staircaseBox(i, count)
-    return v.left === s.left && v.top === s.top && v.width === s.width && v.height === s.height
-  })
+/**
+ * Whether the views still sit where the default staircase of `count` boxes puts them (untouched by
+ * hand), on the drawing area `area` or on the default one (the sheet was enlarged afterwards).
+ */
+function isDefaultStaircase(views: readonly NodeView[], count: number, area: DrawingArea): boolean {
+  const on = (a: DrawingArea): boolean =>
+    views.every((v, i) => {
+      const s = staircaseBox(i, count, a)
+      return v.left === s.left && v.top === s.top && v.width === s.width && v.height === s.height
+    })
+  return on(area) || on(IDEF0_AREA)
 }
 
 /**
  * Where an extra box goes when the existing boxes were arranged by hand: one step further along
  * the last step of the diagonal, kept inside the sheet.
  */
-function appendedBox(views: readonly NodeView[], index: number, total: number): { left: number; top: number; width: number; height: number } {
+function appendedBox(views: readonly NodeView[], index: number, total: number, area: DrawingArea): { left: number; top: number; width: number; height: number } {
   const last = views[views.length - 1]
   const prev = views[views.length - 2]
-  const base = staircaseBox(index, total)
+  const base = staircaseBox(index, total, area)
   if (!last) return base
   const dx = prev ? last.left - prev.left : 280
   const dy = prev ? last.top - prev.top : 150
   const steps = index - (views.length - 1)
   const width = last.width
   const height = last.height
-  const left = Math.max(IDEF0_AREA.left + 16, Math.min(IDEF0_AREA.right - 16 - width, last.left + Math.max(dx, 0) * steps))
-  const top = Math.max(IDEF0_AREA.top + 16, Math.min(IDEF0_AREA.bottom - 16 - height, last.top + Math.max(dy, 0) * steps))
+  const left = Math.max(area.left + 16, Math.min(area.right - 16 - width, last.left + Math.max(dx, 0) * steps))
+  const top = Math.max(area.top + 16, Math.min(area.bottom - 16 - height, last.top + Math.max(dy, 0) * steps))
   return { left, top, width, height }
 }
 
@@ -95,9 +102,10 @@ export function addChildBoxes(env: DiagramEnv, count: number): Elem[] {
   const old = views.length
   const total = Math.min(MAX_CHILD_BOXES, old + Math.max(0, Math.round(count)))
   if (total === old) return []
-  const relayout = isDefaultStaircase(views, old)
+  const area = drawingAreaOf(diagram)
+  const relayout = isDefaultStaircase(views, old, area)
   return withGeometry(env, 'Set Number of Child Boxes', (b) => {
-    if (relayout) views.forEach((v, i) => b.setAll(v, staircaseBox(i, total)))
+    if (relayout) views.forEach((v, i) => b.setAll(v, staircaseBox(i, total, area)))
     const added: Elem[] = []
     const siblings = [...((scope['functions'] as Elem[] | undefined) ?? [])]
     for (let i = old; i < total; i++) {
@@ -105,7 +113,7 @@ export function addChildBoxes(env: DiagramEnv, count: number): Elem[] {
       siblings.push(fn)
       added.push(fn)
       b.insert(scope, 'functions', fn)
-      const bounds = relayout ? staircaseBox(i, total) : appendedBox(views, i, total)
+      const bounds = relayout ? staircaseBox(i, total, area) : appendedBox(views, i, total, area)
       b.insert(diagram, 'ownedViews', createElement<NodeView>('IDEF0FunctionView', { model: fn, ...bounds }))
     }
     return added
@@ -124,7 +132,8 @@ export function removeChildBoxes(env: DiagramEnv, doomed: readonly Elem[]): numb
   const victims = boxes.filter((c) => doomed.includes(c.fn))
   if (victims.length === 0) return 0
   if (victims.length >= boxes.length) throw new Error('A decomposition keeps at least one box')
-  const relayout = isDefaultStaircase(boxes.map((c) => c.view), boxes.length)
+  const area = drawingAreaOf(diagram)
+  const relayout = isDefaultStaircase(boxes.map((c) => c.view), boxes.length, area)
   withGeometry(env, 'Set Number of Child Boxes', (b) => {
     const portsBefore = new Set((scope['ports'] as Elem[] | undefined) ?? [])
     deleteIdef0Views(env, victims.map((v) => v.view))
@@ -132,7 +141,7 @@ export function removeChildBoxes(env: DiagramEnv, doomed: readonly Elem[]): numb
     // boundary arrow; the parent box gets its counterpart so both levels stay consistent (no W08).
     for (const port of (scope['ports'] as Elem[] | undefined) ?? []) if (!portsBefore.has(port)) propagateUp(b, env, port)
     const rest = staircaseOrder(functionViewsOf(diagram).filter((v) => (v.model as Elem)._parent === scope))
-    if (relayout) rest.forEach((v, i) => b.setAll(v, staircaseBox(i, rest.length)))
+    if (relayout) rest.forEach((v, i) => b.setAll(v, staircaseBox(i, rest.length, area)))
     for (const change of planCloseGaps((scope['functions'] as Elem[] | undefined) ?? [])) b.set(change.fn, 'boxNumber', change.boxNumber)
   })
   return victims.length
