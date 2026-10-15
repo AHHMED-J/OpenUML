@@ -377,7 +377,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
   // Toolbox
   add({
     id: Cmd.toolSelect,
-    label: 'Select Tool (Esc / A)',
+    label: 'Select Tool',
     run: () => {
       if (ui().contextMenu) ui().openContextMenu(null)
       ui().setTool(null)
