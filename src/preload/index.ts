@@ -25,7 +25,13 @@ const bridge: OpenUmlBridge = {
   openExternal: (url) => ipcRenderer.send(IpcChannels.openExternal, url),
   addRecentDocument: (path) => ipcRenderer.send(IpcChannels.addRecentDocument, path),
   takeStartupFile: () => ipcRenderer.invoke(IpcChannels.takeStartupFile),
-  onOpenFile: (listener) => subscribe<[string]>(IpcChannels.openFile, listener)
+  onOpenFile: (listener) => subscribe<[string]>(IpcChannels.openFile, listener),
+  getAppInfo: () => ipcRenderer.invoke(IpcChannels.getAppInfo),
+  checkForUpdates: () => ipcRenderer.invoke(IpcChannels.checkForUpdates),
+  saveRecovery: (snapshot) => ipcRenderer.invoke(IpcChannels.saveRecovery, snapshot),
+  readRecovery: () => ipcRenderer.invoke(IpcChannels.readRecovery),
+  clearRecovery: () => ipcRenderer.invoke(IpcChannels.clearRecovery),
+  writePdf: (path, pages) => ipcRenderer.invoke(IpcChannels.writePdf, path, pages)
 }
 
 contextBridge.exposeInMainWorld('openuml', bridge)
