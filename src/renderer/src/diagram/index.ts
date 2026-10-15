@@ -100,7 +100,7 @@ ensureNotations()
 
 // Editor and commands
 export { DiagramEditor, type DiagramEditorProps, type ToolSelection } from './editor/DiagramEditor'
-export { registerDiagramCommands, DiagramCommandIds, copySelection, pasteClipboard, getClipboardPayload, type DiagramCommandContext } from './commands'
+export { registerDiagramCommands, DiagramCommandIds, copySelection, pasteClipboard, type DiagramCommandContext } from './commands'
 export { getActiveEditor, getContextEdgeEnd, requestReveal, type ContextEdgeEnd, type EditorHandle } from './editor/activeEditor'
 export { highlightViews } from './editor/highlight'
 export {
@@ -128,7 +128,7 @@ export * from './clipboard'
 
 // Layout
 export type * from './layout/types'
-export { computeDiagramLayout, viewLayout, type LayoutOptions } from './layout/layoutDiagram'
+export { computeDiagramLayout, type LayoutOptions } from './layout/layoutDiagram'
 export * from './layout/helpers'
 export * from './layout/edges'
 export { getTextMeasurer, setTextMeasurer } from './layout/measurer'
@@ -163,7 +163,7 @@ export {
   issueItems,
   registerIdef0Commands,
   setBoxNumber,
-  validateIdef0,
+  validateDiagram,
   type Idef0CommandContext,
   type Idef0ListItem,
   type IdefIssue

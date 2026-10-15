@@ -11,7 +11,7 @@
  * - The model is a mutable graph changed only through `commands/` operations on `engine`;
  *   every change bumps `version`, so subscribe to `version` (plus ids) and read elements from
  *   the repository during render. Deleted ids are pruned from selection and tabs automatically.
- * - Selectors: `activeDiagram`, `selectedViews`, `selectedModels`, `projectTitle`.
+ * - Selectors: `activeDiagram`, `selectedViews`, `selectedModels`.
  * - `registerCoreCommands(registry, projectStore)` wires new/undo/redo/delete into a `CommandRegistry`.
  * - `createProjectStore()` creates an independent store (tests, multiple windows).
  */

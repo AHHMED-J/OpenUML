@@ -5,7 +5,6 @@
  */
 import type React from 'react'
 import {
-  DASH,
   SHADOW,
   cssFontFamily,
   dashArray,
@@ -175,5 +174,3 @@ export function EdgeShape({ layout, children }: { layout: EdgeLayout; children?:
     </g>
   )
 }
-
-export const SELECTION_DASH = DASH.selection.join(' ')

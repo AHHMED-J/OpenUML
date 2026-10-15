@@ -72,22 +72,6 @@ export const END_GEOMETRY = {
   circlePlusRadius: 6
 } as const
 
-/** Persisted `headEndStyle`/`tailEndStyle` codes of free-line edges (spec 01 §5.3). */
-const END_STYLE_CODES: Readonly<Record<number, EndStyle>> = {
-  0: 'flat',
-  1: 'stickArrow',
-  2: 'solidArrow',
-  3: 'triangle',
-  4: 'filledTriangle',
-  5: 'diamond',
-  6: 'filledDiamond'
-}
-
-/** End style for a persisted code; unknown codes are drawn flat. */
-export function endStyleFromCode(code: number): EndStyle {
-  return END_STYLE_CODES[code] ?? 'flat'
-}
-
 function stickArrow(t: Point, u: Point, len: number, a: number): EndShape {
   return {
     type: 'polyline',
@@ -179,27 +163,6 @@ export function endShapes(spec: EndSpec | EndStyle, tip: Point, adjacent: Point)
     }
   }
   return shapes
-}
-
-/** Distance from the tip to the farthest point of the decoration along the line. */
-export function endDecorationLength(spec: EndSpec | EndStyle): number {
-  const { style, dot } = typeof spec === 'string' ? { style: spec, dot: false } : spec
-  const g = END_GEOMETRY
-  const base: Record<EndStyle, number> = {
-    flat: 0,
-    stickArrow: g.arrowLength * Math.cos(g.angle),
-    solidArrow: g.arrowLength * Math.cos(g.angle),
-    triangle: g.triangleLength * Math.cos(g.angle),
-    filledTriangle: g.triangleLength * Math.cos(g.angle),
-    diamond: g.diamondLength,
-    filledDiamond: g.diamondLength,
-    arrowDiamond: g.diamondLength + g.arrowLength * Math.cos(g.angle),
-    arrowFilledDiamond: g.diamondLength + g.arrowLength * Math.cos(g.angle),
-    cross: g.crossOffset + g.crossArm * Math.cos(Math.PI / 4),
-    circlePlus: 2 * g.circlePlusRadius
-  }
-  if (!dot) return base[style]
-  return style === 'flat' ? g.dotOffset + g.dotRadius : g.dotShift + base[style]
 }
 
 /** SVG path data for one end shape (circles are written as two arcs). */

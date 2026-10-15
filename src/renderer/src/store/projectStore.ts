@@ -54,12 +54,6 @@ export interface ProjectState {
 
 export type ProjectStore = StoreApi<ProjectState>
 
-/** Display title: the file name, else the project name; with a `*` suffix when dirty. */
-export function projectTitle(state: Pick<ProjectState, 'filePath' | 'project' | 'dirty'>): string {
-  const base = state.filePath ? (state.filePath.split(/[\\/]/).pop() ?? state.filePath) : state.project.name
-  return state.dirty ? `${base} *` : base
-}
-
 export function createProjectStore(): ProjectStore {
   let unsubscribe: (() => void) | null = null
 

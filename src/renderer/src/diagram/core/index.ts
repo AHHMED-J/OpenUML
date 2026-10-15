@@ -9,8 +9,8 @@
  * Modules:
  * - `geometry`   Point/Rect/Size, vector math, rect helpers, bounding boxes, segment distance and
  *                intersection, ray-to-outline clipping (rect, ellipse, diamond), angles.
- * - `formats`    .mdj value encodings: `parsePoints`/`serializePoints` ("x:y;x:y"),
- *                `parseFont`/`serializeFont` ("face;size;style"), `cssFont`.
+ * - `formats`    .mdj value decodings: `parsePoints` ("x:y;x:y"), `parseFont`
+ *                ("face;size;style"), `cssFont`.
  * - `style`      Persisted enums (`LineStyle`, `EdgePosition`, `FontStyle`)
  *                and default style constants: `COLORS`, `DEFAULT_FONT`, `DASH`, `SHADOW`,
  *                `SPACING`, `MIN_SIZES`, `Z_INDEX`, `SELECTION`, `GRID`, `ZOOM`, `EXPORT`.

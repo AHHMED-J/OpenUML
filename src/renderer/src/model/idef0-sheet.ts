@@ -171,10 +171,6 @@ export const SHEET_PRESETS: readonly SheetPreset[] = [
   ...paper('a3', 'A3', 297, 420)
 ]
 
-export function sheetPreset(id: string): SheetPreset | null {
-  return SHEET_PRESETS.find((p) => p.id === id) ?? null
-}
-
 /** The preset the sheet of `diagram` has exactly, or null. */
 export function matchingSheetPreset(diagram: Elem | null | undefined): SheetPreset | null {
   const size = sheetSizeOf(diagram)

@@ -6,6 +6,7 @@
 import { ModelRuleError } from './errors'
 import { isKindOf } from './metamodel'
 import type { Elem, NodeView, Point, View } from './types'
+import { listField } from './fields'
 
 export type Idef0Role = 'input' | 'control' | 'output' | 'mechanism' | 'call'
 export type Idef0Side = 'left' | 'top' | 'right' | 'bottom'
@@ -22,20 +23,12 @@ export const ROLE_SIDE: Readonly<Record<Idef0Role, Idef0Side>> = {
 /** ICOM code letter of a role. */
 export const ICOM_LETTER: Readonly<Record<string, string>> = { input: 'I', control: 'C', output: 'O', mechanism: 'M' }
 
-/** Largest box number that keeps concatenated node numbers unambiguous. */
-export const MAX_UNAMBIGUOUS_BOX_NUMBER = 9
-
 export function isIdef0Function(el: Elem | null | undefined): el is Elem {
   return isKindOf(el, 'IDEF0Function')
 }
 
 export function roleOf(arrow: Elem): Idef0Role {
   return (arrow['role'] as Idef0Role | undefined) ?? 'input'
-}
-
-function list(el: Elem | null | undefined, field: string): Elem[] {
-  const value = el?.[field]
-  return Array.isArray(value) ? (value as Elem[]) : []
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -58,12 +51,12 @@ export function modelOf(el: Elem | null | undefined): Elem | null {
 
 /** The A-0 context diagram of a model (null while missing). */
 export function contextDiagramOf(model: Elem): Elem | null {
-  return list(model, 'ownedElements').find((e) => isKindOf(e, 'IDEF0Diagram') && isContextDiagram(e)) ?? null
+  return listField(model, 'ownedElements').find((e) => isKindOf(e, 'IDEF0Diagram') && isContextDiagram(e)) ?? null
 }
 
 /** The function views shown by a diagram (views whose model is a function). */
 export function functionViewsOf(diagram: Elem): NodeView[] {
-  return list(diagram, 'ownedViews').filter((v) => v._type === 'IDEF0FunctionView' && isIdef0Function(v['model'] as Elem | null)) as NodeView[]
+  return listField(diagram, 'ownedViews').filter((v) => v._type === 'IDEF0FunctionView' && isIdef0Function(v['model'] as Elem | null)) as NodeView[]
 }
 
 /** The function boxes a diagram shows: the top function on A-0, else the children of the detailed function. */
@@ -71,7 +64,7 @@ export function functionsOfDiagram(diagram: Elem): Elem[] {
   const scope = scopeOf(diagram)
   if (!scope) return []
   if (isContextDiagram(diagram)) return isKindOf(scope, 'IDEF0Model') && scope['topFunction'] ? [scope['topFunction'] as Elem] : []
-  return list(scope, 'functions')
+  return listField(scope, 'functions')
 }
 
 /** The diagram that contains the box of the function a diagram details, or null on A-0. */
@@ -174,7 +167,7 @@ export function planRenumber(diagram: Elem): BoxNumberChange[] {
 /** The sibling boxes of `fn` (the functions of its owner); the top function has none. */
 function siblingBoxes(fn: Elem): Elem[] {
   const parent = fn._parent
-  return isIdef0Function(parent) ? list(parent, 'functions') : []
+  return isIdef0Function(parent) ? listField(parent, 'functions') : []
 }
 
 /** Smallest box number (from 1) none of `functions` uses: a new box closes a gap or comes last. */
@@ -321,7 +314,7 @@ export function attachedArrows(fn: Elem, role: Idef0Role, arrows: readonly Elem[
 
 /** First view of a model element found in `diagram.ownedViews`. */
 export function viewFinder(diagram: Elem | null): (model: Elem) => View | undefined {
-  const views = list(diagram, 'ownedViews') as View[]
+  const views = listField(diagram, 'ownedViews') as View[]
   return (model) => views.find((v) => v['model'] === model)
 }
 
@@ -337,9 +330,9 @@ export function icomCodes(diagram: Elem): Map<string, string> {
   const parentDiagram = parentDiagramOf(diagram)
   if (!isIdef0Function(detailed) || !parentDiagram) return codes
   const parentScope = scopeOf(parentDiagram)
-  const arrows = list(parentScope, 'arrows')
+  const arrows = listField(parentScope, 'arrows')
   const find = viewFinder(parentDiagram)
-  for (const port of list(detailed, 'ports')) {
+  for (const port of listField(detailed, 'ports')) {
     const corresponds = port['corresponds'] as Elem | null
     const letter = ICOM_LETTER[port['role'] as string]
     if (!corresponds || !letter) continue
@@ -414,7 +407,7 @@ function endCoordinate(end: 'source' | 'target', side: Idef0Side, view: View | u
  */
 export function boxArrowGroups(fn: Elem, viewOfArrow?: (arrow: Elem) => View | undefined): Array<{ role: Idef0Role; arrows: Elem[] }> {
   const scope = fn._parent
-  const arrows = list(scope, 'arrows').filter((a) => isKindOf(a, 'IDEF0Arrow') && (a['source'] === fn || a['target'] === fn))
+  const arrows = listField(scope, 'arrows').filter((a) => isKindOf(a, 'IDEF0Arrow') && (a['source'] === fn || a['target'] === fn))
   if (arrows.length === 0) return []
   const find = viewOfArrow ?? viewFinder(diagramOfArrowScope(scope))
   const groups: Array<{ role: Idef0Role; arrows: Elem[] }> = []
@@ -429,12 +422,6 @@ export function boxArrowGroups(fn: Elem, viewOfArrow?: (arrow: Elem) => View | u
     groups.push({ role, arrows: keyed.map((k) => k.a) })
   }
   return groups
-}
-
-/** 1-based position of `arrow` among the arrows of `role` at `fn` (0 when it is not attached there). */
-export function arrowPositionAt(arrow: Elem, fn: Elem, role: Idef0Role): number {
-  const group = boxArrowGroups(fn).find((g) => g.role === role)
-  return (group?.arrows.indexOf(arrow) ?? -1) + 1
 }
 
 /**
@@ -460,11 +447,6 @@ export function arrowRoleLabel(role: Idef0Role, position: number, name: string):
 
 // ---------------------------------------------------------------------------------------------
 // Slots
-
-/** Rounds to the 8-unit grid. */
-export function round8(value: number): number {
-  return Math.round(value / 8) * 8
-}
 
 /**
  * Offsets from the start of a side of length `length` for `count` evenly spread attachments:
@@ -507,7 +489,7 @@ export function buildNodeIndex(model: Elem): NodeIndexEntry[] {
       functionId: fn._id,
       diagramId: ((fn['childDiagram'] as Elem | null)?._id ?? null)
     })
-    const children = [...list(fn, 'functions')].sort((a, b) => (a['boxNumber'] as number) - (b['boxNumber'] as number))
+    const children = [...listField(fn, 'functions')].sort((a, b) => (a['boxNumber'] as number) - (b['boxNumber'] as number))
     for (const child of children) visit(child, depth + 1)
   }
   if (top) visit(top, 1)

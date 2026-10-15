@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cssFont, cssFontFamily, isBold, isItalic, parseFont, parsePoints, scaleFont, serializeFont, serializePoints, withFontStyle } from './formats'
+import { cssFont, cssFontFamily, isBold, isItalic, parseFont, parsePoints, scaleFont, withFontStyle } from './formats'
 import { DEFAULT_FONT, FontStyle } from './style'
 
 describe('points string', () => {
@@ -28,13 +28,6 @@ describe('points string', () => {
       { x: 5, y: 6 }
     ])
   })
-
-  it('round-trips', () => {
-    const s = '200:62;360:62;360:-10'
-    expect(serializePoints(parsePoints(s))).toBe(s)
-    expect(serializePoints([])).toBe('')
-    expect(serializePoints([{ x: -0, y: 1.5 }])).toBe('0:1.5')
-  })
 })
 
 describe('font string', () => {
@@ -51,12 +44,6 @@ describe('font string', () => {
     expect(parseFont('', base)).toEqual(base)
     expect(parseFont(undefined)).toEqual(DEFAULT_FONT)
     expect(parseFont('Inter')).toEqual({ face: 'Inter', size: 13, style: 0 })
-  })
-
-  it('round-trips', () => {
-    for (const s of ['Arial;13;0', 'Arial;11.7;0', 'Source Code Pro;12;3']) {
-      expect(serializeFont(parseFont(s))).toBe(s)
-    }
   })
 
   it('derives styles and sizes', () => {

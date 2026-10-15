@@ -16,13 +16,13 @@
  * Edits (one gesture = one undo step)
  * - Create: `createNode(engine, NodeRequest)`, `createEdge(engine, EdgeRequest)`,
  *   `createDiagram(engine, kind, owner)`, `createModelElement`, `addFeature` and the shortcuts
- *   `addAttribute`, `addOperation`, `addParameter`, `addEnumerationLiteral`, `addExtensionPoint`,
- *   `addOperand` (these also add item views to every view of the owner).
+ *   `addAttribute`, `addOperation`, `addEnumerationLiteral`, `addExtensionPoint` (these also add
+ *   item views to every view of the owner).
  * - Change: `setFields`, `setFieldsOfAll`, `rename`, `moveElement`, `reorderElement`.
- * - Geometry: `moveViews`, `setViewBounds`, `setEdgePoints`, `reconnectEdge`.
+ * - Geometry: `moveViews`, `setViewBounds`.
  * - Delete: `deleteFromModel(engine, elements)` (full cascade), `deleteFromView(engine, views)`;
  *   `collectDeletion` previews the cascade.
- * - Housekeeping: `syncItemViews` (bypass), `importFragment(engine, text, owner)` (bypass).
+ * - Import: `importFragment(engine, text, owner)` (bypass).
  *
  * Registry
  * - `CommandRegistry` (`register`, `execute`, `isEnabled`, `isChecked`) and `CommandIds`.

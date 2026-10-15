@@ -25,6 +25,7 @@ import { IDEF0_AREA, IDEF0_SHEET, areaOfSheet, sheetSizeOf, type DrawingArea, ty
 import type { Diagram, Elem, NodeView, Point, View } from './types'
 import { addSubView, boundsOf, createElement, defaultName, nextName } from './view-builders'
 import { DEFAULT_FONT, fontWith } from './values'
+import { listField, ownedElementsOf } from './fields'
 
 export type Idef0NodeKind = 'IDEF0Function' | 'IDEF0ModelNote'
 export type Idef0EdgeKind = 'IDEF0Arrow' | 'IDEF0Call'
@@ -51,15 +52,6 @@ export function isIdef0NodeKind(kind: string): kind is Idef0NodeKind {
 
 export function isIdef0EdgeKind(kind: string): kind is Idef0EdgeKind {
   return kind === 'IDEF0Arrow' || kind === 'IDEF0Call'
-}
-
-function list(el: Elem | null | undefined, field: string): Elem[] {
-  const value = el?.[field]
-  return Array.isArray(value) ? (value as Elem[]) : []
-}
-
-function ownedElementsOf(el: Elem): Elem[] {
-  return list(el, 'ownedElements')
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -195,7 +187,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   }
 
   const boxes: BoxSlot[] = []
-  const existing = list(fn, 'functions')
+  const existing = listField(fn, 'functions')
   for (let i = 0; i < n; i++) {
     const child = createElement('IDEF0Function', { name: nextName([...existing, ...functions], 'New Function '), boxNumber: i + 1 })
     functions.push(child)
@@ -204,7 +196,7 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
 
   // Parent attachments, in their order along the parent box sides.
   const parentScope = fn._parent
-  const parentArrows = list(parentScope, 'arrows')
+  const parentArrows = listField(parentScope, 'arrows')
   const find = viewFinder(diagramOfScope(parentScope))
   const first = boxes[0] as BoxSlot
   const last = boxes[boxes.length - 1] as BoxSlot
@@ -286,7 +278,7 @@ export function planIdef0Node(req: NodeRequest): CreationPlan {
   let view: View
   if (req.kind === 'IDEF0Function') {
     requireDecomposition(req.diagram)
-    const siblings = list(scope, 'functions')
+    const siblings = listField(scope, 'functions')
     const boxNumber = nextFreeBoxNumber(siblings)
     model = createElement('IDEF0Function', { name: req.name ?? nextName(siblings, 'New Function '), boxNumber })
     insertions.push({ owner: scope, field: 'functions', element: model })
@@ -328,7 +320,7 @@ function reaches(start: Elem | null, target: Elem): boolean {
 }
 
 function callArrowsOf(fn: Elem | null): number {
-  return fn ? list(fn._parent, 'arrows').filter((a) => roleOf(a) === 'call' && a['source'] === fn).length : 0
+  return fn ? listField(fn._parent, 'arrows').filter((a) => roleOf(a) === 'call' && a['source'] === fn).length : 0
 }
 
 /** Whether an arrow of `kind` may connect `tail` to `head` (spec 11 §2.4). */

@@ -185,21 +185,16 @@ function generic(tail: RouteEnd, head: RouteEnd): Point[] {
 }
 
 /**
- * Routes an arrow from `tail` to `head`.
+ * Routes an arrow from `tail` to `head`:
  * - E to W: H-V-H through the channel between the boxes, straight when level; feedback runs down and under.
  * - E to N (control): H-V; feedback runs up and over, in lane `lane`.
  * - E to S (mechanism): right, down below both boxes, across, up into the bottom slot.
  * - Port to side: straight when aligned, else one short bend inside the first run.
- */
-export function routeArrow(input: RouteInput): Point[] {
-  return routeArrowDetailed(input).points
-}
-
-/**
- * `routeArrow` plus the run of the route the user can drag (`adjust`, null when the shape has
- * none): the channel of an H-V-H arrow, the lane of a feedback loop, the horizontal run of a
- * control or mechanism arrow coming from a boundary port. Without `hint` and `preferred` the
- * points are exactly the automatic route.
+ *
+ * Also returns the run of the route the user can drag (`adjust`, null when the shape has none):
+ * the channel of an H-V-H arrow, the lane of a feedback loop, the horizontal run of a control or
+ * mechanism arrow coming from a boundary port. Without `hint` and `preferred` the points are
+ * exactly the automatic route.
  */
 export function routeArrowDetailed(input: RouteInput): RoutedArrow {
   const { tail, head, lane = 0 } = input

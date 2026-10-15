@@ -5,7 +5,6 @@ import {
   NODE_LABEL_DEFAULTS,
   edgeAnchor,
   edgeLabelParamsFromBox,
-  nodeLabelParamsFromBox,
   placeEdgeLabel,
   placeNodeLabel,
   polarLabelCenter
@@ -128,13 +127,5 @@ describe('node-attached labels', () => {
     const prop = placeNodeLabel(node, NODE_LABEL_DEFAULTS.property, size)
     expect(prop.left + 10).toBeLessThan(109)
     expect(prop.top + 6.5).toBeGreaterThan(109)
-  })
-
-  it('round-trips a dragged node label', () => {
-    const box = { left: 140, top: 60, width: 30, height: 13 }
-    const params = nodeLabelParamsFromBox(node, box)
-    const placed = placeNodeLabel(node, params, { width: 30, height: 13 })
-    expect(Math.abs(placed.left - box.left)).toBeLessThanOrEqual(1)
-    expect(Math.abs(placed.top - box.top)).toBeLessThanOrEqual(1)
   })
 })

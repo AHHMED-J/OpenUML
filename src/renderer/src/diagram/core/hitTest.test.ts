@@ -6,7 +6,6 @@ import {
   handleCursor,
   handlesFor,
   hitTestEdge,
-  hitTestNode,
   resizeByHandle,
   resizeHandles,
   rubberBandModeFor,
@@ -74,14 +73,6 @@ describe('resizeByHandle', () => {
     expect(r.height).toBeCloseTo(110)
     const nw = resizeByHandle(rect(0, 0, 20, 10), 'nw', -20, 0, { keepRatio: true })
     expect(nw).toEqual(rect(-20, -10, 40, 20))
-  })
-})
-
-describe('hitTestNode', () => {
-  it('enlarges selected nodes by the handle size', () => {
-    expect(hitTestNode(box, { x: 95, y: 120 })).toBe(false)
-    expect(hitTestNode(box, { x: 95, y: 120 }, { selected: true })).toBe(true)
-    expect(hitTestNode(box, { x: 97, y: 120 }, { selected: true, zoom: 4 })).toBe(false)
   })
 })
 

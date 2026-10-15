@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as core from './index'
-import { COLORS, DASH, LineStyle, MIN_SIZES, SHADOW, SPACING, dashArray, isRectilinearStyle, lineModeToDash } from './style'
+import { COLORS, DASH, LineStyle, MIN_SIZES, SHADOW, SPACING, dashArray, isRectilinearStyle } from './style'
 
 describe('style constants', () => {
   it('matches the spec defaults', () => {
@@ -18,9 +18,6 @@ describe('style constants', () => {
     expect(isRectilinearStyle(LineStyle.Rectilinear)).toBe(true)
     expect(isRectilinearStyle(LineStyle.RoundedRectilinear)).toBe(true)
     expect(isRectilinearStyle(LineStyle.Oblique)).toBe(false)
-    expect(lineModeToDash(0)).toBe('solid')
-    expect(lineModeToDash(1)).toBe('dot')
-    expect(lineModeToDash(2)).toBe('dash')
     expect(dashArray('solid')).toEqual([])
   })
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { CommandIds, CommandRegistry, createDiagram, createNode, setFields } from '../commands'
 import { FormatError } from '../format'
 import type { Diagram, Elem, View } from '../model'
-import { activeDiagram, createProjectStore, projectTitle, registerCoreCommands, selectedModels } from '.'
+import { activeDiagram, createProjectStore, registerCoreCommands, selectedModels } from '.'
 
 const exampleText = readFileSync(new URL('../format/fixtures/example.mdj', import.meta.url), 'utf8')
 
@@ -17,7 +17,6 @@ describe('project store', () => {
     expect(s.openDiagramIds).toEqual([diagram._id])
     expect(s.dirty).toBe(false)
     expect(s.filePath).toBeNull()
-    expect(projectTitle(s)).toBe('Untitled')
   })
 
   it('bumps version and tracks dirty/undo state on model changes', () => {
@@ -30,13 +29,11 @@ describe('project store', () => {
     expect(s.dirty).toBe(true)
     expect(s.canUndo).toBe(true)
     expect(s.undoName).toBe('Create Class')
-    expect(projectTitle(s)).toBe('Untitled *')
 
     s.markSaved('/tmp/file.mdj')
     s = store.getState()
     expect(s.dirty).toBe(false)
     expect(s.filePath).toBe('/tmp/file.mdj')
-    expect(projectTitle(s)).toBe('file.mdj')
 
     s.undo()
     s = store.getState()

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addOperation, addParameter, setFields } from '../../commands'
+import { addFeature, addOperation, setFields } from '../../commands'
 import { childrenOf, createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
 import { testDiagram } from '../testUtils'
 import { readMdj, writeMdj } from '../../format'
@@ -217,8 +217,8 @@ describe('quick edit', () => {
     const view = t.node('Class', 0, 0)
     const cls = t.node('Class', 300, 0).model as Elem
     const op = addOperation(t.engine, view.model as Elem, { name: 'old' }) as UMLOperation
-    const p1 = addParameter(t.engine, op, { name: 'a' }) as UMLParameter
-    addParameter(t.engine, op, { name: 'b' })
+    const p1 = addFeature(t.engine, op, 'Parameter', { name: 'a' }) as UMLParameter
+    addFeature(t.engine, op, 'Parameter', { name: 'b' })
     const ok = applyQuickEdit(t.engine, { kind: 'operation', elementId: op._id, classifierId: (view.model as Elem)._id }, '#find(out key: Class2): int')
     expect(ok).toBe(true)
     expect(op.name).toBe('find')

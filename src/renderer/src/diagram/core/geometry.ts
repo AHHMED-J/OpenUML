@@ -209,14 +209,6 @@ export function distancePointToPolyline(p: Point, points: readonly Point[]): num
   return best
 }
 
-/** Perpendicular distance from `p` to the infinite line through `a` and `b`. */
-export function distancePointToLine(p: Point, a: Point, b: Point): number {
-  const ab = sub(b, a)
-  const len = length(ab)
-  if (len < EPSILON) return distance(p, a)
-  return Math.abs(cross(ab, sub(p, a))) / len
-}
-
 /**
  * Intersection of segments `a1`–`a2` and `b1`–`b2`, or `null` when they do not cross
  * (parallel/collinear segments return `null`).
@@ -299,26 +291,6 @@ export function diamondBorderPointToward(r: Rect, p: Point): Point {
   const k = Math.abs(d.x) / hw + Math.abs(d.y) / hh
   if (k <= 1) return c
   return { x: c.x + d.x / k, y: c.y + d.y / k }
-}
-
-/** True when `p` is inside (or on) the ellipse inscribed in `r`. */
-export function ellipseContainsPoint(r: Rect, p: Point, tolerance = 0): boolean {
-  const c = rectCenter(r)
-  const rx = r.width / 2 + tolerance
-  const ry = r.height / 2 + tolerance
-  if (rx <= 0 || ry <= 0) return false
-  const dx = p.x - c.x
-  const dy = p.y - c.y
-  return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1
-}
-
-/** True when `p` is inside (or on) the diamond inscribed in `r`. */
-export function diamondContainsPoint(r: Rect, p: Point, tolerance = 0): boolean {
-  const c = rectCenter(r)
-  const hw = r.width / 2 + tolerance
-  const hh = r.height / 2 + tolerance
-  if (hw <= 0 || hh <= 0) return false
-  return Math.abs(p.x - c.x) / hw + Math.abs(p.y - c.y) / hh <= 1
 }
 
 // ---------------------------------------------------------------------------
