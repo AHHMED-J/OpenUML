@@ -61,7 +61,14 @@ export interface Preferences {
   readonly defaultFontSize: number
   /** RAD: a new element placed below an open-ended element gets a state line from it. */
   readonly radAutoThread: boolean
+  /** Seconds between automatic saves of a project that has a file (0 = off). */
+  readonly autoSaveSeconds: number
+  /** Ask GitHub for a newer release at startup (and once a day while running). */
+  readonly checkForUpdates: boolean
 }
+
+/** Auto-save intervals offered in Preferences (seconds; 0 = off). */
+export const AUTO_SAVE_INTERVALS: readonly number[] = [0, 30, 60, 120, 300, 600]
 
 const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
@@ -69,7 +76,9 @@ const DEFAULT_PREFERENCES: Preferences = {
   snapToGrid: true,
   gridSize: GRID.size,
   defaultFontSize: 13,
-  radAutoThread: true
+  radAutoThread: true,
+  autoSaveSeconds: 60,
+  checkForUpdates: true
 }
 
 const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
@@ -138,6 +147,13 @@ export interface ContextMenuState {
   readonly targetId?: string
 }
 
+/** A newer release found by the update check. */
+export interface AvailableUpdate {
+  readonly version: string
+  /** Release page to download it from. */
+  readonly url: string
+}
+
 export interface UiState {
   readonly tool: PaletteTool | null
   readonly toolLocked: boolean
@@ -166,6 +182,10 @@ export interface UiState {
   readonly modal: ModalState | null
   readonly contextMenu: ContextMenuState | null
   readonly toasts: readonly Toast[]
+  /** Version of the running application (null until the main process told it). */
+  readonly appVersion: string | null
+  /** A newer release, when the update check found one. */
+  readonly update: AvailableUpdate | null
 
   /** Toolbox click semantics: select → lock → back to Select. */
   clickTool(tool: PaletteTool): void
@@ -211,6 +231,8 @@ export interface UiState {
   /** Shows a brief, non-blocking message; an identical one already shown is replaced. */
   toast(text: string, kind?: Toast['kind']): void
   dismissToast(id: number): void
+  setAppVersion(version: string): void
+  setUpdate(update: AvailableUpdate | null): void
 }
 
 /** Clamps a stored zoom to the diagram module's range, rounded to whole percents. */
@@ -262,7 +284,10 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
       typeof v.defaultFontSize === 'number' && v.defaultFontSize >= 6 && v.defaultFontSize <= 72
         ? Math.round(v.defaultFontSize)
         : DEFAULT_PREFERENCES.defaultFontSize,
-    radAutoThread: typeof v.radAutoThread === 'boolean' ? v.radAutoThread : DEFAULT_PREFERENCES.radAutoThread
+    radAutoThread: typeof v.radAutoThread === 'boolean' ? v.radAutoThread : DEFAULT_PREFERENCES.radAutoThread,
+    autoSaveSeconds:
+      typeof v.autoSaveSeconds === 'number' && AUTO_SAVE_INTERVALS.includes(v.autoSaveSeconds) ? v.autoSaveSeconds : DEFAULT_PREFERENCES.autoSaveSeconds,
+    checkForUpdates: typeof v.checkForUpdates === 'boolean' ? v.checkForUpdates : DEFAULT_PREFERENCES.checkForUpdates
   }
 }
 
@@ -343,6 +368,8 @@ export function createUiStore() {
       modal: null,
       contextMenu: null,
       toasts: [],
+      appVersion: null,
+      update: null,
 
       clickTool(tool) {
         const s = get()
@@ -517,6 +544,12 @@ export function createUiStore() {
       },
       dismissToast(id) {
         set({ toasts: get().toasts.filter((t) => t.id !== id) })
+      },
+      setAppVersion(appVersion) {
+        set({ appVersion })
+      },
+      setUpdate(update) {
+        set({ update })
       }
     }
   })

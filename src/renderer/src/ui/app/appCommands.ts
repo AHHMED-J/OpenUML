@@ -20,6 +20,7 @@ import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge } from './bridge'
 import { EXAMPLES } from '../examples'
 import { promptBoxCount } from './boxCount'
+import { checkForUpdates, offerUpdate } from './updates'
 import {
   closeWindow,
   exportAllDiagrams,
@@ -166,7 +167,8 @@ export function confirmAndDeleteFromModel(elements: readonly Elem[]): Promise<vo
 }
 
 function about(): void {
-  const message = 'OpenUML'
+  const version = ui().appVersion
+  const message = version ? `OpenUML ${version}` : 'OpenUML'
   const detail =
     'An open-source UML modeling tool.\nIndependent project, not affiliated with any other UML tool vendor.\nLicensed under the MIT License.'
   if (bridge) void bridge.showMessageBox({ type: 'info', message, detail, buttons: ['OK'] })
@@ -386,6 +388,18 @@ export function registerAppCommands(registry: CommandRegistry): void {
 
   // Help
   add({ id: Cmd.helpAbout, label: 'About OpenUML', run: about })
+  add({
+    id: Cmd.helpCheckForUpdates,
+    label: 'Check for Updates...',
+    run: () => checkForUpdates(true),
+    isEnabled: () => bridge !== null
+  })
+  add({
+    id: Cmd.helpDownloadUpdate,
+    label: 'Download Update...',
+    run: () => offerUpdate(),
+    isEnabled: () => ui().update !== null
+  })
   add({
     id: Cmd.helpDocumentation,
     label: 'Documentation...',

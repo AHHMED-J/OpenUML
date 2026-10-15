@@ -18,6 +18,8 @@ export const Cmd = {
   helpAbout: 'help.about',
   helpDocumentation: 'help.documentation',
   helpReportIssue: 'help.report-issue',
+  helpCheckForUpdates: 'help.check-for-updates',
+  helpDownloadUpdate: 'help.download-update',
   // Edit
   editCut: 'edit.cut',
   editCopy: 'edit.copy',

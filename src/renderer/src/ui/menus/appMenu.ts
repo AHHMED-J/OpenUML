@@ -156,6 +156,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
     label: 'OpenUML',
     submenu: [
       { id: 'app.about', label: 'About OpenUML', command: Cmd.helpAbout },
+      { id: 'app.check-for-updates', label: 'Check for Updates...', command: Cmd.helpCheckForUpdates },
       SEP,
       { id: 'app.preferences', label: 'Preferences...', command: Cmd.appPreferences },
       SEP,
@@ -285,7 +286,13 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
     submenu: [
       { id: 'help.documentation', label: 'Documentation...', command: Cmd.helpDocumentation },
       { id: 'help.report-issue', label: 'Report an Issue...', command: Cmd.helpReportIssue },
-      ...(mac ? [] : [SEP, { id: 'help.about', label: 'About OpenUML', command: Cmd.helpAbout }])
+      ...(mac
+        ? []
+        : [
+            SEP,
+            { id: 'help.check-for-updates', label: 'Check for Updates...', command: Cmd.helpCheckForUpdates },
+            { id: 'help.about', label: 'About OpenUML', command: Cmd.helpAbout }
+          ])
     ]
   }
   return [...(mac ? [appMenu] : []), file, edit, format, model, view, windowMenu, help]

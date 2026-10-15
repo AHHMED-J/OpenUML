@@ -961,6 +961,12 @@ textarea:focus {
   color: var(--text);
 }
 
+/* A newer release is available: stands out from the muted status items. */
+.status-update {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* ---------------------------------------------------------------- menus */
 
 .menu {

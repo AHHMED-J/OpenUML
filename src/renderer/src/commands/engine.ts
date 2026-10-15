@@ -201,6 +201,11 @@ export class ModelEngine {
     this.savedBypassCount = point.bypassCount
   }
 
+  /** Marks the current state as not saved (e.g. a project recovered after a crash). */
+  markUnsaved(): void {
+    this.savedTop = UNREACHABLE
+  }
+
   /** Drops all history and marks the current state as saved. */
   clearHistory(): void {
     this.undoStack.length = 0
