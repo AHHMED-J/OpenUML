@@ -6,6 +6,7 @@ import { ListDialog } from './dialogs/ListDialog'
 import { ElementPickerDialog, PromptDialog, ReferenceListDialog } from './dialogs/PickerDialogs'
 import { PreferencesDialog } from './dialogs/PreferencesDialog'
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog'
+import { WebsiteDialog } from './dialogs/WebsiteDialog'
 import { Modal } from './components/Modal'
 import { PanelBoundary, PanelErrorMessage } from './components/PanelBoundary'
 import { UiIcon } from './icons'
@@ -26,7 +27,7 @@ function keyOf(modal: object): number {
 
 /** Closes `modal`, answering a pending promise-based dialog with "cancelled". */
 function dismissModal(modal: ModalState): void {
-  if (modal.kind === 'prompt' || modal.kind === 'picker' || modal.kind === 'refList' || modal.kind === 'checklist') modal.resolve(null)
+  if (modal.kind === 'prompt' || modal.kind === 'picker' || modal.kind === 'refList' || modal.kind === 'checklist' || modal.kind === 'website') modal.resolve(null)
   uiStore.getState().openModal(null)
 }
 
@@ -58,6 +59,8 @@ function ModalContent({ modal }: { modal: ModalState }): React.JSX.Element {
       return <PreferencesDialog key={modalKey} />
     case 'shortcuts':
       return <ShortcutsDialog key={modalKey} />
+    case 'website':
+      return <WebsiteDialog key={modalKey} initialTitle={modal.title} diagrams={modal.diagrams} resolve={modal.resolve} />
     case 'checklist':
       return <ChecklistDialog key={modalKey} title={modal.title} message={modal.message} rows={modal.rows} required={modal.required} resolve={modal.resolve} />
     case 'list':

@@ -2,7 +2,12 @@
  * Project lifecycle: new, open (dialog, recent, OS), save, save as, close, export, and the
  * unsaved-changes prompt. Runs in the renderer through the preload bridge.
  */
+import runtime from 'virtual:openuml-viewer'
 import { diagramToPdfPage, diagramToPngBase64, diagramToSvg } from '../../export'
+import { getTextMeasurer } from '../../diagram'
+import { buildWebsiteDigest, diagramsInTreeOrder, websiteHtml } from '../../website'
+import { explorerLabel } from '../explorer/tree'
+import type { WebsiteChoice } from '../uiStore'
 import { rename } from '../../commands'
 import { isKindOf, type Diagram } from '../../model'
 import { projectStore } from '../../store'
@@ -321,4 +326,33 @@ export async function exportAllDiagrams(format: 'png' | 'svg'): Promise<void> {
     count++
   }
   ui().toast(`Exported ${count} diagram${count === 1 ? '' : 's'} to ${target}`)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Interactive website
+
+function chooseWebsiteContent(title: string): Promise<WebsiteChoice | null> {
+  const diagrams = diagramsInTreeOrder(ps().repository).map((d) => ({ id: d._id, label: explorerLabel(d) }))
+  return new Promise((resolve) => ui().openModal({ kind: 'website', title, diagrams, resolve }))
+}
+
+/** File > Export Interactive Website: one self-contained HTML file of the chosen diagrams. */
+export async function exportWebsite(): Promise<void> {
+  const b = requireBridge()
+  if (ps().repository.diagrams().length === 0) throw new Error('No diagram to export.')
+  const fileName = ps().filePath ? baseName(ps().filePath as string).replace(/\.mdj$/i, '') : ''
+  const choice = await chooseWebsiteContent(ps().project.name?.trim() || fileName || DEFAULT_PROJECT_NAME)
+  if (!choice) return
+  let path = await b.chooseSavePath(`${exportFileName(choice.title)}.html`, [{ name: 'Web Page', extensions: ['html'] }])
+  if (!path) return
+  if (!/\.html?$/i.test(path)) path += '.html'
+  const version = ui().appVersion
+  const digest = buildWebsiteDigest(ps().repository, {
+    title: choice.title,
+    generator: version ? `OpenUML ${version}` : 'OpenUML',
+    diagramIds: choice.diagramIds,
+    measurer: getTextMeasurer()
+  })
+  await b.writeTextFile(path, await websiteHtml(digest, runtime))
+  ui().toast(`Exported ${baseName(path)}`)
 }
