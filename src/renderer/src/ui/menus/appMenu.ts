@@ -156,8 +156,10 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
     label: 'OpenUML',
     submenu: [
       { id: 'app.about', label: 'About OpenUML', command: Cmd.helpAbout },
+      { id: 'app.check-for-updates', label: 'Check for Updates...', command: Cmd.helpCheckForUpdates },
       SEP,
       { id: 'app.preferences', label: 'Preferences...', command: Cmd.appPreferences },
+      { id: 'app.keyboard-shortcuts', label: 'Keyboard Shortcuts...', command: Cmd.appKeyboardShortcuts },
       SEP,
       { label: 'Services', role: 'services' },
       SEP,
@@ -186,14 +188,22 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
         submenu: [
           { label: 'PNG...', command: Cmd.fileExportPng },
           { label: 'SVG...', command: Cmd.fileExportSvg },
+          { label: 'PDF...', command: Cmd.fileExportPdf },
           SEP,
           { label: 'All to PNGs...', command: Cmd.fileExportAllPng },
-          { label: 'All to SVGs...', command: Cmd.fileExportAllSvg }
+          { label: 'All to SVGs...', command: Cmd.fileExportAllSvg },
+          { label: 'All to One PDF...', command: Cmd.fileExportAllPdf }
         ]
       },
       ...(mac
         ? []
-        : [SEP, { id: 'file.preferences', label: 'Preferences...', command: Cmd.appPreferences }, SEP, { label: 'Exit', role: 'quit' }])
+        : [
+            SEP,
+            { id: 'file.preferences', label: 'Preferences...', command: Cmd.appPreferences },
+            { id: 'file.keyboard-shortcuts', label: 'Keyboard Shortcuts...', command: Cmd.appKeyboardShortcuts },
+            SEP,
+            { label: 'Exit', role: 'quit' }
+          ])
     ]
   }
   const edit: MenuNode = {
@@ -214,7 +224,9 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       SEP,
       { id: 'edit.select-all', label: 'Select All', command: Cmd.editSelectAll },
       { id: 'edit.select-in-explorer', label: 'Select in Explorer', command: Cmd.editSelectInExplorer },
-      { id: 'edit.select-in-diagram', label: 'Select in Diagram', command: Cmd.editSelectInDiagram }
+      { id: 'edit.select-in-diagram', label: 'Select in Diagram', command: Cmd.editSelectInDiagram },
+      SEP,
+      { id: 'edit.find', label: 'Find in Model Explorer', command: Cmd.explorerFind }
     ]
   }
   const format: MenuNode = { id: 'format', label: 'Format', submenu: formatItems }
@@ -285,7 +297,13 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
     submenu: [
       { id: 'help.documentation', label: 'Documentation...', command: Cmd.helpDocumentation },
       { id: 'help.report-issue', label: 'Report an Issue...', command: Cmd.helpReportIssue },
-      ...(mac ? [] : [SEP, { id: 'help.about', label: 'About OpenUML', command: Cmd.helpAbout }])
+      ...(mac
+        ? []
+        : [
+            SEP,
+            { id: 'help.check-for-updates', label: 'Check for Updates...', command: Cmd.helpCheckForUpdates },
+            { id: 'help.about', label: 'About OpenUML', command: Cmd.helpAbout }
+          ])
     ]
   }
   return [...(mac ? [appMenu] : []), file, edit, format, model, view, windowMenu, help]
@@ -345,7 +363,7 @@ export function canvasContextMenu(): MenuNode[] {
     ...(ends.length > 0 ? [...ends, SEP] : []),
     addElementMenu(),
     addDiagramMenu(),
-    idef0Menu(),
+    idef0Menu({ withSheetSize: true }),
     SEP,
     { label: 'Format', submenu: formatItems },
     SEP,

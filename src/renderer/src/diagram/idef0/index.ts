@@ -6,8 +6,9 @@
  *
  * Editor hooks used: `derivedPosition`-free node layouts, `moveAxis` (ports slide along the area
  * edge), `hitAreas` (only the title block bands of the frame hit), the `idef0.call` quick-edit
- * syntax, a per-diagram-type normalizer (auto-renumbering in the same undo step) and the IDEF0
- * gesture, reconnect and delete hooks of `editor/actions.ts`.
+ * syntax, a per-diagram-type normalizer (auto-renumbering in the same undo step), the IDEF0
+ * gesture, reconnect and delete hooks of `editor/actions.ts` and a transaction hook that carries
+ * title block edits down to the child diagrams (`titleBlock.ts`).
  */
 import { registerEdgeNotation, registerNodeNotation } from '../render/registry'
 import { arrowNotation } from './edges'
@@ -32,6 +33,8 @@ export * from './colors'
 export * from './colorFlow'
 export * from './gestures'
 export * from './deletion'
+export * from './titleBlock'
+export * from './sheet'
 
 let registered = false
 

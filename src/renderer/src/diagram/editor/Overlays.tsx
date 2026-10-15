@@ -4,13 +4,20 @@
  */
 import { memo } from 'react'
 import type React from 'react'
-import { SELECTION, fmt, polylinePath, resizeHandles, type Point, type Rect } from '../core'
+import { SELECTION, fmt, polylinePath, resizeHandles, type Point, type Rect, type RubberBandMode } from '../core'
 import type { DiagramLayout, EdgeLabelSlot } from '../layout/types'
 import { SvgText } from '../render/primitives'
 
 const ACCENT = SELECTION.color
+/** Window (left-to-right) rubber band: solid accent outline over a light blue tint. */
+const WINDOW_BAND_FILL = 'rgba(79,153,255,0.08)'
+/**
+ * Crossing (right-to-left) rubber band: dashed green outline over a light green tint, so the two
+ * modes read apart at a glance (the diagram canvas is white in both themes).
+ */
+const CROSSING_BAND = { stroke: '#1f9d55', fill: 'rgba(31,157,85,0.10)' } as const
 
-function Box({ r, zoom, dashed, fill }: { r: Rect; zoom: number; dashed?: boolean; fill?: string }): React.JSX.Element {
+function Box({ r, zoom, dashed, fill, stroke }: { r: Rect; zoom: number; dashed?: boolean; fill?: string; stroke?: string }): React.JSX.Element {
   return (
     <rect
       x={fmt(r.left)}
@@ -18,7 +25,7 @@ function Box({ r, zoom, dashed, fill }: { r: Rect; zoom: number; dashed?: boolea
       width={fmt(Math.max(0, r.width))}
       height={fmt(Math.max(0, r.height))}
       fill={fill ?? 'none'}
-      stroke={ACCENT}
+      stroke={stroke ?? ACCENT}
       strokeWidth={1 / zoom}
       {...(dashed ? { strokeDasharray: `${3 / zoom} ${3 / zoom}` } : {})}
     />
@@ -164,7 +171,8 @@ export const SelectionOverlay = memo(function SelectionOverlay({
 
 export type DragPreview =
   | { readonly kind: 'boxes'; readonly rects: readonly Rect[]; readonly container?: Rect | null }
-  | { readonly kind: 'band'; readonly rect: Rect }
+  /** Rubber band: `contain` (window, left to right) or `intersect` (crossing, right to left). */
+  | { readonly kind: 'band'; readonly rect: Rect; readonly mode?: RubberBandMode }
   | { readonly kind: 'line'; readonly from: Point; readonly to: Point }
   | { readonly kind: 'polyline'; readonly points: readonly Point[] }
   /** Where a dragged edge end snaps to (e.g. the slot an IDEF0 arrow end takes on a box side). */
@@ -187,7 +195,11 @@ export function DragOverlay({ preview, zoom }: { preview: DragPreview | null; zo
     case 'band':
       return (
         <g pointerEvents="none">
-          <Box r={preview.rect} zoom={zoom} dashed fill="rgba(79,153,255,0.08)" />
+          {preview.mode === 'intersect' ? (
+            <Box r={preview.rect} zoom={zoom} dashed fill={CROSSING_BAND.fill} stroke={CROSSING_BAND.stroke} />
+          ) : (
+            <Box r={preview.rect} zoom={zoom} fill={WINDOW_BAND_FILL} />
+          )}
         </g>
       )
     case 'line': {

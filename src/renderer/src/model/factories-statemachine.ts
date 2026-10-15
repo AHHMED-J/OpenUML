@@ -17,6 +17,7 @@ import {
   createElement,
   defaultName
 } from './view-builders'
+import { ownedElementsOf } from './fields'
 
 export type StateMachineNodeKind =
   | 'State'
@@ -94,11 +95,6 @@ export const STATEMACHINE_EDGE_KINDS = {
 
 export function isStateMachineNodeKind(kind: string): kind is StateMachineNodeKind {
   return Object.prototype.hasOwnProperty.call(STATEMACHINE_NODE_KINDS, kind)
-}
-
-function ownedElementsOf(el: Elem): Elem[] {
-  const list = el['ownedElements']
-  return Array.isArray(list) ? (list as Elem[]) : []
 }
 
 /** A new empty region owned by `owner` (a state machine or a state), detached. */

@@ -14,10 +14,15 @@ export const Cmd = {
   fileExportSvg: 'file.export-diagram-as.svg',
   fileExportAllPng: 'file.export-diagram-as.all-to-pngs',
   fileExportAllSvg: 'file.export-diagram-as.all-to-svgs',
+  fileExportPdf: 'file.export-diagram-as.pdf',
+  fileExportAllPdf: 'file.export-diagram-as.all-to-pdf',
   appPreferences: 'app.preferences',
+  appKeyboardShortcuts: 'app.keyboard-shortcuts',
   helpAbout: 'help.about',
   helpDocumentation: 'help.documentation',
   helpReportIssue: 'help.report-issue',
+  helpCheckForUpdates: 'help.check-for-updates',
+  helpDownloadUpdate: 'help.download-update',
   // Edit
   editCut: 'edit.cut',
   editCopy: 'edit.copy',
@@ -93,6 +98,7 @@ export const Cmd = {
   explorerShowStereotype: 'explorer.show-stereotype-text',
   explorerExpandAll: 'explorer.expand-all',
   explorerCollapseAll: 'explorer.collapse-all',
+  explorerFind: 'explorer.find',
   explorerGroupArrows: 'explorer.group-arrows-by-role',
   explorerCollapseArrowFolders: 'explorer.collapse-arrow-folders',
   explorerExpandArrowFolders: 'explorer.expand-arrow-folders',
@@ -117,7 +123,6 @@ export const PALETTE_HIDDEN = new Set<string>([
   Cmd.modelAdd,
   Cmd.modelAddDiagram,
   Cmd.editRename,
-  Cmd.toolSelect,
   Cmd.viewCommandPalette
 ])
 

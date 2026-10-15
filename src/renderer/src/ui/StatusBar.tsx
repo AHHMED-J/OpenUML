@@ -6,6 +6,7 @@ import { useProjectStore } from '../store'
 import { selectInExplorer } from './app/appCommands'
 import { runCommand } from './app/commands'
 import { idef0WarningCount } from './app/idef0'
+import { offerUpdate } from './app/updates'
 import { explorerLabel, pathTo } from './explorer/tree'
 import { TypeIcon } from './icons'
 import { useSelectedModels } from './properties/useSelection'
@@ -21,6 +22,7 @@ export function StatusBar(): React.JSX.Element {
   // IDEF0 consistency warnings of the active diagram (recomputed on every model change).
   const warnings = useProjectStore((s) => (s.version >= 0 ? idef0WarningCount() : 0))
   const locked = useUiStore((s) => s.toolLocked)
+  const update = useUiStore((s) => s.update)
   const single = models.length === 1 ? (models[0] as Elem) : null
 
   return (
@@ -47,6 +49,15 @@ export function StatusBar(): React.JSX.Element {
           Tool: {tool.kind}
           {locked ? ' (locked)' : ''}
         </span>
+      ) : null}
+      {update ? (
+        <button
+          className="status-item status-button status-update"
+          title={`OpenUML ${update.version} is available: click to download it`}
+          onClick={() => void offerUpdate()}
+        >
+          Update {update.version}
+        </button>
       ) : null}
       {warnings > 0 ? (
         <button

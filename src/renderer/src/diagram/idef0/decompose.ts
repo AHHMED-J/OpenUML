@@ -4,8 +4,8 @@
  */
 import { applyPlan, type ModelEngine } from '../../commands'
 import {
-  IDEF0_AREA,
   createElement,
+  drawingAreaOf,
   diagramOfScope,
   isContextDiagram,
   isIdef0Function,
@@ -61,15 +61,16 @@ export function syncPorts(engine: ModelEngine, diagram: Elem): number {
   }
   if (missing.length === 0) return 0
   const counts = new Map<Idef0Role, number>()
+  const area = drawingAreaOf(diagram)
   engine.transact('Synchronize Boundary Arrows', (b) => {
     for (const { role, arrow } of missing) {
       const k = counts.get(role) ?? 0
       counts.set(role, k + 1)
       const vertical = role === 'input' || role === 'output'
-      const along = (vertical ? IDEF0_AREA.top + 90 : IDEF0_AREA.left + 180) + k * 56
+      const along = (vertical ? area.top + 90 : area.left + 180) + k * 56
       const port = createElement('IDEF0Port', { role, corresponds: arrow })
       b.insert(fn, 'ports', port)
-      b.insert(diagram, 'ownedViews', createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, along) }))
+      b.insert(diagram, 'ownedViews', createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, along, area) }))
     }
   })
   return missing.length

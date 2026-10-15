@@ -23,6 +23,42 @@ export interface OpenFileResult {
   content: string
 }
 
+/** Version and build information of the running application. */
+export interface AppInfo {
+  version: string
+}
+
+/** Result of asking GitHub for the latest release (`checkForUpdates`). */
+export interface UpdateCheckResult {
+  /** Running version. */
+  current: string
+  /** Latest published version (`X.Y.Z`), null when GitHub listed no usable release. */
+  latest: string | null
+  /** Release page of `latest`. */
+  url: string | null
+  /** True when `latest` is newer than `current`. */
+  available: boolean
+}
+
+/** Unsaved work kept by the main process for recovery after a crash (see `saveRecovery`). */
+export interface RecoverySnapshot {
+  /** Project text (`.mdj`). */
+  text: string
+  /** File the project belongs to, null when untitled. */
+  filePath: string | null
+  /** Project name, for the recovery prompt. */
+  name: string
+  /** When the snapshot was taken (ms since epoch). */
+  savedAt: number
+}
+
+/** One page of an exported PDF: a standalone SVG drawn to fill a page of the given CSS-pixel size. */
+export interface PdfPage {
+  svg: string
+  width: number
+  height: number
+}
+
 /** Native editing actions forwarded to the focused text field (see `nativeEdit`). */
 export type NativeEditAction = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'selectAll' | 'delete'
 
@@ -60,6 +96,18 @@ export interface OpenUmlBridge {
   takeStartupFile(): Promise<string | null>
   /** Subscribe to files the OS asks to open while running (macOS open-file). */
   onOpenFile(listener: (path: string) => void): () => void
+  /** Version of the running application. */
+  getAppInfo(): Promise<AppInfo>
+  /** Asks GitHub for the latest published release (a network request). */
+  checkForUpdates(): Promise<UpdateCheckResult>
+  /** Keeps a copy of unsaved work outside the project file, for recovery after a crash. */
+  saveRecovery(snapshot: RecoverySnapshot): Promise<void>
+  /** The unsaved work kept by `saveRecovery` (left in place until `clearRecovery`), else null. */
+  readRecovery(): Promise<RecoverySnapshot | null>
+  /** Forgets the unsaved work kept by `saveRecovery` (it was saved or discarded). */
+  clearRecovery(): Promise<void>
+  /** Writes `pages` as a PDF to `path` (a path from `chooseSavePath`). */
+  writePdf(path: string, pages: PdfPage[]): Promise<void>
 }
 
 export const IpcChannels = {
@@ -79,5 +127,11 @@ export const IpcChannels = {
   openExternal: 'openuml:open-external',
   addRecentDocument: 'openuml:add-recent-document',
   takeStartupFile: 'openuml:take-startup-file',
-  openFile: 'openuml:open-file'
+  openFile: 'openuml:open-file',
+  getAppInfo: 'openuml:get-app-info',
+  checkForUpdates: 'openuml:check-for-updates',
+  saveRecovery: 'openuml:save-recovery',
+  readRecovery: 'openuml:read-recovery',
+  clearRecovery: 'openuml:clear-recovery',
+  writePdf: 'openuml:write-pdf'
 } as const

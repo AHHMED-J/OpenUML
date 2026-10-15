@@ -25,15 +25,6 @@ export function snapPoint(p: Point, gridSize: number = GRID.size, mode: SnapMode
   return { x: snap(p.x, gridSize, mode), y: snap(p.y, gridSize, mode) }
 }
 
-/** Snaps a rectangle's top-left corner and its far corner (so the size snaps too). */
-export function snapRect(r: Rect, gridSize: number = GRID.size, mode: SnapMode = 'round'): Rect {
-  const left = snap(r.left, gridSize, mode)
-  const top = snap(r.top, gridSize, mode)
-  const right = snap(r.left + r.width, gridSize, mode)
-  const bottom = snap(r.top + r.height, gridSize, mode)
-  return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) }
-}
-
 /**
  * Snapping with a dead zone for drags: when the proposed coordinate is less than one grid cell
  * away from the original, the original coordinate is kept (so tiny drags do not jump).
@@ -66,36 +57,6 @@ export function stepZoom(zoom: number, steps: number): number {
   return clampZoom(tenths * ZOOM.step)
 }
 
-export interface Viewport {
-  /** Scroll offset in diagram units; both components are ≤ 0. */
-  origin: Point
-  zoom: number
-}
-
-/** Clamps the scroll origin to ≤ 0 on both axes. */
-export function clampOrigin(origin: Point): Point {
-  return { x: Math.min(0, origin.x) + 0, y: Math.min(0, origin.y) + 0 }
-}
-
-export function diagramToScreen(p: Point, vp: Viewport): Point {
-  return { x: (p.x + vp.origin.x) * vp.zoom, y: (p.y + vp.origin.y) * vp.zoom }
-}
-
-export function screenToDiagram(p: Point, vp: Viewport): Point {
-  return { x: p.x / vp.zoom - vp.origin.x, y: p.y / vp.zoom - vp.origin.y }
-}
-
-/**
- * Zooms around a fixed screen point (e.g. the mouse position under Ctrl+wheel): the diagram
- * point under `screenPoint` stays under it. The resulting origin is clamped to ≤ 0.
- */
-export function zoomAt(vp: Viewport, newZoom: number, screenPoint: Point): Viewport {
-  const zoom = clampZoom(newZoom)
-  const anchor = screenToDiagram(screenPoint, vp)
-  const origin = clampOrigin({ x: screenPoint.x / zoom - anchor.x, y: screenPoint.y / zoom - anchor.y })
-  return { origin, zoom }
-}
-
 /** A grid size preference: a whole number of diagram units in [GRID.min, GRID.max], else the default. */
 export function sanitizeGridSize(size: unknown): number {
   if (typeof size !== 'number' || !Number.isFinite(size)) return GRID.size
@@ -111,21 +72,6 @@ export function gridLineSpacing(gridSize: number): number {
   let step = sanitizeGridSize(gridSize) * GRID.lineEvery
   while (step < GRID.minLineSpacing) step *= 2
   return step
-}
-
-/** Grid line positions (diagram units) to draw inside `visible`, every `lineEvery × gridSize`. */
-export function gridLines(
-  visible: Rect,
-  gridSize: number = GRID.size,
-  lineEvery: number = GRID.lineEvery
-): { xs: number[]; ys: number[] } {
-  const step = gridSize * lineEvery
-  const xs: number[] = []
-  const ys: number[] = []
-  if (!(step > 0)) return { xs, ys }
-  for (let x = Math.ceil(visible.left / step) * step; x <= visible.left + visible.width; x += step) xs.push(x)
-  for (let y = Math.ceil(visible.top / step) * step; y <= visible.top + visible.height; y += step) ys.push(y)
-  return { xs, ys }
 }
 
 /**

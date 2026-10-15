@@ -55,10 +55,6 @@ export const DiagramCommandIds = {
 let memoryClipboard: ViewClipboardPayload | null = null
 let pasteContext: Pick<DiagramCommandContext, 'canHostView' | 'notify'> = {}
 
-export function getClipboardPayload(): ViewClipboardPayload | null {
-  return memoryClipboard
-}
-
 function writeSystemClipboard(text: string): void {
   try {
     void globalThis.navigator?.clipboard?.writeText(text).catch(() => undefined)

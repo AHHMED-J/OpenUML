@@ -41,6 +41,8 @@ export interface ProjectState {
    * serialized) as saved, optionally under a new path.
    */
   markSaved(path?: string | null, point?: SavePoint): void
+  /** Marks the open project as having unsaved changes (e.g. recovered after a crash). */
+  markUnsaved(): void
   undo(): void
   redo(): void
   /** Opens (or focuses) a diagram tab and makes it active. */
@@ -53,12 +55,6 @@ export interface ProjectState {
 }
 
 export type ProjectStore = StoreApi<ProjectState>
-
-/** Display title: the file name, else the project name; with a `*` suffix when dirty. */
-export function projectTitle(state: Pick<ProjectState, 'filePath' | 'project' | 'dirty'>): string {
-  const base = state.filePath ? (state.filePath.split(/[\\/]/).pop() ?? state.filePath) : state.project.name
-  return state.dirty ? `${base} *` : base
-}
 
 export function createProjectStore(): ProjectStore {
   let unsubscribe: (() => void) | null = null
@@ -126,6 +122,12 @@ export function createProjectStore(): ProjectStore {
         const { engine } = get()
         engine.markSaved(point)
         set({ ...derived(engine), ...(path !== undefined ? { filePath: path } : {}) })
+      },
+
+      markUnsaved() {
+        const { engine } = get()
+        engine.markUnsaved()
+        set(derived(engine))
       },
 
       undo() {

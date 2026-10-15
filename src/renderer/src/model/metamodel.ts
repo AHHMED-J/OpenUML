@@ -94,14 +94,6 @@ export function getTypeInfo(type: string): TypeInfo | undefined {
   return resolve(type)
 }
 
-export function isKnownType(type: string): boolean {
-  return typeDefs.has(type)
-}
-
-export function knownTypeNames(): string[] {
-  return [...typeDefs.keys()]
-}
-
 export function getEnumLiterals(name: string): readonly string[] | undefined {
   return enums.get(name)
 }
@@ -127,10 +119,6 @@ const extraFields = new WeakMap<Elem, FieldDef[]>()
 export function setExtraFields(el: Elem, fields: FieldDef[]): void {
   if (fields.length > 0) extraFields.set(el, fields)
   else extraFields.delete(el)
-}
-
-export function getExtraFields(el: Elem): readonly FieldDef[] {
-  return extraFields.get(el) ?? []
 }
 
 const ELEMENT_FIELDS: readonly FieldDef[] = [

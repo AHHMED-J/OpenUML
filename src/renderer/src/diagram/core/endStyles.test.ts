@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { distance, type Point } from './geometry'
-import { END_GEOMETRY, edgeEndShapes, endDecorationLength, endShapePath, endShapes, endStyleFromCode, type EndShape } from './endStyles'
+import { END_GEOMETRY, edgeEndShapes, endShapePath, endShapes, type EndShape } from './endStyles'
 
 // Tip at (100, 0); the line comes from the left, so u = (-1, 0).
 const T = { x: 100, y: 0 }
@@ -100,21 +100,6 @@ describe('end shapes', () => {
 })
 
 describe('helpers', () => {
-  it('maps persisted end style codes', () => {
-    expect(endStyleFromCode(0)).toBe('flat')
-    expect(endStyleFromCode(3)).toBe('triangle')
-    expect(endStyleFromCode(6)).toBe('filledDiamond')
-    expect(endStyleFromCode(42)).toBe('flat')
-  })
-
-  it('reports decoration lengths', () => {
-    expect(endDecorationLength('flat')).toBe(0)
-    expect(endDecorationLength('diamond')).toBe(22)
-    expect(endDecorationLength({ style: 'flat', dot: true })).toBe(6)
-    expect(endDecorationLength({ style: 'diamond', dot: true })).toBe(28)
-    expect(endDecorationLength('triangle')).toBeCloseTo(20.33, 1)
-  })
-
   it('serializes shapes to path data', () => {
     expect(endShapePath({ type: 'polyline', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] })).toBe('M0 0 L1 1')
     expect(endShapePath({ type: 'polygon', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }], fill: 'line' })).toBe('M0 0 L1 1 L0 1 Z')

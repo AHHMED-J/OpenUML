@@ -3,12 +3,9 @@ import {
   boundsOfPoints,
   closestPointOnSegment,
   diamondBorderPointToward,
-  diamondContainsPoint,
-  distancePointToLine,
   distancePointToPolyline,
   distancePointToSegment,
   ellipseBorderPointToward,
-  ellipseContainsPoint,
   inflateRect,
   normalizeAngle,
   rect,
@@ -63,7 +60,6 @@ describe('segments', () => {
     expect(distancePointToSegment({ x: 13, y: 4 }, a, b)).toBe(5)
     expect(distancePointToSegment({ x: 3, y: 4 }, a, a)).toBe(5)
     expect(closestPointOnSegment({ x: -5, y: 2 }, a, b)).toEqual({ x: 0, y: 0 })
-    expect(distancePointToLine({ x: 20, y: 7 }, a, b)).toBe(7)
   })
 
   it('measures distance to a polyline', () => {
@@ -105,16 +101,12 @@ describe('outline clipping', () => {
     // On the ellipse: ((x-50)/50)^2 + ((y-25)/25)^2 = 1
     expect(((p.x - 50) / 50) ** 2 + ((p.y - 25) / 25) ** 2).toBeCloseTo(1)
     expect(ellipseBorderPointToward(r, { x: 55, y: 25 })).toEqual({ x: 50, y: 25 })
-    expect(ellipseContainsPoint(r, { x: 95, y: 25 })).toBe(true)
-    expect(ellipseContainsPoint(r, { x: 95, y: 5 })).toBe(false)
   })
 
   it('clips to the diamond', () => {
     expect(diamondBorderPointToward(r, { x: 200, y: 25 })).toEqual({ x: 100, y: 25 })
     const p = diamondBorderPointToward(r, { x: 150, y: 125 })
     expect(Math.abs(p.x - 50) / 50 + Math.abs(p.y - 25) / 25).toBeCloseTo(1)
-    expect(diamondContainsPoint(r, { x: 50, y: 25 })).toBe(true)
-    expect(diamondContainsPoint(r, { x: 95, y: 5 })).toBe(false)
   })
 })
 

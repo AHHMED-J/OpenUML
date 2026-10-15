@@ -12,11 +12,7 @@ import { guillemets } from '../../core'
 import { parseQuickEditPrefix } from '../../editor/quickEditSyntax'
 import { nameOf, stereotypeName, visibilitySymbol } from '../../layout/helpers'
 import { typeText } from '../class/strings'
-
-function str(el: Elem | null | undefined, field: string): string {
-  const v = el?.[field]
-  return typeof v === 'string' ? v : ''
-}
+import { stringField } from '../../../model'
 
 /** The classifier of an instance: its name, or the raw string stored as `classifier`. */
 function instanceTypeText(instance: Elem | null | undefined): string {
@@ -49,7 +45,7 @@ export interface SlotFormat {
 /** Name, type and multiplicity of a slot: from its defining attribute when set, else its own fields. */
 function slotParts(slot: Elem): { name: string; type: string; multiplicity: string } {
   const feature = slot['definingFeature'] as Elem | null | undefined
-  if (feature) return { name: nameOf(feature), type: typeText(feature['type']), multiplicity: str(feature, 'multiplicity') }
+  if (feature) return { name: nameOf(feature), type: typeText(feature['type']), multiplicity: stringField(feature, 'multiplicity') }
   return { name: nameOf(slot), type: typeText(slot['type']), multiplicity: '' }
 }
 
@@ -68,7 +64,7 @@ export function slotText(slot: Elem, format: SlotFormat = {}): string {
   if (f.showVisibility) s += visibilitySymbol(slot['visibility'])
   s += name
   if (f.showType && type) s += `: ${type}${multiplicity ? `[${multiplicity}]` : ''}`
-  const value = str(slot, 'value')
+  const value = stringField(slot, 'value')
   if (value) s += ` = ${value}`
   if (f.showProperty) {
     const tags = tagParts(slot)
@@ -82,7 +78,7 @@ export function slotEditText(slot: Elem): string {
   const st = stereotypeName(slot)
   const vis = slot['visibility'] && slot['visibility'] !== 'public' ? visibilitySymbol(slot['visibility']) : ''
   const { name, type } = slotParts(slot)
-  const value = str(slot, 'value')
+  const value = stringField(slot, 'value')
   return `${st ? `<<${st}>> ` : ''}${vis}${name}${type ? `: ${type}` : ''}${value ? ` = ${value}` : ''}`
 }
 

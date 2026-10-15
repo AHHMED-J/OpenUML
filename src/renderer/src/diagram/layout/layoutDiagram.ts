@@ -138,8 +138,3 @@ function sameMaps(prev: DiagramLayout, nodes: Map<string, NodeLayout>, edges: Ma
   for (const [id, l] of edges) if (prev.edges.get(id) !== l) return false
   return true
 }
-
-/** Layout of a top-level view by ID. */
-export function viewLayout(layout: DiagramLayout, id: string): NodeLayout | EdgeLayout | undefined {
-  return layout.nodes.get(id) ?? layout.edges.get(id)
-}

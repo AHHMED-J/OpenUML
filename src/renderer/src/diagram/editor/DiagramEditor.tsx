@@ -25,6 +25,7 @@ import {
   isRectilinearStyle,
   rectFromPoints,
   resizeByHandle,
+  rubberBandModeFor,
   sanitizeGridSize,
   snap,
   snapWithDeadZone,
@@ -32,6 +33,7 @@ import {
   EdgePosition,
   type HandlePosition,
   type Rect,
+  type RubberBandMode,
   type SegmentOrientation
 } from '../core'
 import { nameEditText } from '../layout/helpers'
@@ -68,7 +70,7 @@ import {
 import { connectionRefusal, dropRefusal, refusalReason, withArticle, readableName } from './feedback'
 import { releaseActiveEditor, setActiveEditor, setContextEdgeEnd, takeReveal, type EditorHandle } from './activeEditor'
 import { edgeEditAt, edgeSlotAt, endElementAt } from './edgeEnds'
-import { hitTestDiagram, viewsInBand, type DiagramHit } from './hitTest'
+import { bandSelection, hitTestDiagram, type DiagramHit } from './hitTest'
 import { DragOverlay, SelectionOverlay, type DragPreview } from './Overlays'
 import { HighlightOverlay } from './HighlightOverlay'
 import { applyQuickEdit } from './quickEditApply'
@@ -104,7 +106,7 @@ type Gesture =
   | { type: 'divider'; start: Point; viewId: string; divider: NodeDivider; y: number; moved: boolean }
   | { type: 'edge-shift'; start: Point; edgeId: string; points: Point[]; dy: number; moved: boolean }
   | { type: 'resize'; start: Point; id: string; handle: HandlePosition; box: Rect; minWidth: number; minHeight: number; keepRatio: boolean; rect: Rect }
-  | { type: 'band'; start: Point; additive: boolean; rect: Rect | null }
+  | { type: 'band'; start: Point; additive: boolean; rect: Rect | null; mode: RubberBandMode }
   | { type: 'create-node'; start: Point; kind: string; rect: Rect }
   | { type: 'create-edge'; start: Point; tool: ToolSpec; tailId: string; from: Point }
   | { type: 'vertex'; start: Point; edgeId: string; index: number; points: Point[]; end: 'tail' | 'head' | null; moved: boolean }
@@ -246,6 +248,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const liveFrame = useRef<number | null>(null)
   const liveFallback = useRef<DragPreview | null>(null)
   const [cursor, setCursor] = useState<string>('default')
+  /** Last pointer position over the canvas (diagram units), to refresh the cursor without a move. */
+  const lastPointer = useRef<Point | null>(null)
   const [editing, setEditing] = useState<QuickEditState | null>(null)
   const [viewport, setViewport] = useState({ width: 800, height: 600 })
   const pendingEdit = useRef<{ viewId: string; elementId?: string } | null>(null)
@@ -550,6 +554,21 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     []
   )
 
+  // Back to Select (Esc / A / the toolbox) drops a half-drawn node or edge of the previous tool,
+  // and the cursor at once becomes what the Select tool shows there (not only after a move).
+  useEffect(() => {
+    if (tool === null) {
+      if (lastPointer.current) updateHoverCursor(lastPointer.current)
+      else setCursor('default')
+    }
+    const g = gesture.current
+    if (tool !== null || !g || (g.type !== 'create-node' && g.type !== 'create-edge')) return
+    gesture.current = null
+    setPreview(null)
+    stopLive()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a tool change cancels
+  }, [tool])
+
   // ---- Selection helpers.
   const setSelection = useCallback((ids: readonly string[]) => select({ views: ids }), [select])
 
@@ -621,7 +640,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     }
 
     if (!hit) {
-      gesture.current = { type: 'band', start: p, additive: e.shiftKey || mod, rect: null }
+      gesture.current = { type: 'band', start: p, additive: e.shiftKey || mod, rect: null, mode: 'contain' }
       return
     }
     // Edges that move along one axis (sequence messages): dragging shifts the whole edge.
@@ -765,6 +784,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>): void => {
     const g = gesture.current
     const p = toDiagram(e.clientX, e.clientY)
+    lastPointer.current = p
     if (!g) {
       updateHoverCursor(p)
       return
@@ -828,7 +848,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'band': {
         if (Math.hypot(p.x - g.start.x, p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD && !g.rect) return
         g.rect = rectFromPoints(g.start, p)
-        setPreview({ kind: 'band', rect: g.rect })
+        // Left to right encloses (window), right to left crosses (AutoCAD style).
+        g.mode = rubberBandModeFor(g.start, p)
+        setPreview({ kind: 'band', rect: g.rect, mode: g.mode })
         return
       }
       case 'create-node': {
@@ -924,8 +946,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           if (!g.additive) setSelection([])
           return
         }
-        const ids = viewsInBand(l, g.rect)
-        setSelection(g.additive ? [...new Set([...selIds, ...ids])] : ids)
+        setSelection(bandSelection(l, g.rect, selIds, g.additive, g.mode))
         return
       }
       case 'create-node': {
@@ -1124,11 +1145,14 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     e.preventDefault()
   }
 
+  const releaseSpace = (): void => {
+    if (!spaceDown.current) return
+    spaceDown.current = false
+    setCursor('default')
+  }
+
   const onKeyUp = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === ' ') {
-      spaceDown.current = false
-      setCursor('default')
-    }
+    if (e.key === ' ') releaseSpace()
   }
 
   if (!diagram || !layout) {
@@ -1148,6 +1172,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
       onFocus={() => setActiveEditor(handle)}
+      // The Space key-up is lost when the focus leaves (another app, a panel): stop panning then.
+      onBlur={releaseSpace}
       style={{ position: 'relative', overflow: 'auto', width: '100%', height: '100%', outline: 'none', background: COLORS.background }}
     >
       <div style={{ position: 'relative', width, height }}>

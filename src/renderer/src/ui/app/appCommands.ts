@@ -20,9 +20,11 @@ import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge } from './bridge'
 import { EXAMPLES } from '../examples'
 import { promptBoxCount } from './boxCount'
+import { checkForUpdates, offerUpdate } from './updates'
 import {
   closeWindow,
   exportAllDiagrams,
+  exportAllDiagramsPdf,
   exportDiagram,
   newProject,
   openExample,
@@ -166,11 +168,22 @@ export function confirmAndDeleteFromModel(elements: readonly Elem[]): Promise<vo
 }
 
 function about(): void {
-  const message = 'OpenUML'
+  const version = ui().appVersion
+  const message = version ? `OpenUML ${version}` : 'OpenUML'
   const detail =
     'An open-source UML modeling tool.\nIndependent project, not affiliated with any other UML tool vendor.\nLicensed under the MIT License.'
   if (bridge) void bridge.showMessageBox({ type: 'info', message, detail, buttons: ['OK'] })
   else window.alert(`${message}\n\n${detail}`)
+}
+
+/** Shows the Model Explorer and puts the cursor in its search box. */
+function findInExplorer(): void {
+  ui().showDockPanel('explorer')
+  requestAnimationFrame(() => {
+    const input = document.querySelector<HTMLInputElement>('.explorer .search-box input')
+    input?.focus()
+    input?.select()
+  })
 }
 
 /** Registers the shell commands into `registry`, skipping ids that are already registered. */
@@ -203,6 +216,13 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({ id: Cmd.fileClose, label: 'Close', run: () => closeWindow() })
   add({ id: Cmd.fileExportPng, label: 'Export Diagram as PNG...', run: () => exportDiagram('png'), isEnabled: () => hasDiagram() && bridge !== null })
   add({ id: Cmd.fileExportSvg, label: 'Export Diagram as SVG...', run: () => exportDiagram('svg'), isEnabled: () => hasDiagram() && bridge !== null })
+  add({ id: Cmd.fileExportPdf, label: 'Export Diagram as PDF...', run: () => exportDiagram('pdf'), isEnabled: () => hasDiagram() && bridge !== null })
+  add({
+    id: Cmd.fileExportAllPdf,
+    label: 'Export All Diagrams to One PDF...',
+    run: () => exportAllDiagramsPdf(),
+    isEnabled: () => bridge !== null && ps().repository.diagrams().length > 0
+  })
   add({
     id: Cmd.fileExportAllPng,
     label: 'Export All Diagrams to PNGs...',
@@ -216,6 +236,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
     isEnabled: () => bridge !== null && ps().repository.diagrams().length > 0
   })
   add({ id: Cmd.appPreferences, label: 'Preferences...', run: () => ui().openModal({ kind: 'preferences' }) })
+  add({ id: Cmd.appKeyboardShortcuts, label: 'Keyboard Shortcuts...', run: () => ui().openModal({ kind: 'shortcuts' }) })
 
   // Edit
   add({ id: Cmd.editMoveUp, label: 'Move Up', run: () => moveSelected(-1), isEnabled: () => canMove(-1) })
@@ -355,6 +376,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
     }
   })
   add({ id: Cmd.explorerCollapseAll, label: 'Collapse All', run: () => ui().collapseAll() })
+  add({ id: Cmd.explorerFind, label: 'Find in Model Explorer', run: findInExplorer })
   add({
     id: Cmd.explorerGroupArrows,
     label: 'Group Arrows by Role',
@@ -386,6 +408,18 @@ export function registerAppCommands(registry: CommandRegistry): void {
 
   // Help
   add({ id: Cmd.helpAbout, label: 'About OpenUML', run: about })
+  add({
+    id: Cmd.helpCheckForUpdates,
+    label: 'Check for Updates...',
+    run: () => checkForUpdates(true),
+    isEnabled: () => bridge !== null
+  })
+  add({
+    id: Cmd.helpDownloadUpdate,
+    label: 'Download Update...',
+    run: () => offerUpdate(),
+    isEnabled: () => ui().update !== null
+  })
   add({
     id: Cmd.helpDocumentation,
     label: 'Documentation...',

@@ -149,7 +149,8 @@ export function ModelExplorer(): React.JSX.Element {
         setFocusId(row.node.key)
         revealRow(row.node.key)
       }
-      treeRef.current?.focus()
+      // Keep the focus in an inline rename started together with the reveal (Rename command).
+      if (!uiStore.getState().renamingId) treeRef.current?.focus()
     })
   }, [revealTick])
 

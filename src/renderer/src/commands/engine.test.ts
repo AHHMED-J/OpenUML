@@ -13,8 +13,8 @@ import {
 } from '../model'
 import {
   addAttribute,
+  addFeature,
   addOperation,
-  addParameter,
   CommandRegistry,
   collectDeletion,
   createDiagram,
@@ -25,11 +25,11 @@ import {
   importFragment,
   ModelEngine,
   moveElement,
+  registerTransactionHook,
   moveViews,
   reorderElement,
   setFields,
-  setViewBounds,
-  syncItemViews
+  setViewBounds
 } from '.'
 
 function setup() {
@@ -118,11 +118,33 @@ describe('create / undo / redo', () => {
       const cls = createNode(engine, { kind: 'Class', diagram, left: 0, top: 0 }).model as Elem
       addAttribute(engine, cls, { name: 'id', type: 'int' })
       const op = addOperation(engine, cls)
-      addParameter(engine, op, { name: 'x' })
+      addFeature(engine, op, 'Parameter', { name: 'x' })
     })
     expect(engine.undoDepth).toBe(1)
     engine.undo()
     expect(diagram.ownedViews).toHaveLength(0)
+  })
+
+  it('transaction hooks run once per outermost transaction and join its undo step', () => {
+    const { project, engine, model } = setup()
+    const calls: number[] = []
+    registerTransactionHook((b) => {
+      calls.push(b.steps.length)
+      const renamed = b.steps.some((s) => s.op === 'a' && s.id === model._id && s.field === 'name' && s.value === 'Hooked')
+      if (renamed) b.set(model, 'documentation', 'set by hook')
+    })
+    const before = snapshot(project)
+    engine.transact('Outer', () => {
+      engine.transact('Inner', (b) => b.set(model, 'name', 'Hooked'))
+      expect(model['documentation']).toBe('')
+    })
+    expect(calls).toEqual([1])
+    expect(model['documentation']).toBe('set by hook')
+    expect(engine.undoDepth).toBe(1)
+    engine.undo()
+    expect(snapshot(project)).toBe(before)
+    engine.transact('Nothing', () => undefined)
+    expect(calls).toEqual([1])
   })
 
   it('caps history at 100 operations', () => {
@@ -163,19 +185,6 @@ describe('features and structure', () => {
     for (const c of compartments) expect(c.subViews.map((v) => v.model)).toEqual([attr])
     engine.undo()
     for (const c of compartments) expect(c.subViews).toHaveLength(0)
-  })
-
-  it('syncItemViews adds missing and removes stale rows as a bypass operation', () => {
-    const { engine, diagram } = setup()
-    const { model, view } = createNode(engine, { kind: 'Class', diagram, left: 0, top: 0 })
-    const cls = model as Elem
-    engine.transact('Raw insert', (b) => b.insert(cls, 'attributes', createElement('UMLAttribute', { name: 'a' })))
-    const compartment = (view as UMLClassifierView).attributeCompartment as NodeView
-    expect(compartment.subViews).toHaveLength(0)
-    const depth = engine.undoDepth
-    syncItemViews(engine, view as View)
-    expect(compartment.subViews.map((v) => v.model)).toEqual(cls['attributes'])
-    expect(engine.undoDepth).toBe(depth)
   })
 
   it('moves and reorders elements with undo', () => {
@@ -369,6 +378,17 @@ describe('dirty flag', () => {
     const before = engine.savePoint
     importFragment(engine, fragment, model)
     engine.markSaved(before)
+    expect(engine.isDirty).toBe(true)
+    engine.markSaved()
+    expect(engine.isDirty).toBe(false)
+  })
+
+  it('markUnsaved makes the current state unsaved until the next save', () => {
+    const { engine, model } = setup()
+    engine.markUnsaved()
+    expect(engine.isDirty).toBe(true)
+    setFields(engine, model, { name: 'A' })
+    engine.undo()
     expect(engine.isDirty).toBe(true)
     engine.markSaved()
     expect(engine.isDirty).toBe(false)

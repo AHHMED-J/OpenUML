@@ -5,6 +5,12 @@ import { projectStore, useProjectStore } from '../../store'
 import { TypeIcon, UiIcon } from '../icons'
 import { uiStore } from '../uiStore'
 
+/** Opens the context menu of a diagram tab or Working Diagrams row (close, close others, ...). */
+export function openDiagramContextMenu(e: React.MouseEvent, diagramId: string): void {
+  e.preventDefault()
+  uiStore.getState().openContextMenu({ x: e.clientX, y: e.clientY, menu: 'working-diagrams', targetId: diagramId })
+}
+
 export function useOpenDiagrams(): { diagrams: Diagram[]; activeId: string | null } {
   useProjectStore((s) => s.version)
   const ids = useProjectStore((s) => s.openDiagramIds)
@@ -40,10 +46,7 @@ export function WorkingDiagrams(): React.JSX.Element {
                 projectStore.getState().setActiveDiagram(d._id)
               }
             }}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              uiStore.getState().openContextMenu({ x: e.clientX, y: e.clientY, menu: 'working-diagrams', targetId: d._id })
-            }}
+            onContextMenu={(e) => openDiagramContextMenu(e, d._id)}
           >
             <TypeIcon type={d._type} />
             <span className="list-label">{diagramLabel(d)}</span>

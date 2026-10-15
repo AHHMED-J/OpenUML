@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Point, Rect } from '../core'
-import { feedbackKind, longestSegment, routeArrow, routeBranch, trimEnd, trimStart, type RouteEnd } from './routing'
+import { feedbackKind, longestSegment, routeArrowDetailed, routeBranch, trimEnd, trimStart, type RouteEnd, type RouteInput } from './routing'
 import { slotPoint } from './geometry'
+
+const routeArrow = (input: RouteInput): Point[] => routeArrowDetailed(input).points
 
 const boxA: Rect = { left: 100, top: 100, width: 168, height: 88 }
 const boxB: Rect = { left: 400, top: 250, width: 168, height: 88 }
