@@ -21,6 +21,8 @@ import {
   type DockLayout,
   type DockPanelId
 } from './dock/dockModel'
+import { platform } from './app/bridge'
+import { sanitizeOverrides, type KeybindingOverrides } from './keybindings'
 import { loadJson, saveJson } from './persist'
 import { addRecentFile, removeRecentFile, sanitizeRecentFiles } from './recentFiles'
 
@@ -113,6 +115,7 @@ export type ModalState =
   | { readonly kind: 'palette' }
   | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
+  | { readonly kind: 'shortcuts' }
   | {
       readonly kind: 'checklist'
       readonly title: string
@@ -186,6 +189,8 @@ export interface UiState {
   readonly appVersion: string | null
   /** A newer release, when the update check found one. */
   readonly update: AvailableUpdate | null
+  /** Keyboard shortcuts the user customized (per command; see `keybindings.ts`). */
+  readonly keybindings: KeybindingOverrides
 
   /** Toolbox click semantics: select → lock → back to Select. */
   clickTool(tool: PaletteTool): void
@@ -207,6 +212,8 @@ export interface UiState {
   setDockPanelSizes(sizes: Partial<Record<DockPanelId, number>>, persist?: boolean): void
   toggleDockCollapsed(id: DockPanelId): void
   setDockPanelVisible(id: DockPanelId, visible: boolean): void
+  /** Makes a panel visible, expanded and its dock area shown. */
+  showDockPanel(id: DockPanelId): void
   /** Restores the default docking (panel positions, sizes, area widths and visibility). */
   resetLayout(): void
   setShowAdvancedProperties(show: boolean): void
@@ -233,6 +240,7 @@ export interface UiState {
   dismissToast(id: number): void
   setAppVersion(version: string): void
   setUpdate(update: AvailableUpdate | null): void
+  setKeybindings(keybindings: KeybindingOverrides): void
 }
 
 /** Clamps a stored zoom to the diagram module's range, rounded to whole percents. */
@@ -370,6 +378,7 @@ export function createUiStore() {
       toasts: [],
       appVersion: null,
       update: null,
+      keybindings: sanitizeOverrides(loadJson<unknown>('keybindings', {}), platform),
 
       clickTool(tool) {
         const s = get()
@@ -444,6 +453,16 @@ export function createUiStore() {
       },
       setDockPanelVisible(id, visible) {
         setDock(setPanelVisible(get().dock, id, visible), visible ? id : undefined, false)
+      },
+      showDockPanel(id) {
+        const s = get()
+        let dock = s.dock
+        if (!dock.panels[id].visible) dock = setPanelVisible(dock, id, true)
+        if (dock.panels[id].collapsed) dock = setPanelCollapsed(dock, id, false)
+        const key = AREA_PANEL[areaOf(dock, id)]
+        if (dock === s.dock && s.panels[key].visible) return
+        set({ dock, panels: s.panels[key].visible ? s.panels : { ...s.panels, [key]: { ...s.panels[key], visible: true } } })
+        persistLayout()
       },
       resetLayout() {
         set({
@@ -550,6 +569,10 @@ export function createUiStore() {
       },
       setUpdate(update) {
         set({ update })
+      },
+      setKeybindings(keybindings) {
+        set({ keybindings })
+        saveJson('keybindings', keybindings)
       }
     }
   })

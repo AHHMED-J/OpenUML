@@ -1169,6 +1169,76 @@ input.full {
   width: 100%;
 }
 
+/* ---------------------------------------------------------------- keyboard shortcuts */
+
+.shortcut-list {
+  margin-top: 8px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding: 0 6px;
+  border-radius: var(--radius);
+}
+
+.shortcut-row:hover {
+  background: var(--hover);
+}
+
+.shortcut-row.customized .shortcut-title {
+  font-weight: 600;
+}
+
+.shortcut-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.shortcut-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.shortcut-remove {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  padding: 0 2px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shortcut-remove:hover {
+  color: var(--text);
+}
+
+.button.small {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+.button.recording {
+  padding: 1px 8px;
+  font-size: 11px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ---------------------------------------------------------------- toasts */
 
 .toasts {

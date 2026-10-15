@@ -5,6 +5,7 @@ import { CommandPalette } from './dialogs/CommandPalette'
 import { ListDialog } from './dialogs/ListDialog'
 import { ElementPickerDialog, PromptDialog, ReferenceListDialog } from './dialogs/PickerDialogs'
 import { PreferencesDialog } from './dialogs/PreferencesDialog'
+import { ShortcutsDialog } from './dialogs/ShortcutsDialog'
 import { Modal } from './components/Modal'
 import { PanelBoundary, PanelErrorMessage } from './components/PanelBoundary'
 import { UiIcon } from './icons'
@@ -55,6 +56,8 @@ function ModalContent({ modal }: { modal: ModalState }): React.JSX.Element {
       return <CommandPalette key={modalKey} />
     case 'preferences':
       return <PreferencesDialog key={modalKey} />
+    case 'shortcuts':
+      return <ShortcutsDialog key={modalKey} />
     case 'checklist':
       return <ChecklistDialog key={modalKey} title={modal.title} message={modal.message} rows={modal.rows} required={modal.required} resolve={modal.resolve} />
     case 'list':

@@ -176,6 +176,16 @@ function about(): void {
   else window.alert(`${message}\n\n${detail}`)
 }
 
+/** Shows the Model Explorer and puts the cursor in its search box. */
+function findInExplorer(): void {
+  ui().showDockPanel('explorer')
+  requestAnimationFrame(() => {
+    const input = document.querySelector<HTMLInputElement>('.explorer .search-box input')
+    input?.focus()
+    input?.select()
+  })
+}
+
 /** Registers the shell commands into `registry`, skipping ids that are already registered. */
 export function registerAppCommands(registry: CommandRegistry): void {
   const add = (def: CommandDefinition): void => {
@@ -226,6 +236,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
     isEnabled: () => bridge !== null && ps().repository.diagrams().length > 0
   })
   add({ id: Cmd.appPreferences, label: 'Preferences...', run: () => ui().openModal({ kind: 'preferences' }) })
+  add({ id: Cmd.appKeyboardShortcuts, label: 'Keyboard Shortcuts...', run: () => ui().openModal({ kind: 'shortcuts' }) })
 
   // Edit
   add({ id: Cmd.editMoveUp, label: 'Move Up', run: () => moveSelected(-1), isEnabled: () => canMove(-1) })
@@ -365,6 +376,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
     }
   })
   add({ id: Cmd.explorerCollapseAll, label: 'Collapse All', run: () => ui().collapseAll() })
+  add({ id: Cmd.explorerFind, label: 'Find in Model Explorer', run: findInExplorer })
   add({
     id: Cmd.explorerGroupArrows,
     label: 'Group Arrows by Role',
