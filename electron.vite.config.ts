@@ -2,6 +2,7 @@ import { resolve } from 'node:path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import type { Plugin } from 'vite'
+import { viewerRuntime } from './viewer-runtime.plugin'
 
 /**
  * The Vite dev server injects CSS as <style> elements, which the production Content Security
@@ -20,7 +21,7 @@ export default defineConfig({
   preload: { plugins: [externalizeDepsPlugin()] },
   renderer: {
     resolve: { alias: { '@': resolve(__dirname, 'src/renderer/src') } },
-    plugins: [react(), devInlineStyles()],
+    plugins: [react(), devInlineStyles(), viewerRuntime()],
     // electron-vite leaves the renderer unminified by default: ~2.2 MB of JS to load and compile
     // at every start instead of ~1 MB.
     build: { minify: true }
