@@ -35,6 +35,33 @@ export interface ElementDigest {
   readonly views: readonly { readonly diagram: string; readonly view: string }[]
 }
 
+type IcomRole = 'input' | 'control' | 'output' | 'mechanism' | 'call'
+
+/** One arrow in an ICOM list (a box's arrows, or a sheet's boundary arrows). */
+export interface IcomEntry {
+  readonly role: IcomRole
+  /** `I1`, `C2`, `O1`, `M3` (or `Call`). */
+  readonly code: string
+  readonly name: string
+  /** Where the arrow comes from or goes to (`from Output 1 of A2`, `to A1, A3`). */
+  readonly detail: string
+  /** Its arrow views on the diagram. */
+  readonly views: readonly string[]
+}
+
+/** An IDEF0 function box shown on a diagram. */
+export interface BoxDigest {
+  /** `A3 Build and Test Change`. */
+  readonly label: string
+  readonly icom: readonly IcomEntry[]
+}
+
+/** One step of the guided walk (← / →): a whole diagram (`view` null) or one box on it. */
+export interface WalkStep {
+  readonly diagram: string
+  readonly view: string | null
+}
+
 export interface DiagramDigest {
   readonly id: string
   readonly type: string
@@ -49,6 +76,12 @@ export interface DiagramDigest {
   readonly drill: Readonly<Record<string, string>>
   /** IDEF0: the diagram above this one and the view of the box it details there. */
   readonly parent: { readonly diagram: string; readonly view: string | null } | null
+  /** IDEF0: the A-0 context diagram of a model. */
+  readonly context: boolean
+  /** IDEF0: the boxes by view id, with their arrows. */
+  readonly boxes: Readonly<Record<string, BoxDigest>>
+  /** IDEF0: the arrows of the whole sheet (boundary arrows; on A-0, those of its box). */
+  readonly icom: readonly IcomEntry[]
 }
 
 export interface WebsiteDigest {
@@ -63,4 +96,6 @@ export interface WebsiteDigest {
   readonly diagramOrder: readonly string[]
   /** The diagram shown first. */
   readonly start: string
+  /** The guided walk: each diagram, and on IDEF0 diagrams each box, entering decomposed boxes. */
+  readonly steps: readonly WalkStep[]
 }

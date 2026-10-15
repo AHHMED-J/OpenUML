@@ -53,19 +53,61 @@ describe('website digest', () => {
     expectViewsDrawn(digest)
   })
 
-  it('lists the model tree like the Model Explorer, with each element and where it is drawn', () => {
+  it('lists the model tree like the Model Explorer, without the arrow folders, and where each element is drawn', () => {
     const digest = digestOf(release())
     const rows = flatten(digest.tree)
     expect(digest.tree[0]?.label).toBe('Software Release')
+    // Only elements: no role folders (Inputs (2)) and no arrow rows.
+    expect(rows.every((r) => r.element !== undefined)).toBe(true)
+    expect(rows.some((r) => r.type === 'IDEF0Arrow' && r.label.includes(':'))).toBe(false)
     const box = rows.find((r) => r.label === 'A3 Build and Test Change')
     expect(box?.type).toBe('IDEF0Function')
-    // Its arrows are in role folders, as in the explorer.
-    expect(box?.children.some((c) => c.element === undefined && /^Inputs \(\d+\)$/.test(c.label))).toBe(true)
+    expect(box?.children.map((c) => c.label)).toEqual(['A3 Diagram: Build and Test Change', 'A31 Assemble Build', 'A32 Run Test Suites'])
     const element = digest.elements[box?.element as string]
     expect(element?.typeLabel).toBe('Function')
     expect(element?.views.map((v) => digest.diagrams[v.diagram]?.label)).toEqual(['A0 Diagram: Release a Software Change'])
-    // Every element of the tree has an entry.
     for (const row of rows) if (row.element) expect(digest.elements[row.element]).toBeDefined()
+  })
+
+  it('walks A-0, A0, then box by box, entering decomposed boxes', () => {
+    const digest = digestOf(release())
+    const labels = digest.steps.map((step) => {
+      const d = digest.diagrams[step.diagram]!
+      return step.view ? d.boxes[step.view]?.label : d.label
+    })
+    expect(labels).toEqual([
+      'A-0 Context diagram: Release a Software Change',
+      'A0 Diagram: Release a Software Change',
+      'A1 Triage Change Request',
+      'A2 Plan Release',
+      'A3 Build and Test Change',
+      'A3 Diagram: Build and Test Change',
+      'A31 Assemble Build',
+      'A32 Run Test Suites',
+      'A4 Approve Release',
+      'A5 Deploy to Production',
+      'A6 Monitor and Review Release'
+    ])
+  })
+
+  it('lists the arrows of each box and the boundary arrows of each sheet, in ICOM order', () => {
+    const digest = digestOf(release())
+    const a0 = Object.values(digest.diagrams).find((d) => d.label.startsWith('A0 '))!
+    const a4 = Object.values(a0.boxes).find((b) => b.label === 'A4 Approve Release')!
+    const codes = a4.icom.map((e) => `${e.code} ${e.name}`)
+    expect(codes[0]).toMatch(/^I1 /)
+    expect(a4.icom.map((e) => e.role)).toEqual([...a4.icom.map((e) => e.role)].sort((x, y) => ['input', 'control', 'output', 'mechanism', 'call'].indexOf(x) - ['input', 'control', 'output', 'mechanism', 'call'].indexOf(y)))
+    expect(a4.icom.find((e) => e.name === 'Package')?.detail).toBe('from Output 1 of A3')
+    for (const entry of a4.icom) for (const view of entry.views) expect(a0.views[view]).toBeDefined()
+    // An unlabeled branch is listed under the label of the arrow it branches from.
+    const a2 = Object.values(a0.boxes).find((b) => b.label === 'A2 Plan Release')!
+    expect(a2.icom.find((e) => e.code === 'C1')).toMatchObject({ name: 'Release Policy', detail: 'branch of Release Policy' })
+    // The A0 sheet lists its boundary arrows: I1 Change Request goes to A1.
+    expect(a0.icom[0]).toMatchObject({ role: 'input', code: 'I1', name: 'Change Request', detail: 'to A1' })
+    expect(a0.icom.map((e) => e.code)).toEqual(['I1', 'C1', 'C2', 'C3', 'C4', 'C5', 'O1', 'O2', 'M1', 'M2', 'M3', 'M4'])
+    // A-0 lists the arrows of its single box.
+    const context = Object.values(digest.diagrams).find((d) => d.context)!
+    expect(context.icom.map((e) => e.code)).toEqual(['I1', 'C1', 'C2', 'C3', 'C4', 'C5', 'O1', 'O2', 'M1', 'M2', 'M3', 'M4'])
   })
 
   it('keeps only the chosen diagrams and the links between them', () => {
