@@ -44,7 +44,8 @@ export function renderDiagramSvg(diagram: Diagram, repository: Repository, measu
       <DiagramContent layout={layout} />
     </svg>
   )
-  // Soft validation marks (RAD warnings) belong to the editor, not to the exported picture.
-  const clean = body.replace(/<g class="rad-warning">.*?<\/g>/g, '')
+  // Soft validation marks (RAD warnings) and other editor marks (a locked role's padlock) belong
+  // to the editor, not to the exported picture.
+  const clean = body.replace(/<g class="rad-warning">.*?<\/g>/g, '').replace(/<g class="editor-only"[^>]*>.*?<\/g>/g, '')
   return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n${clean}`, bounds: b }
 }
