@@ -423,7 +423,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         openRegion(viewId, { box: edgeMidBox(edge.points), target: edge.fallbackEdit.target, text: edge.fallbackEdit.text, font: edge.style.font })
         return true
       }
-      if (view.model && edge.points.length > 0) {
+      if (view.model && !edge.nameless && edge.points.length > 0) {
         openRegion(viewId, { box: edgeMidBox(edge.points), target: { kind: 'name', elementId: view.model._id }, text: nameEditText(view.model), font: edge.style.font })
         return true
       }
