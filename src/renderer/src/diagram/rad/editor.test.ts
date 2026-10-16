@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { deleteFromModel, deleteFromView, setFields } from '../../commands'
 import { isKindOf, setRadAutoThread, type Elem, type NodeView, type View } from '../../model'
-import { createEdgeBetween, createNodeAt, findDropContainer, hooksFor, moveSelection, reconnectEnd, type DiagramEnv } from '../editor/actions'
+import { createEdgeBetween, createNodeAt, findDropContainer, hooksFor, moveSelection, reconnectEnd, setEdgeVertices, type DiagramEnv } from '../editor/actions'
 import { SelectionOverlay } from '../editor/Overlays'
 import { applyQuickEdit } from '../editor/quickEditApply'
 import { hitTestDiagram } from '../editor/hitTest'
@@ -452,5 +452,29 @@ describe('symbols of different widths on one thread', () => {
     const lines = [...l.edges.values()].filter((e) => e.viewType === 'RADStateLineView')
     expect(lines).toHaveLength(3)
     for (const line of lines) expect(new Set(line.points.map((p) => Math.round(p.x)))).toEqual(new Set([96]))
+  })
+})
+
+describe('reshaping an interaction link', () => {
+  it('keeps the bend points dragged into it, with the ends on the facing sides of the squares', () => {
+    const b = twoRoles()
+    const link = b.link('c', 'x')
+    const before = layout(b).edges.get(link._id)!.points
+    expect(before).toHaveLength(2)
+    const [p0, p1] = before as [{ x: number; y: number }, { x: number; y: number }]
+    // Drag the middle of the line down, as the editor does: a bend point is inserted there.
+    const bend = { x: Math.round((p0.x + p1.x) / 2), y: Math.round(p0.y + 120) }
+    setEdgeVertices(env(b), link._id, [p0, bend, p1])
+    const after = layout(b).edges.get(link._id)!.points
+    expect(after).toHaveLength(3)
+    expect(after[1]).toEqual(bend)
+    // The ends stay at the centers of the facing sides.
+    const c = layout(b).nodes.get(b.v('c')._id)!.box
+    const x = layout(b).nodes.get(b.v('x')._id)!.box
+    expect(after[0]).toEqual({ x: c.left + c.width, y: Math.round(c.top + c.height / 2) })
+    expect(after[2]).toEqual({ x: x.left, y: Math.round(x.top + x.height / 2) })
+    // It survives a save and reload of the geometry (no snapping back to a straight line).
+    moveSelection(env(b), [b.v('a')._id], 0, 8, undefined, layout(b))
+    expect(layout(b).edges.get(link._id)!.points[1]).toEqual(bend)
   })
 })
