@@ -5,7 +5,7 @@
  * branches. Pure: reads the model and returns layout data.
  */
 import { isKindOf, type EdgeView, type Elem, type NodeView, type View } from '../../model'
-import { unionRects, wrapText, withFontStyle, type Font, type NodeOutline, type Rect } from '../core'
+import { inflateRect, unionRects, wrapText, withFontStyle, type Font, type NodeOutline, type Rect } from '../core'
 import { nameOf, nodeLayout, storedBox, styleOf } from '../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine, ViewStyle } from '../layout/types'
 import { edgesAt } from '../layout/passIndex'
@@ -274,8 +274,13 @@ function symbolNode<D>(
       return init.data(box, base)
     }
   })
-  return init.lines.length > 0 ? { ...laid, outerHitAreas: boxesOf(init.lines) } : laid
+  // One rectangle around the symbol, its text and its stub (a wait's arrow) is where it is grabbed.
+  const grab = unionRects([laid.box, ...init.content, ...boxesOf(init.lines)])
+  return grab ? { ...laid, outerHitAreas: [inflateRect(grab, SYMBOL_GRAB_MARGIN)] } : laid
 }
+
+/** Margin of the grab rectangle around a symbol and its text (diagram units). */
+const SYMBOL_GRAB_MARGIN = 4
 
 /** Layout fields shared by symbol views: the symbol box moves with the stored position. */
 function boxAt(view: NodeView, width: number, height: number): Rect {

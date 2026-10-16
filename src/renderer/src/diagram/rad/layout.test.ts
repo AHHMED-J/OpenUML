@@ -283,13 +283,21 @@ describe('symbols', () => {
     expect(review.data.lines[0] ? review.data.lines[0].box.top + review.data.lines[0].box.height / 2 : 0).toBe(cy(review))
   })
 
-  it('give every label an edit region and a hit area beside the symbol', () => {
+  it('give every label an edit region, and the symbol one grab rectangle around it and its text', () => {
     const b = insuranceFixture()
     const n = node<ActivityData>(lay(b), b.v('a2'))
     expect(n.regions.length).toBe(2)
     expect(n.regions[0]?.target).toEqual({ kind: 'custom', elementId: b.v('a2').model?._id, syntax: 'radName' })
     expect(n.regions[0]?.text).toBe('Create a customer record')
-    expect(n.outerHitAreas?.length).toBe(n.data.lines.length)
+    // One rectangle, 4 units around the square and every text line.
+    expect(n.outerHitAreas).toHaveLength(1)
+    const grab = n.outerHitAreas?.[0] as { left: number; top: number; width: number; height: number }
+    for (const r of [n.box, ...n.data.lines.map((l) => l.box)]) {
+      expect(grab.left).toBeLessThanOrEqual(r.left - 4)
+      expect(grab.top).toBeLessThanOrEqual(r.top - 4)
+      expect(grab.left + grab.width).toBeGreaterThanOrEqual(r.left + r.width + 4)
+      expect(grab.top + grab.height).toBeGreaterThanOrEqual(r.top + r.height + 4)
+    }
     // An unnamed symbol is edited through its own box.
     const clerk = clerkFixture()
     const split = node<RefinementData>(lay(clerk), clerk.v('split'))

@@ -311,3 +311,16 @@ describe('moving a refinement with its branches', () => {
     expect(pos(split)).toBe(before)
   })
 })
+
+describe('grabbing a symbol', () => {
+  it('picks an activity anywhere in the rectangle around its square and text', () => {
+    const b = twoRoles()
+    const l = layout(b)
+    const a = l.nodes.get(b.v('a')._id)!
+    const label = (a.data as { lines: ReadonlyArray<{ box: { left: number; top: number; width: number; height: number } }> }).lines[0]!.box
+    // Between the square and the text, and just past the end of the text.
+    const gap = { x: a.box.left + a.box.width + 3, y: a.box.top + a.box.height / 2 }
+    const past = { x: label.left + label.width + 2, y: label.top + label.height / 2 }
+    for (const p of [gap, past]) expect(hitTestDiagram(l, p, { selected: new Set(), zoom: 1 })?.viewId).toBe(b.v('a')._id)
+  })
+})
