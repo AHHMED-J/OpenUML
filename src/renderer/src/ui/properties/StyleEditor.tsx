@@ -9,6 +9,7 @@ import { FONT_SIZES, colorIdef0Arrows, isFlowColorEdit } from '../../diagram'
 import { fieldOf, type Font, type View } from '../../model'
 import { projectStore } from '../../store'
 import { reportError } from '../app/commands'
+import { parseHexColor } from './colorText'
 import { useSelectedViews } from './useSelection'
 
 type StyleWidget = 'color' | 'fontSize' | 'lineStyle' | 'flag'
@@ -76,11 +77,17 @@ function merged<T>(views: readonly View[], read: (v: View) => T): { value: T; mi
   return { value, mixed: views.some((v) => read(v) !== value) }
 }
 
-/** Color input that previews while dragging and commits once when the picker closes. */
-function ColorField({ id, value, mixed, onCommit }: { id: string; value: string; mixed: boolean; onCommit: (v: string) => void }): React.JSX.Element {
+/**
+ * A color as a swatch (the system picker: previews while dragging, commits once when it closes)
+ * and as editable text (copy the code, paste or type `#rrggbb` / `#rgb`; Enter or leaving the field
+ * applies it, Esc puts back the current value).
+ */
+function ColorField({ id, label, value, mixed, onCommit }: { id: string; label: string; value: string; mixed: boolean; onCommit: (v: string) => void }): React.JSX.Element {
   const ref = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState(value)
+  const [text, setText] = useState(mixed ? '' : value)
   useEffect(() => setPreview(value), [value])
+  useEffect(() => setText(mixed ? '' : preview), [preview, mixed])
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -90,11 +97,38 @@ function ColorField({ id, value, mixed, onCommit }: { id: string; value: string;
     el.addEventListener('change', onChange)
     return () => el.removeEventListener('change', onChange)
   }, [value, onCommit])
+  const commitText = (): void => {
+    const color = parseHexColor(text)
+    if (color && (mixed || color !== value.toLowerCase())) onCommit(color)
+    else setText(mixed ? '' : value)
+  }
   const hex = /^#[0-9a-f]{6}$/i.test(preview) ? preview : '#000000'
   return (
     <div className="color-field">
       <input ref={ref} id={id} type="color" value={hex} onInput={(e) => setPreview(e.currentTarget.value)} onChange={() => undefined} />
-      <span className="muted">{mixed ? '—' : preview}</span>
+      <input
+        className="color-text"
+        type="text"
+        value={text}
+        placeholder={mixed ? '—' : '#rrggbb'}
+        spellCheck={false}
+        maxLength={9}
+        aria-label={`${label} code`}
+        title="Type or paste a color code (#rrggbb or #rgb); Enter applies it"
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commitText}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            commitText()
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            e.stopPropagation()
+            setText(mixed ? '' : value)
+          }
+        }}
+      />
     </div>
   )
 }
@@ -112,7 +146,7 @@ export function StyleEditor(): React.JSX.Element {
         switch (f.widget) {
           case 'color': {
             const m = merged(views, (v) => String(v[f.field] ?? ''))
-            control = <ColorField id={id} value={m.value} mixed={m.mixed} onCommit={(c) => apply(views, f.field, c, f.label)} />
+            control = <ColorField id={id} label={f.label} value={m.value} mixed={m.mixed} onCommit={(c) => apply(views, f.field, c, f.label)} />
             break
           }
           case 'fontSize': {
