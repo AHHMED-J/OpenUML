@@ -8,11 +8,13 @@
  * outside any role), `outerHitAreas` (labels beside symbols), the `radRoleTitle` and `radName`
  * quick-edit syntaxes, `connectKind` on both edge notations, the `moveGroup` diagram hook (a
  * refinement moves with its branches), the `createEdge` hook (a line between two roles is an
- * interaction) and a transaction hook (an interaction left without links is an activity again).
+ * interaction), the `deleteViews` hook (deleted elements leave the model unless shown elsewhere)
+ * and a transaction hook (an interaction left without links is an activity again).
  */
 import { isKindOf, listField, type Elem, type View } from '../../model'
 import { registerTransactionHook } from '../../commands'
 import { registerDiagramHooks, type DiagramEnv } from '../editor/actions'
+import { deleteRadViews } from './deletion'
 import { connectRoles, revertUnlinkedInteractions } from './interactions'
 import { registerEdgeNotation, registerNodeNotation, type ContainerBehavior } from '../render/registry'
 import { interactionLinkNotation, stateLineNotation } from './edges'
@@ -123,7 +125,7 @@ function refinementGroup(env: DiagramEnv, views: readonly View[]): View[] {
 }
 
 export function registerRadNotations(): void {
-  registerDiagramHooks('RADDiagram', { moveGroup: refinementGroup, createEdge: connectRoles })
+  registerDiagramHooks('RADDiagram', { moveGroup: refinementGroup, createEdge: connectRoles, deleteViews: deleteRadViews })
   registerTransactionHook(revertUnlinkedInteractions)
   registerRadQuickEdit()
   registerNodeNotation('RADRoleView', { layout: layoutRole, Render: RoleNode, container: roleContainer })
