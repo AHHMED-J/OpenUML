@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { deleteFromModel, deleteFromView, setFields } from '../../commands'
 import { isKindOf, setRadAutoThread, type Elem, type NodeView, type View } from '../../model'
-import { createEdgeBetween, createNodeAt, findDropContainer, hooksFor, moveSelection, reconnectEnd, setEdgeVertices, type DiagramEnv } from '../editor/actions'
+import { createEdgeBetween, createNodeAt, deleteViews, findDropContainer, hooksFor, moveSelection, reconnectEnd, setEdgeVertices, type DiagramEnv } from '../editor/actions'
+import { copyViews, pasteViews } from '../clipboard'
 import { SelectionOverlay } from '../editor/Overlays'
 import { applyQuickEdit } from '../editor/quickEditApply'
 import { hitTestDiagram } from '../editor/hitTest'
@@ -476,5 +477,42 @@ describe('reshaping an interaction link', () => {
     // It survives a save and reload of the geometry (no snapping back to a straight line).
     moveSelection(env(b), [b.v('a')._id], 0, 8, undefined, layout(b))
     expect(layout(b).edges.get(link._id)!.points[1]).toEqual(bend)
+  })
+})
+
+describe('deleting on a RAD diagram', () => {
+  const elementsOf = (b: RadBuilder, role: string): string[] => ((b.roles.get(role)?.model['elements'] as Elem[]) ?? []).map((e) => e['name'] as string)
+
+  it('removes a deleted symbol from the model, with its state lines (one undo step)', () => {
+    const b = twoRoles()
+    const roleModel = b.roles.get('r1')!.model
+    const lines = (): number => (roleModel['stateLines'] as Elem[]).length
+    expect(lines()).toBe(2)
+    deleteViews(env(b), [b.v('b')._id])
+    expect(elementsOf(b, 'r1')).toEqual(['A', 'C'])
+    expect(lines()).toBe(0)
+    b.engine.undo()
+    expect(elementsOf(b, 'r1')).toEqual(['A', 'B', 'C'])
+    expect(lines()).toBe(2)
+  })
+
+  it('removes a deleted role with everything in it', () => {
+    const b = twoRoles()
+    const process = b.roles.get('r1')!.model._parent as Elem
+    deleteViews(env(b), [b.roles.get('r1')!.view._id])
+    expect((process['roles'] as Elem[]).map((r) => r['name'])).toEqual(['Doing another thing'])
+    expect(b.repository.contains(b.v('a').model as Elem)).toBe(false)
+  })
+
+  it('keeps an element that is still shown elsewhere and only removes this view', () => {
+    const b = twoRoles()
+    const a = b.v('a')
+    // A second view of the same activity (as an older paste made).
+    const { models: _models, ...payload } = copyViews(b.repository, b.diagram, [a._id])!
+    const [second] = pasteViews(b.engine, b.diagram, { ...payload, outerRefs: [(a.model as Elem)._id] })
+    deleteViews(env(b), [a._id])
+    expect(b.repository.contains(a.model as Elem)).toBe(true)
+    expect(b.repository.get(second as string)).toBeDefined()
+    expect(b.repository.contains(a)).toBe(false)
   })
 })
