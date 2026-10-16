@@ -9,7 +9,7 @@ import { fieldOf, isKindOf, type Diagram, type View } from '../model'
 import { activeDiagram, projectStore, selectedViews } from '../store'
 import { LineStyle, stepZoom, ZOOM } from './core'
 import { canCopyViewsOf, copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard, type ViewClipboardPayload, type ViewHostPredicate } from './clipboard'
-import { moveSelection, type DiagramEnv } from './editor/actions'
+import { findDropContainer, moveSelection, type DiagramEnv } from './editor/actions'
 import { getActiveEditor } from './editor/activeEditor'
 import { ALIGN_OPS, alignViews, reorderViews } from './editor/alignment'
 import { computeDiagramLayout } from './layout/layoutDiagram'
@@ -126,6 +126,31 @@ export function copySelection(): boolean {
   return true
 }
 
+/**
+ * Puts each pasted node that is in no container into the container it landed in (e.g. a RAD
+ * activity pasted into another role belongs to that role), as moving it there would.
+ */
+function settleIntoContainers(diagram: Diagram, ids: readonly string[]): void {
+  const env = envOf(diagram)
+  const layout = computeDiagramLayout(diagram, state().repository, env.measurer)
+  for (const id of ids) {
+    const view = state().repository.get(id) as View | undefined
+    const box = layout.nodes.get(id)?.box
+    if (!view || !box || !isKindOf(view, 'NodeView') || view.containerView) continue
+    const container = findDropContainer(env, layout, { x: box.left + box.width / 2, y: box.top + box.height / 2 }, [view])
+    if (container) moveSelection(env, [id], 0, 0, { container }, layout)
+  }
+}
+
+/** Pastes or duplicates as one undo step: the new elements and views, then their containment. */
+function pasteInto(diagram: Diagram, name: string, paste: () => string[]): string[] {
+  return state().engine.transact(name, () => {
+    const ids = paste()
+    settleIntoContainers(diagram, ids)
+    return ids
+  })
+}
+
 /** Pastes the clipboard into the active diagram, centered in its viewport. */
 export async function pasteClipboard(): Promise<string[]> {
   const diagram = currentDiagram()
@@ -134,7 +159,7 @@ export async function pasteClipboard(): Promise<string[]> {
   if (!payload) return []
   const center = getActiveEditor(diagram._id)?.viewportCenter()
   try {
-    const ids = pasteViews(state().engine, diagram, payload, center, pasteContext.canHostView)
+    const ids = pasteInto(diagram, 'Paste', () => pasteViews(state().engine, diagram, payload, center, pasteContext.canHostView))
     selectViews(ids)
     return ids
   } catch (err) {
@@ -248,7 +273,7 @@ export function registerDiagramCommands(registry: CommandRegistry, ctx: DiagramC
     run: () => {
       const diagram = currentDiagram()
       if (!diagram) return
-      const ids = duplicateViews(state().engine, diagram, state().selectedViewIds)
+      const ids = pasteInto(diagram, 'Duplicate', () => duplicateViews(state().engine, diagram, state().selectedViewIds))
       if (ids.length > 0) selectViews(ids)
     }
   })

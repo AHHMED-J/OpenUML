@@ -6,9 +6,12 @@ import { createDiagram } from '../commands'
 import { copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard } from './clipboard'
 import { createNodeAt, moveSelection } from './editor/actions'
 import { testDiagram } from './testUtils'
+import { decomposeFunction } from './idef0/decompose'
+import { newKit } from './idef0/testkit'
+import { validateIdef0 } from './idef0/validate'
 
 describe('view clipboard', () => {
-  it('pastes new views (fresh IDs, remapped internal references) of the same model elements', () => {
+  it('pastes new, independent elements (fresh IDs, remapped references) with views of them', () => {
     const t = testDiagram()
     const a = t.node('Class', 0, 0, 100, 60)
     const b = t.node('Class', 300, 0, 100, 60)
@@ -18,35 +21,75 @@ describe('view clipboard', () => {
     expect(payload).not.toBeNull()
     const text = serializeClipboard(payload!)
     const parsed = parseClipboard(text)
-    expect(parsed?.outerRefs).toEqual(expect.arrayContaining([(a.model as Elem)._id, (b.model as Elem)._id, (e.model as Elem)._id]))
+    // The models travel with the views; only their owner is referenced from outside.
+    expect(parsed?.models?.map((m) => m.json['_type'])).toEqual(['UMLClass', 'UMLClass', 'UMLAssociation'])
+    const owner = (a.model as Elem)._parent as Elem
+    expect(parsed?.outerRefs).toContain(owner._id)
+    expect(parsed?.outerRefs).not.toContain((a.model as Elem)._id)
 
     const before = t.diagram.ownedViews.length
+    const ownedBefore = (owner['ownedElements'] as Elem[]).length
     const ids = pasteViews(t.engine, t.diagram, parsed!, { x: 500, y: 300 })
     expect(ids).toHaveLength(3)
     expect(t.diagram.ownedViews.length).toBe(before + 3)
     const pasted = ids.map((id) => t.repository.get(id) as View)
     const [pa, pb, pe] = pasted as [NodeView, NodeView, EdgeView]
-    // New IDs, same models.
+    // New IDs and new models with the same names, owned where the originals are.
     expect(ids).not.toContain(a._id)
-    expect(pa.model).toBe(a.model)
-    expect(pb.model).toBe(b.model)
-    expect(pe.model).toBe(e.model)
+    expect(pa.model).not.toBe(a.model)
+    expect(pa.model?.['name']).toBe(a.model?.['name'])
+    expect(pb.model).not.toBe(b.model)
+    expect(pe.model).not.toBe(e.model)
+    expect(pa.model?._parent).toBe(owner)
+    // Two classes in the package; the association goes where the original is owned (in the copy of A).
+    expect((owner['ownedElements'] as Elem[]).length).toBe(ownedBefore + 2)
+    expect(pe.model?._parent).toBe(e.model?._parent === a.model ? pa.model : e.model?._parent)
+    // The pasted association joins the pasted classes.
+    const end = (k: string): Elem | undefined => ((pe.model as Elem)[k] as Elem)['reference'] as Elem
+    expect([end('end1'), end('end2')]).toEqual([pa.model, pb.model])
     // The edge connects the pasted views, not the originals.
     expect(pe.tail).toBe(pa)
     expect(pe.head).toBe(pb)
-    // Sub-views were remapped: compartments are the copy's own, item views show the same attribute.
+    // Sub-views were remapped: compartments are the copy's own and show the copied attribute.
     const compartment = (pa as UMLClassifierView).attributeCompartment as NodeView
     expect(compartment._parent).toBe(pa)
     expect(compartment).not.toBe((a as UMLClassifierView).attributeCompartment)
-    expect(compartment.subViews[0]?.model).toBe((a.model as Elem)['attributes'] && ((a.model as Elem)['attributes'] as Elem[])[0])
+    const copiedAttribute = ((pa.model as Elem)['attributes'] as Elem[])[0]
+    expect(copiedAttribute?.['name']).toBe('x')
+    expect(compartment.subViews[0]?.model).toBe(copiedAttribute)
+    expect(copiedAttribute).not.toBe(((a.model as Elem)['attributes'] as Elem[])[0])
     // Edge labels point at the pasted edge.
     expect((pe['nameLabel'] as View)['hostEdge']).toBe(pe)
     // Centered on the target point (copied bounds 0..400 × 0..60 → center 200, 30).
     expect(pa.left).toBe(300)
     expect(pa.top).toBe(270)
-    // One undo step.
+    // One undo step removes the views and the new elements.
     t.engine.undo()
     expect(t.diagram.ownedViews.length).toBe(before)
+    expect((owner['ownedElements'] as Elem[]).length).toBe(ownedBefore)
+  })
+
+  it('keeps a pasted element independent: renaming it leaves the original alone', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 100, 60)
+    const [id] = pasteViews(t.engine, t.diagram, copyViews(t.repository, t.diagram, [a._id], t.layout())!)
+    const copy = (t.repository.get(id as string) as View).model as Elem
+    t.engine.transact('Rename', (b) => b.set(copy, 'name', 'Other'))
+    expect(copy['name']).toBe('Other')
+    expect(a.model?.['name']).toBe('Class1')
+  })
+
+  it('pastes a copied element even after the original was deleted, into its owner', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0)
+    const owner = (a.model as Elem)._parent as Elem
+    const payload = copyViews(t.repository, t.diagram, [a._id])!
+    t.engine.transact('delete', (b) => {
+      b.remove(a)
+      b.remove(a.model as Elem)
+    })
+    const [id] = pasteViews(t.engine, t.diagram, payload)
+    expect(((t.repository.get(id as string) as View).model as Elem)._parent).toBe(owner)
   })
 
   it('drops edges whose ends are not copied and outer container references', () => {
@@ -66,15 +109,38 @@ describe('view clipboard', () => {
     expect(pkg.containedViews).not.toContain(copy)
   })
 
-  it('refuses to paste when a copied model element was deleted', () => {
+  it('pastes an IDEF0 box as a plain new box with the next free number', () => {
+    const kit = newKit()
+    const [box] = kit.boxes(kit.child)
+    const fn = box!.model as Elem
+    const grandchild = decomposeFunction(kit.engine, fn, 3)
+    const payload = copyViews(kit.repository, kit.child, [box!._id], kit.layoutOf(kit.child))!
+    const [id] = pasteViews(kit.engine, kit.child, payload, { x: 700, y: 500 })
+    const copy = (kit.repository.get(id as string) as View).model as Elem
+    expect(copy).not.toBe(fn)
+    expect(copy['name']).toBe(fn['name'])
+    expect(copy['boxNumber']).toBe(4)
+    // The decomposition stays with the original box only.
+    expect(copy['childDiagram']).toBeNull()
+    expect(copy['functions']).toEqual([])
+    expect(fn['childDiagram']).toBe(grandchild)
+    expect(validateIdef0(kit.model).some((w) => /Box numbers/.test(w.message))).toBe(false)
+  })
+
+  it('refuses to paste when the owner of a copied element was deleted', () => {
     const t = testDiagram()
     const a = t.node('Class', 0, 0)
     const payload = copyViews(t.repository, t.diagram, [a._id])!
-    t.engine.transact('delete', (b) => {
-      b.remove(a)
-      b.remove(a.model as Elem)
-    })
+    t.engine.transact('delete', (b) => b.remove((a.model as Elem)._parent as Elem))
     expect(() => pasteViews(t.engine, t.diagram, payload)).toThrow(/no longer exist/)
+  })
+
+  it('still pastes an older payload (no models) as views of the same elements', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0)
+    const { models: _models, ...old } = copyViews(t.repository, t.diagram, [a._id])!
+    const [id] = pasteViews(t.engine, t.diagram, { ...old, outerRefs: [(a.model as Elem)._id] })
+    expect((t.repository.get(id as string) as View).model).toBe(a.model)
   })
 
   it('duplicates models and the relationships between them', () => {
