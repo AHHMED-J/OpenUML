@@ -223,7 +223,7 @@ function ChooseElementButton({ row }: { row: PropertyRow }): React.JSX.Element {
     <button
       className="icon-button"
       aria-label={`Choose ${row.label}`}
-      title="Choose..."
+      data-tip="Choose..."
       onClick={async () => {
         const picked = await pickElement(`Select ${row.label}`, [row.type])
         if (picked) commit(row, projectStore.getState().repository.get(picked) ?? null)
@@ -242,7 +242,7 @@ function RefField({ row, id }: { row: PropertyRow; id: string }): React.JSX.Elem
       {row.readOnly ? null : (
         <>
           <ChooseElementButton row={row} />
-          <button className="icon-button" aria-label={`Clear ${row.label}`} title="Clear" disabled={!value} onClick={() => commit(row, null)}>
+          <button className="icon-button" aria-label={`Clear ${row.label}`} data-tip="Clear" disabled={!value} onClick={() => commit(row, null)}>
             <UiIcon name="close" />
           </button>
         </>
@@ -260,7 +260,7 @@ function RefsField({ row, id }: { row: PropertyRow; id: string }): React.JSX.Ele
         <button
           className="icon-button"
           aria-label={`Edit ${row.label}`}
-          title="Edit..."
+          data-tip="Edit..."
           onClick={async () => {
             const ids = await editReferenceList(row.label, [row.type], list.map((e) => e._id))
             if (!ids) return
@@ -359,7 +359,7 @@ function CollectionField({ row, id }: { row: PropertyRow; id: string }): React.J
         <button
           className="icon-button"
           aria-label={`Add to ${row.label}`}
-          title="Add"
+          data-tip="Add"
           disabled={!row.featureKind}
           onClick={() =>
             run(() => {
@@ -372,7 +372,7 @@ function CollectionField({ row, id }: { row: PropertyRow; id: string }): React.J
         <button
           className="icon-button"
           aria-label="Remove selected item"
-          title="Remove"
+          data-tip="Remove"
           disabled={!selected}
           onClick={() => selected && run(() => deleteFromModel(engine, [selected]))}
         >
@@ -381,7 +381,7 @@ function CollectionField({ row, id }: { row: PropertyRow; id: string }): React.J
         <button
           className="icon-button"
           aria-label="Move selected item up"
-          title="Move Up"
+          data-tip="Move Up"
           disabled={!selected || index <= 0}
           onClick={() => selected && run(() => reorderElement(engine, selected, index - 1))}
         >
@@ -390,7 +390,7 @@ function CollectionField({ row, id }: { row: PropertyRow; id: string }): React.J
         <button
           className="icon-button"
           aria-label="Move selected item down"
-          title="Move Down"
+          data-tip="Move Down"
           disabled={!selected || index < 0 || index >= items.length - 1}
           onClick={() => selected && run(() => reorderElement(engine, selected, index + 1))}
         >

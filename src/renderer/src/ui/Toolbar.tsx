@@ -28,7 +28,7 @@ function ToolButton({ command, icon, label }: { command: string; icon: UiIconNam
   return (
     <button
       className={`icon-button toolbar-button${checked ? ' pressed' : ''}`}
-      title={title}
+      data-tip={title}
       aria-label={label}
       aria-pressed={checked}
       disabled={!enabled}

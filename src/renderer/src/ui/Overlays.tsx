@@ -78,7 +78,7 @@ export function Toasts(): React.JSX.Element {
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.kind}`} role={t.kind === 'error' ? 'alert' : undefined}>
           <span>{t.text}</span>
-          <button className="icon-button" aria-label="Dismiss" onClick={() => uiStore.getState().dismissToast(t.id)}>
+          <button className="icon-button" aria-label="Dismiss" data-tip="Dismiss" onClick={() => uiStore.getState().dismissToast(t.id)}>
             <UiIcon name="close" size={12} />
           </button>
         </div>
