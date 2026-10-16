@@ -45,6 +45,11 @@ for which file to pick.
 - **Files** – New, Open, Open Recent, *Open Example* (bundled models from `examples/`, e.g. a six-box IDEF0 software
   release process), Save, Save As; export the current diagram (or all diagrams) to PNG or SVG, or to PDF
   (one diagram, or every diagram in one file; IDEF0 sheets sized to a paper print on that paper).
+- **Interactive website** – *File > Export Interactive Website* writes one self-contained HTML file anyone can open
+  offline in a browser (email it, upload it to Moodle or GitHub Pages): the model tree, the diagrams with pan and
+  zoom, IDEF0 boxes that zoom into their child diagrams, a breadcrumb, Left/Right to walk the model box by box, and
+  under each IDEF0 diagram the inputs, controls, outputs and mechanisms of the focused box. The page loads nothing
+  from the internet.
 - **Your work is protected** – a project with a file is saved automatically every minute while it has unsaved
   changes (*Preferences > Files*, from 30 seconds to 10 minutes, or off), and unsaved work is kept aside so that,
   if OpenUML closes unexpectedly, the next start offers to recover it.
