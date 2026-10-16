@@ -158,6 +158,33 @@ describe('arrow gestures', () => {
     expect(k.engine.undoName).toBe('Create Arrow')
   })
 
+  it('takes the side a boundary arrow comes from, not where it is released, when drawn straight at a box', () => {
+    const k = newKit()
+    const [b1, b2] = k.boxes(k.child) as [NodeView, NodeView]
+    const env = k.envOf(k.child)
+    const tool = { kind: 'IDEF0Arrow' }
+    const box = k.layoutOf(k.child).nodes.get(b1._id)!.box
+    const x = box.left + 40
+    // Dragged up from below the box and released in its upper part, even right at the top edge.
+    createIdef0Edge(env, k.layoutOf(k.child), tool, null, b1._id, { x, y: 650 }, { x, y: box.top + box.height / 3 })
+    createIdef0Edge(env, k.layoutOf(k.child), tool, null, b1._id, { x: x + 40, y: 650 }, { x: x + 40, y: box.top + 2 })
+    // Dragged down from above and released in its lower part.
+    createIdef0Edge(env, k.layoutOf(k.child), tool, null, b1._id, { x: x + 80, y: 70 }, { x: x + 80, y: box.top + box.height - 3 })
+    // Dragged right from the left and released near the top.
+    createIdef0Edge(env, k.layoutOf(k.child), tool, null, b1._id, { x: 40, y: box.top + 20 }, { x: box.left + box.width / 2, y: box.top + 4 })
+    expect((k.top['arrows'] as Elem[]).map((a) => a['role'])).toEqual(['mechanism', 'mechanism', 'control', 'input'])
+    // The ports sit on the matching edges of the frame, and the parent levels get the same roles.
+    expect((k.top['ports'] as Elem[]).map((p) => p['role'])).toEqual(['mechanism', 'mechanism', 'control', 'input'])
+    const bottomPorts = k.child.ownedViews.filter((v) => v._type === 'IDEF0PortView' && (v.model as Elem)['role'] === 'mechanism') as NodeView[]
+    expect(bottomPorts.every((v) => v.top > box.top + box.height)).toBe(true)
+    expect((k.model['arrows'] as Elem[]).map((a) => a['role'])).toEqual(['mechanism', 'mechanism', 'control', 'input'])
+    // Off a corner (not straight below, above or beside the box) the release side still decides.
+    const box2 = k.layoutOf(k.child).nodes.get(b2._id)!.box
+    createIdef0Edge(env, k.layoutOf(k.child), tool, null, b2._id, { x: box2.left - 60, y: 680 }, { x: box2.left + 3, y: box2.top + box2.height / 2 })
+    expect((k.top['arrows'] as Elem[]).at(-1)?.['role']).toBe('input')
+    expect(validateModel(k.repository.project as Elem)).toEqual([])
+  })
+
   it('creates boundary ports for an end released or started on empty canvas', () => {
     const k = newKit()
     const [b1, b2] = k.boxes(k.child) as [NodeView, NodeView]
