@@ -41,7 +41,7 @@ const RAD_MODEL_TYPES: TypeDef[] = [
 
 const RAD_VIEW_TYPES: TypeDef[] = [
   t('RADDiagram', 'Diagram'),
-  t('RADRoleView', 'NodeView', [emb('nameLabel', 'LabelView'), bool('showGoal', false), bool('headerOutside', true)]),
+  t('RADRoleView', 'NodeView', [emb('nameLabel', 'LabelView'), bool('showGoal', false), bool('headerOutside', true), bool('locked', false)]),
   t('RADActivityView', 'UMLFloatingNodeView'),
   t('RADUndefinedProcessView', 'UMLFloatingNodeView'),
   t('RADStateMarkerView', 'UMLFloatingNodeView'),

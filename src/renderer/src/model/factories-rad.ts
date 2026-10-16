@@ -46,6 +46,7 @@ export interface RadNodeSpec {
   readonly field: string
   readonly size: readonly [number, number]
   readonly behind?: boolean
+  readonly centered?: boolean
 }
 
 /** Default sizes of the RAD symbols (diagram units). */
@@ -67,6 +68,8 @@ const el = (modelType: string, viewType: string, size: readonly [number, number]
   viewType,
   field: 'elements',
   size,
+  // Symbols on a thread are placed by their center, so the thread stays straight.
+  centered: true,
   ...(modelInit ? { modelInit } : {})
 })
 

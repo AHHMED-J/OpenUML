@@ -21,25 +21,35 @@ for which file to pick.
   activity, state machine, sequence, communication, timing, interaction overview and information flow, each with
   its own toolbox, plus annotations (notes, note links, text).
 - **Role Activity Diagrams (RAD)** – roles, activities, state lines, interactions between roles, alternative
-  (case) and parallel (part) refinements, iteration, waits, role initialization and state markers. Roles grow to
-  fit their content, threads stay connected when elements move, and soft warnings (for example a role name that
-  is not a gerund) never block editing.
+  (case) and parallel (part) refinements, iteration, waits, role initialization and state markers. One *Line* tool
+  draws a state line within a role and an interaction between roles (the activities it joins become interactions);
+  interaction lines take bend points. Symbols line up on their thread, a refinement moves with its branches, a role
+  can be locked (*Format > Lock Position and Size*) to select inside it without moving it, roles grow to fit their
+  content, threads stay connected when elements move, and soft warnings (for example a role name that is not a
+  gerund) never block editing.
 - **IDEF0** – function boxes with automatic numbering, ICOM arrows (input, control, output, mechanism) that
   snap to the right side, forks and joins, call and tunneled arrows, the A-0 context diagram, *Decompose* into
   child diagrams with Go to Parent/Child, *Set Number of Child Boxes* (add boxes, or choose which boxes to remove
   with their arrows and sub-diagrams; one undo step), the title block, and consistency warnings with a status-bar count.
 - **Editing** – live preview while moving, resizing and drawing, animated zoom, grid and snap-to-grid, inline
   name editing and quick-edit syntax (e.g. `-total : Money [0..1] = 0`, `trigger [guard] / effect`), copy,
-  paste and duplicate, alignment commands. Diagram tabs and a Working Diagrams list.
+  paste and duplicate (pasted elements are new, independent copies with the same names), alignment commands.
+  Diagram tabs and a Working Diagrams list. Icon buttons show their name and shortcut in a quick tooltip.
 - **Customizable layout** – long-press a panel header (Toolbox, Model Explorer, Properties, …) and drag it to
   another place; the layout is remembered. *View > Reset Layout* restores the default.
 - **Property Editor** – rows generated from the metamodel (text, numbers, checkboxes, enumerations, references,
   type/stereotype autocomplete, attribute/operation/parameter/literal lists), multi-selection editing,
-  association-end sections, plus a Style editor and a Documentation editor.
+  association-end sections, plus a Style editor (colors can be picked, or typed and pasted as `#rrggbb` codes) and a
+  Documentation editor.
 - **Undo/redo** for every change (one step per gesture), with unsaved-change tracking.
 - **Files** – New, Open, Open Recent, *Open Example* (bundled models from `examples/`, e.g. a six-box IDEF0 software
   release process), Save, Save As; export the current diagram (or all diagrams) to PNG or SVG, or to PDF
   (one diagram, or every diagram in one file; IDEF0 sheets sized to a paper print on that paper).
+- **Interactive website** – *File > Export Interactive Website* writes one self-contained HTML file anyone can open
+  offline in a browser (email it, upload it to Moodle or GitHub Pages): the model tree, the diagrams with pan and
+  zoom, IDEF0 boxes that zoom into their child diagrams, a breadcrumb, Left/Right to walk the model box by box, and
+  under each IDEF0 diagram the inputs, controls, outputs and mechanisms of the focused box. The page loads nothing
+  from the internet.
 - **Your work is protected** – a project with a file is saved automatically every minute while it has unsaved
   changes (*Preferences > Files*, from 30 seconds to 10 minutes, or off), and unsaved work is kept aside so that,
   if OpenUML closes unexpectedly, the next start offers to recover it.

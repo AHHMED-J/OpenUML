@@ -19,6 +19,7 @@ import { DockAnnouncer, DockEdgeZone, DockStack } from './dock/DockArea'
 import { isAreaEmpty } from './dock/dockModel'
 import { ContextMenuHost } from './menus/ContextMenu'
 import { ModalHost, Toasts } from './Overlays'
+import { TooltipLayer } from './components/Tooltip'
 import { StatusBar } from './StatusBar'
 import { Toolbar } from './Toolbar'
 import { uiStore, useUiStore, type ThemePreference } from './uiStore'
@@ -121,6 +122,7 @@ function ShellLayout(): React.JSX.Element {
       </PanelBoundary>
       <ContextMenuHost />
       <ModalHost />
+      <TooltipLayer />
       <PanelBoundary name="Notifications" fallback={() => null}>
         <Toasts />
       </PanelBoundary>

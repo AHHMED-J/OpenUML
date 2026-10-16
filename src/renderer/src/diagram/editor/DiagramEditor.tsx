@@ -102,7 +102,26 @@ export interface DiagramEditorProps {
 
 type Gesture =
   | { type: 'click'; start: Point }
-  | { type: 'move'; start: Point; ids: string[]; nodes: View[]; boxes: Rect[]; primary: Rect; moved: boolean; clickedId: string; reselect: boolean; dx: number; dy: number; container: View | null; recontain: boolean; axis: 'horz' | 'vert' | null }
+  | {
+      type: 'move'
+      start: Point
+      ids: string[]
+      nodes: View[]
+      boxes: Rect[]
+      primary: Rect
+      moved: boolean
+      clickedId: string
+      reselect: boolean
+      dx: number
+      dy: number
+      container: View | null
+      recontain: boolean
+      axis: 'horz' | 'vert' | null
+      /** Option/Alt held: move the selection without the views grouped with it (`moveGroup`). */
+      alone: boolean
+      /** The grabbed node snaps by its center (`NodeLayout.snapCenter`). */
+      snapCenter: boolean
+    }
   | { type: 'divider'; start: Point; viewId: string; divider: NodeDivider; y: number; moved: boolean }
   | { type: 'edge-shift'; start: Point; edgeId: string; points: Point[]; dy: number; moved: boolean }
   | { type: 'resize'; start: Point; id: string; handle: HandlePosition; box: Rect; minWidth: number; minHeight: number; keepRatio: boolean; rect: Rect }
@@ -134,7 +153,7 @@ function prefersReducedMotion(): boolean {
 function gestureChange(g: Gesture, env: DiagramEnv, layout: DiagramLayout): (() => void) | null {
   switch (g.type) {
     case 'move':
-      return g.moved ? () => moveSelection(env, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, layout) : null
+      return g.moved ? () => moveSelection(env, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, layout, { alone: g.alone }) : null
     case 'resize':
       return g.rect !== g.box ? () => resizeNode(env, g.id, g.rect) : null
     case 'divider':
@@ -404,7 +423,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         openRegion(viewId, { box: edgeMidBox(edge.points), target: edge.fallbackEdit.target, text: edge.fallbackEdit.text, font: edge.style.font })
         return true
       }
-      if (view.model && edge.points.length > 0) {
+      if (view.model && !edge.nameless && edge.points.length > 0) {
         openRegion(viewId, { box: edgeMidBox(edge.points), target: { kind: 'name', elementId: view.model._id }, text: nameEditText(view.model), font: edge.style.font })
         return true
       }
@@ -753,7 +772,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           dy: 0,
           container: null,
           recontain: false,
-          axis: moveAxisOf(l, movable.map((v) => v._id))
+          axis: moveAxisOf(l, movable.map((v) => v._id)),
+          alone: e.altKey,
+          snapCenter: l.nodes.get(hit.viewId)?.snapCenter === true
         }
         return
       }
@@ -808,7 +829,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!g.moved && Math.hypot(rawDx, rawDy) * live.current.zoom < DRAG_THRESHOLD) return
         g.moved = true
         const step = snapOn ? gs : 1
-        g.dx = g.axis === 'vert' ? 0 : snapWithDeadZone(g.primary.left, g.primary.left + rawDx, step) - g.primary.left
+        // Thread symbols snap by their center, so symbols of different widths stay on one axis.
+        const anchor = g.snapCenter ? g.primary.left + g.primary.width / 2 : g.primary.left
+        g.dx = g.axis === 'vert' ? 0 : snapWithDeadZone(anchor, anchor + rawDx, step) - anchor
         g.dy = g.axis === 'horz' ? 0 : snapWithDeadZone(g.primary.top, g.primary.top + rawDy, step) - g.primary.top
         const container = findDropContainer(en, l, p, g.nodes)
         g.container = container
@@ -928,7 +951,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         }
         // Dropped inside a container that does not take these views: they stay where they belong.
         const refused = refusedDropHost(en, l, p, g.nodes, g.boxes.map((b) => ({ ...b, left: b.left + g.dx, top: b.top + g.dy })))
-        moveSelection(en, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, l)
+        moveSelection(en, g.ids, g.dx, g.dy, g.recontain ? { container: g.container } : undefined, l, { alone: g.alone })
         if (refused) notify(dropRefusal(g.nodes, refused))
         return
       }

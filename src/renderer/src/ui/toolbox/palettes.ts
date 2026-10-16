@@ -345,9 +345,8 @@ export const PALETTES: readonly PaletteGroup[] = [
     items: [
       node('rad-role', 'Role', 'RADRole'),
       node('rad-activity', 'Activity', 'RADActivity', 'point'),
-      node('rad-interaction', 'Interaction', 'RADInteraction', 'point'),
-      edge('rad-state-line', 'State Line', 'RADStateLine'),
-      edge('rad-interaction-link', 'Interaction Link', 'RADInteractionLink'),
+      // One line tool: within a role a state line; between two roles' activities an interaction.
+      edge('rad-state-line', 'Line', 'RADStateLine'),
       node('rad-case-refinement', 'Case Refinement', 'RADCaseRefinement', 'point'),
       node('rad-part-refinement', 'Part Refinement', 'RADPartRefinement', 'point'),
       node('rad-start', 'Start', 'RADStartMarker', 'point'),
@@ -359,6 +358,8 @@ export const PALETTES: readonly PaletteGroup[] = [
     title: 'RAD (Advanced)',
     diagramTypes: [RAD],
     items: [
+      node('rad-interaction', 'Interaction', 'RADInteraction', 'point'),
+      edge('rad-interaction-link', 'Interaction Link', 'RADInteractionLink'),
       node('rad-case-branch', 'Add Alternative', 'RADCaseBranch', 'point'),
       node('rad-part-branch', 'Add Parallel Path', 'RADPartBranch', 'point'),
       node('rad-undefined-process', 'Undefined Process', 'RADUndefinedProcess', 'point'),

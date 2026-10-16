@@ -1,14 +1,17 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
-import { deleteFromModel, deleteFromView } from '../../commands'
+import { deleteFromModel, deleteFromView, setFields } from '../../commands'
 import { isKindOf, setRadAutoThread, type Elem, type NodeView, type View } from '../../model'
-import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, reconnectEnd, type DiagramEnv } from '../editor/actions'
+import { createEdgeBetween, createNodeAt, deleteViews, findDropContainer, hooksFor, moveSelection, reconnectEnd, setEdgeVertices, type DiagramEnv } from '../editor/actions'
+import { copyViews, pasteViews } from '../clipboard'
 import { SelectionOverlay } from '../editor/Overlays'
 import { applyQuickEdit } from '../editor/quickEditApply'
 import { hitTestDiagram } from '../editor/hitTest'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { RadBuilder, insuranceFixture, letterFixture } from './fixtures'
+import { renderDiagramSvg } from '../../export/svg'
+import { nodeNotationFor } from '../render/registry'
 
 afterEach(() => setRadAutoThread(true))
 
@@ -263,5 +266,253 @@ describe('editor surfaces', () => {
       const html = renderToStaticMarkup(createElement('svg', null, createElement(SelectionOverlay, { layout: l, selected: [...l.nodes.keys(), ...l.edges.keys()], zoom: 1 })))
       expect(html.length).toBeGreaterThan(100)
     }
+  })
+})
+
+describe('moving a refinement with its branches', () => {
+  function parallel(): RadBuilder {
+    const b = new RadBuilder()
+    b.role('r', { left: 0, top: 0, width: 600, height: 500, agent: 'A', name: 'Working in parallel' })
+    b.refinement('split', 'r', 'RADPartRefinement', 0, 1, 'Split', [
+      { key: 'p1', col: 1, name: 'one' },
+      { key: 'p2', col: 2, name: 'two' }
+    ])
+    b.el('other', 'r', 'RADActivity', 0, 3, 'Other')
+    return b.done()
+  }
+  const pos = (v: View): string => `${(v as NodeView).left},${(v as NodeView).top}`
+
+  it('moves the circle and every branch when any of them is dragged', () => {
+    for (const key of ['p1', 'split']) {
+      const b = parallel()
+      const [split, p1, p2, other] = ['split', 'p1', 'p2', 'other'].map((k) => b.v(k)) as [View, View, View, View]
+      const before = [split, p1, p2].map((v) => (v as NodeView).left)
+      const otherBefore = pos(other)
+      moveSelection(env(b), [b.v(key)._id], 40, 16, undefined, layout(b))
+      expect([split, p1, p2].map((v) => (v as NodeView).left)).toEqual(before.map((x) => x + 40))
+      expect(pos(other)).toBe(otherBefore)
+    }
+  })
+
+  it('moves one branch alone with Option/Alt (to space the paths)', () => {
+    const b = parallel()
+    const [split, p1, p2] = ['split', 'p1', 'p2'].map((k) => b.v(k)) as [View, View, View]
+    const [s0, p10] = [pos(split), pos(p1)]
+    const p2x = (p2 as NodeView).left
+    moveSelection(env(b), [p2._id], 40, 0, undefined, layout(b), { alone: true })
+    expect((p2 as NodeView).left).toBe(p2x + 40)
+    expect([pos(split), pos(p1)]).toEqual([s0, p10])
+  })
+
+  it('is one undo step', () => {
+    const b = parallel()
+    const p1 = b.v('p1')
+    const split = b.v('split')
+    const before = pos(split)
+    moveSelection(env(b), [p1._id], 40, 16, undefined, layout(b))
+    b.engine.undo()
+    expect(pos(split)).toBe(before)
+  })
+})
+
+describe('grabbing a symbol', () => {
+  it('picks an activity anywhere in the rectangle around its square and text', () => {
+    const b = twoRoles()
+    const l = layout(b)
+    const a = l.nodes.get(b.v('a')._id)!
+    const label = (a.data as { lines: ReadonlyArray<{ box: { left: number; top: number; width: number; height: number } }> }).lines[0]!.box
+    // Between the square and the text, and just past the end of the text.
+    const gap = { x: a.box.left + a.box.width + 3, y: a.box.top + a.box.height / 2 }
+    const past = { x: label.left + label.width + 2, y: label.top + label.height / 2 }
+    for (const p of [gap, past]) expect(hitTestDiagram(l, p, { selected: new Set(), zoom: 1 })?.viewId).toBe(b.v('a')._id)
+  })
+})
+
+describe('locking a role', () => {
+  function locked(): { b: RadBuilder; role: View } {
+    const b = twoRoles()
+    const role = b.roles.get('r1')?.view as View
+    setFields(b.engine, role, { locked: true })
+    return { b, role }
+  }
+
+  it('cannot be moved or resized, but what is inside still moves', () => {
+    const { b, role } = locked()
+    const node = layout(b).nodes.get(role._id)!
+    expect(node.movable).toBe(false)
+    expect(node.sizable).toBe('none')
+    const before = `${(role as NodeView).left},${(role as NodeView).top}`
+    const a = b.v('a') as NodeView
+    const ax = a.left
+    moveSelection(env(b), [role._id, a._id], 30, 0, undefined, layout(b))
+    expect(`${(role as NodeView).left},${(role as NodeView).top}`).toBe(before)
+    expect(a.left).toBe(ax + 30)
+  })
+
+  it('is picked only by its title, so a press on its body selects what is there or starts a rubber band', () => {
+    const { b, role } = locked()
+    const l = layout(b)
+    const box = l.nodes.get(role._id)!.box
+    const empty = { x: box.left + box.width - 20, y: box.top + box.height - 20 }
+    expect(hitTestDiagram(l, empty, { selected: new Set(), zoom: 1 })).toBeNull()
+    const title = (l.nodes.get(role._id)!.data as { titleLines: ReadonlyArray<{ box: { left: number; top: number; height: number } }> }).titleLines[0]!.box
+    expect(hitTestDiagram(l, { x: title.left + 2, y: title.top + title.height / 2 }, { selected: new Set(), zoom: 1 })?.viewId).toBe(role._id)
+    // Unlocked, the same press grabs the role.
+    setFields(b.engine, role, { locked: false })
+    expect(hitTestDiagram(layout(b), empty, { selected: new Set(), zoom: 1 })?.viewId).toBe(role._id)
+  })
+
+  it('shows a padlock in the editor only, never in exports', () => {
+    const { b, role } = locked()
+    const node = layout(b).nodes.get(role._id)!
+    const markup = renderToStaticMarkup(createElement(nodeNotationFor(role).Render, { layout: node }))
+    expect(markup).toContain('class="editor-only"')
+    expect(renderDiagramSvg(b.diagram, b.repository, b.measurer).svg).not.toContain('editor-only')
+  })
+})
+
+describe('lines between roles are interactions', () => {
+  /** Role r1: a -> b (activities); role r2: y (activity), z (interaction with an external party). */
+  function roles(): RadBuilder {
+    const b = new RadBuilder()
+    b.role('r1', { left: 0, top: 0, width: 300, height: 400, agent: 'One', name: 'Doing one thing' })
+    b.role('r2', { left: 400, top: 0, width: 300, height: 400, agent: 'Two', name: 'Doing another thing' })
+    b.el('a', 'r1', 'RADActivity', 0, 0, 'Hand over')
+    b.el('b', 'r1', 'RADActivity', 0, 1, 'Wait for it')
+    b.el('y', 'r2', 'RADActivity', 0, 0, 'Receive')
+    b.el('z', 'r2', 'RADActivity', 0, 2, 'Other')
+    b.line('a', 'b')
+    return b.done()
+  }
+  const draw = (b: RadBuilder, kind: string, from: string, to: string): string | null | undefined =>
+    hooksFor(b.diagram)?.createEdge?.(env(b), layout(b), { kind }, b.v(from)._id, b.v(to)._id, { x: 0, y: 0 }, { x: 0, y: 0 })
+
+  it('turns the activities at both ends into interactions joined by an interaction link', () => {
+    const b = roles()
+    const [va, vy] = [b.v('a'), b.v('y')]
+    const id = draw(b, 'RADStateLine', 'a', 'y')
+    expect(id).toBeTruthy()
+    const link = b.repository.get(id as string) as View
+    expect(link._type).toBe('RADInteractionLinkView')
+    // Same views, now showing interactions with the same names, in the same roles.
+    expect(va.model?._type).toBe('RADInteraction')
+    expect(vy.model?._type).toBe('RADInteraction')
+    expect(va.model?.['name']).toBe('Hand over')
+    expect(va.model?._parent).toBe(b.roles.get('r1')?.model)
+    expect(link.model?.['source']).toBe(va.model)
+    expect(link.model?.['target']).toBe(vy.model)
+    // The state line a -> b still starts at the (retyped) element.
+    const line = b.e('a', 'b')
+    expect(line.model?.['source']).toBe(va.model)
+    // One undo step brings the activities back and removes the link.
+    b.engine.undo()
+    expect(b.v('a').model?._type).toBe('RADActivity')
+    expect(b.v('y').model?._type).toBe('RADActivity')
+    expect(b.repository.get(id as string)).toBeUndefined()
+  })
+
+  it('also converts with the Interaction Link tool, and leaves lines within a role to the state line', () => {
+    const b = roles()
+    expect(draw(b, 'RADInteractionLink', 'b', 'y')).toBeTruthy()
+    expect(b.v('b').model?._type).toBe('RADInteraction')
+    expect(draw(b, 'RADStateLine', 'a', 'b')).toBeUndefined()
+  })
+
+  it('turns an interaction back into an activity when its last link goes, unless it has an external party', () => {
+    const b = roles()
+    const id = draw(b, 'RADStateLine', 'a', 'y') as string
+    setFields(b.engine, b.v('y').model as Elem, { externalParty: 'The bank' })
+    // Delete from View only hides the line: the link (and the interactions) stay.
+    deleteFromView(b.engine, [b.repository.get(id) as View])
+    expect(b.v('a').model?._type).toBe('RADInteraction')
+    b.engine.undo()
+    deleteFromModel(b.engine, [(b.repository.get(id) as View).model as Elem])
+    expect(b.v('a').model?._type).toBe('RADActivity')
+    expect(b.v('y').model?._type).toBe('RADInteraction')
+    expect(b.v('a').model?.['name']).toBe('Hand over')
+    b.engine.undo()
+    expect(b.v('a').model?._type).toBe('RADInteraction')
+  })
+})
+
+describe('symbols of different widths on one thread', () => {
+  it('are centered on the click, so the state lines between them are straight', () => {
+    const b = new RadBuilder()
+    b.role('r', { left: 0, top: 0, width: 300, height: 500, agent: 'A', name: 'Doing it' })
+    b.done()
+    const ids = (['RADStartMarker', 'RADWait', 'RADActivity', 'RADEndMarker'] as const).map((kind, i) =>
+      createNodeAt(env(b), layout(b), kind, { left: 96, top: 60 + i * 80, width: 0, height: 0 })
+    )
+    const centers = ids.map((id) => {
+      const v = b.repository.get(id as string) as NodeView
+      return v.left + v.width / 2
+    })
+    expect(new Set(centers)).toEqual(new Set([96]))
+    // Auto-thread joined them; every line is vertical.
+    const l = layout(b)
+    const lines = [...l.edges.values()].filter((e) => e.viewType === 'RADStateLineView')
+    expect(lines).toHaveLength(3)
+    for (const line of lines) expect(new Set(line.points.map((p) => Math.round(p.x)))).toEqual(new Set([96]))
+  })
+})
+
+describe('reshaping an interaction link', () => {
+  it('keeps the bend points dragged into it, with the ends on the facing sides of the squares', () => {
+    const b = twoRoles()
+    const link = b.link('c', 'x')
+    const before = layout(b).edges.get(link._id)!.points
+    expect(before).toHaveLength(2)
+    const [p0, p1] = before as [{ x: number; y: number }, { x: number; y: number }]
+    // Drag the middle of the line down, as the editor does: a bend point is inserted there.
+    const bend = { x: Math.round((p0.x + p1.x) / 2), y: Math.round(p0.y + 120) }
+    setEdgeVertices(env(b), link._id, [p0, bend, p1])
+    const after = layout(b).edges.get(link._id)!.points
+    expect(after).toHaveLength(3)
+    expect(after[1]).toEqual(bend)
+    // The ends stay at the centers of the facing sides.
+    const c = layout(b).nodes.get(b.v('c')._id)!.box
+    const x = layout(b).nodes.get(b.v('x')._id)!.box
+    expect(after[0]).toEqual({ x: c.left + c.width, y: Math.round(c.top + c.height / 2) })
+    expect(after[2]).toEqual({ x: x.left, y: Math.round(x.top + x.height / 2) })
+    // It survives a save and reload of the geometry (no snapping back to a straight line).
+    moveSelection(env(b), [b.v('a')._id], 0, 8, undefined, layout(b))
+    expect(layout(b).edges.get(link._id)!.points[1]).toEqual(bend)
+  })
+})
+
+describe('deleting on a RAD diagram', () => {
+  const elementsOf = (b: RadBuilder, role: string): string[] => ((b.roles.get(role)?.model['elements'] as Elem[]) ?? []).map((e) => e['name'] as string)
+
+  it('removes a deleted symbol from the model, with its state lines (one undo step)', () => {
+    const b = twoRoles()
+    const roleModel = b.roles.get('r1')!.model
+    const lines = (): number => (roleModel['stateLines'] as Elem[]).length
+    expect(lines()).toBe(2)
+    deleteViews(env(b), [b.v('b')._id])
+    expect(elementsOf(b, 'r1')).toEqual(['A', 'C'])
+    expect(lines()).toBe(0)
+    b.engine.undo()
+    expect(elementsOf(b, 'r1')).toEqual(['A', 'B', 'C'])
+    expect(lines()).toBe(2)
+  })
+
+  it('removes a deleted role with everything in it', () => {
+    const b = twoRoles()
+    const process = b.roles.get('r1')!.model._parent as Elem
+    deleteViews(env(b), [b.roles.get('r1')!.view._id])
+    expect((process['roles'] as Elem[]).map((r) => r['name'])).toEqual(['Doing another thing'])
+    expect(b.repository.contains(b.v('a').model as Elem)).toBe(false)
+  })
+
+  it('keeps an element that is still shown elsewhere and only removes this view', () => {
+    const b = twoRoles()
+    const a = b.v('a')
+    // A second view of the same activity (as an older paste made).
+    const { models: _models, ...payload } = copyViews(b.repository, b.diagram, [a._id])!
+    const [second] = pasteViews(b.engine, b.diagram, { ...payload, outerRefs: [(a.model as Elem)._id] })
+    deleteViews(env(b), [a._id])
+    expect(b.repository.contains(a.model as Elem)).toBe(true)
+    expect(b.repository.get(second as string)).toBeDefined()
+    expect(b.repository.contains(a)).toBe(false)
   })
 })

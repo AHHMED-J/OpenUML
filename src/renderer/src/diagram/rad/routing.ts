@@ -139,14 +139,24 @@ export function routeStateLine(edge: EdgeView, ctx: LayoutContext): Point[] | nu
   }
 }
 
-/** Straight line between the facing side centres of two interaction squares. */
+/**
+ * Interaction link between two interaction squares: through the bend points the user added (the
+ * stored interior points, as for any edge), with each end at the center of the square's side that
+ * faces its neighboring point. Without bends, a straight line between the facing side centers.
+ */
 export function routeInteractionLink(edge: EdgeView, ctx: LayoutContext): Point[] | null {
   const a = boxOf(edge.tail, ctx)
   const b = boxOf(edge.head, ctx)
   if (!a || !b) return null
-  const toRight = cx(b) >= cx(a)
+  const stored = edge.points ?? []
+  const bends = stored.length > 2 ? stored.slice(1, -1).map((p) => ({ x: p.x, y: p.y })) : []
+  const afterTail = bends[0] ?? { x: cx(b), y: cy(b) }
+  const beforeHead = bends[bends.length - 1] ?? { x: cx(a), y: cy(a) }
+  const tailRight = afterTail.x >= cx(a)
+  const headLeft = beforeHead.x <= cx(b)
   return [
-    { x: toRight ? a.left + a.width : a.left, y: Math.round(cy(a)) },
-    { x: toRight ? b.left : b.left + b.width, y: Math.round(cy(b)) }
+    { x: tailRight ? a.left + a.width : a.left, y: Math.round(cy(a)) },
+    ...bends,
+    { x: headLeft ? b.left : b.left + b.width, y: Math.round(cy(b)) }
   ]
 }
