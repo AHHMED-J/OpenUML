@@ -817,6 +817,14 @@ textarea:focus {
   background: var(--surface);
 }
 
+/* The color code beside the swatch: selectable, copyable and editable. */
+.color-field .color-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
