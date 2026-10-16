@@ -133,6 +133,7 @@ function formatItems(): MenuNode[] {
     { label: 'Auto Resize', command: Cmd.formatAutoResize, checkbox: true },
     { label: 'Show Shadow', command: Cmd.formatShowShadow, checkbox: true },
     { label: 'Word Wrap', command: Cmd.formatWordWrap, checkbox: true },
+    { label: 'Lock Position and Size', command: Cmd.formatLock, checkbox: true },
     SEP,
     { label: 'Show Visibility', command: Cmd.formatShowVisibility, checkbox: true },
     { label: 'Show Type', command: Cmd.formatShowType, checkbox: true },

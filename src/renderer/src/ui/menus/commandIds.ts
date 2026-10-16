@@ -39,6 +39,7 @@ export const Cmd = {
   formatLineRoundRect: 'format.linestyle.roundrect',
   formatLineCurve: 'format.linestyle.curve',
   formatAutoResize: 'format.auto-resize',
+  formatLock: 'format.lock',
   formatShowShadow: 'format.show-shadow',
   formatWordWrap: 'format.word-wrap',
   formatShowVisibility: 'format.show-visibility',

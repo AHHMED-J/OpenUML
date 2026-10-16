@@ -185,6 +185,7 @@ const FORMAT_TOGGLES: ReadonlyArray<readonly [id: string, field: string, label: 
   ['format.auto-resize', 'autoResize', 'Auto Resize'],
   ['format.show-shadow', 'showShadow', 'Show Shadow'],
   ['format.word-wrap', 'wordWrap', 'Word Wrap'],
+  ['format.lock', 'locked', 'Lock Position and Size'],
   ['format.show-visibility', 'showVisibility', 'Show Visibility'],
   ['format.show-namespace', 'showNamespace', 'Show Namespace'],
   ['format.show-property', 'showProperty', 'Show Property'],

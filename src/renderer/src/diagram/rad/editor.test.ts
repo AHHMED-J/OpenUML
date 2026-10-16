@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
-import { deleteFromModel, deleteFromView } from '../../commands'
+import { deleteFromModel, deleteFromView, setFields } from '../../commands'
 import { isKindOf, setRadAutoThread, type Elem, type NodeView, type View } from '../../model'
 import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, reconnectEnd, type DiagramEnv } from '../editor/actions'
 import { SelectionOverlay } from '../editor/Overlays'
@@ -9,6 +9,8 @@ import { applyQuickEdit } from '../editor/quickEditApply'
 import { hitTestDiagram } from '../editor/hitTest'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { RadBuilder, insuranceFixture, letterFixture } from './fixtures'
+import { renderDiagramSvg } from '../../export/svg'
+import { nodeNotationFor } from '../render/registry'
 
 afterEach(() => setRadAutoThread(true))
 
@@ -322,5 +324,48 @@ describe('grabbing a symbol', () => {
     const gap = { x: a.box.left + a.box.width + 3, y: a.box.top + a.box.height / 2 }
     const past = { x: label.left + label.width + 2, y: label.top + label.height / 2 }
     for (const p of [gap, past]) expect(hitTestDiagram(l, p, { selected: new Set(), zoom: 1 })?.viewId).toBe(b.v('a')._id)
+  })
+})
+
+describe('locking a role', () => {
+  function locked(): { b: RadBuilder; role: View } {
+    const b = twoRoles()
+    const role = b.roles.get('r1')?.view as View
+    setFields(b.engine, role, { locked: true })
+    return { b, role }
+  }
+
+  it('cannot be moved or resized, but what is inside still moves', () => {
+    const { b, role } = locked()
+    const node = layout(b).nodes.get(role._id)!
+    expect(node.movable).toBe(false)
+    expect(node.sizable).toBe('none')
+    const before = `${(role as NodeView).left},${(role as NodeView).top}`
+    const a = b.v('a') as NodeView
+    const ax = a.left
+    moveSelection(env(b), [role._id, a._id], 30, 0, undefined, layout(b))
+    expect(`${(role as NodeView).left},${(role as NodeView).top}`).toBe(before)
+    expect(a.left).toBe(ax + 30)
+  })
+
+  it('is picked only by its title, so a press on its body selects what is there or starts a rubber band', () => {
+    const { b, role } = locked()
+    const l = layout(b)
+    const box = l.nodes.get(role._id)!.box
+    const empty = { x: box.left + box.width - 20, y: box.top + box.height - 20 }
+    expect(hitTestDiagram(l, empty, { selected: new Set(), zoom: 1 })).toBeNull()
+    const title = (l.nodes.get(role._id)!.data as { titleLines: ReadonlyArray<{ box: { left: number; top: number; height: number } }> }).titleLines[0]!.box
+    expect(hitTestDiagram(l, { x: title.left + 2, y: title.top + title.height / 2 }, { selected: new Set(), zoom: 1 })?.viewId).toBe(role._id)
+    // Unlocked, the same press grabs the role.
+    setFields(b.engine, role, { locked: false })
+    expect(hitTestDiagram(layout(b), empty, { selected: new Set(), zoom: 1 })?.viewId).toBe(role._id)
+  })
+
+  it('shows a padlock in the editor only, never in exports', () => {
+    const { b, role } = locked()
+    const node = layout(b).nodes.get(role._id)!
+    const markup = renderToStaticMarkup(createElement(nodeNotationFor(role).Render, { layout: node }))
+    expect(markup).toContain('class="editor-only"')
+    expect(renderDiagramSvg(b.diagram, b.repository, b.measurer).svg).not.toContain('editor-only')
   })
 })

@@ -362,7 +362,8 @@ export function moveSelection(
   current?: DiagramLayout,
   options: { readonly alone?: boolean } = {}
 ): void {
-  const selected = viewsById(env, ids)
+  // Locked views (a locked RAD role) never move.
+  const selected = viewsById(env, ids).filter((v) => v['locked'] !== true)
   const group = options.alone ? [] : (hooksFor(env.diagram)?.moveGroup?.(env, selected) ?? [])
   const views = [...selected, ...group.filter((v) => !selected.includes(v))]
   if (views.length === 0) return
