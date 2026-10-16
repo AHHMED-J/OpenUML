@@ -16,6 +16,7 @@ export const Cmd = {
   fileExportAllSvg: 'file.export-diagram-as.all-to-svgs',
   fileExportPdf: 'file.export-diagram-as.pdf',
   fileExportAllPdf: 'file.export-diagram-as.all-to-pdf',
+  fileExportWebsite: 'file.export-interactive-website',
   appPreferences: 'app.preferences',
   appKeyboardShortcuts: 'app.keyboard-shortcuts',
   helpAbout: 'help.about',
