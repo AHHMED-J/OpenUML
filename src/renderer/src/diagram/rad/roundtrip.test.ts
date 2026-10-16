@@ -97,15 +97,16 @@ describe('palette', () => {
     expect(basic?.items.map((i) => [i.label, i.gesture])).toEqual([
       ['Role', 'rect'],
       ['Activity', 'point'],
-      ['Interaction', 'point'],
-      ['State Line', 'line'],
-      ['Interaction Link', 'line'],
+      ['Line', 'line'],
       ['Case Refinement', 'point'],
       ['Part Refinement', 'point'],
       ['Start', 'point'],
       ['End', 'point']
     ])
     expect(basic?.autoExpand).toEqual(['RADDiagram'])
+    // The explicit interaction tools are in the advanced group.
+    const advanced = PALETTES.find((g) => g.id === 'rad-advanced')
+    expect(advanced?.items.slice(0, 2).map((i) => i.label)).toEqual(['Interaction', 'Interaction Link'])
     expect(palettesFor('UMLClassDiagram').some((g) => g.id.startsWith('rad'))).toBe(false)
   })
 })

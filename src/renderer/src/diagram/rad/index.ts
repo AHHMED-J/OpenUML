@@ -6,11 +6,14 @@
  * Editor hooks used: `ContainerBehavior` of the role view (`accepts`, `ownerFor` into the role's
  * `elements`, `reparent` moving the model between roles and snapping children back when dropped
  * outside any role), `outerHitAreas` (labels beside symbols), the `radRoleTitle` and `radName`
- * quick-edit syntaxes, `connectKind` on both edge notations, and the `moveGroup` diagram hook (a
- * refinement moves with its branches).
+ * quick-edit syntaxes, `connectKind` on both edge notations, the `moveGroup` diagram hook (a
+ * refinement moves with its branches), the `createEdge` hook (a line between two roles is an
+ * interaction) and a transaction hook (an interaction left without links is an activity again).
  */
 import { isKindOf, listField, type Elem, type View } from '../../model'
+import { registerTransactionHook } from '../../commands'
 import { registerDiagramHooks, type DiagramEnv } from '../editor/actions'
+import { connectRoles, revertUnlinkedInteractions } from './interactions'
 import { registerEdgeNotation, registerNodeNotation, type ContainerBehavior } from '../render/registry'
 import { interactionLinkNotation, stateLineNotation } from './edges'
 import {
@@ -120,7 +123,8 @@ function refinementGroup(env: DiagramEnv, views: readonly View[]): View[] {
 }
 
 export function registerRadNotations(): void {
-  registerDiagramHooks('RADDiagram', { moveGroup: refinementGroup })
+  registerDiagramHooks('RADDiagram', { moveGroup: refinementGroup, createEdge: connectRoles })
+  registerTransactionHook(revertUnlinkedInteractions)
   registerRadQuickEdit()
   registerNodeNotation('RADRoleView', { layout: layoutRole, Render: RoleNode, container: roleContainer })
   registerNodeNotation('RADActivityView', { layout: layoutActivity, Render: ActivityNode })
