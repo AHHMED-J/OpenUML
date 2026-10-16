@@ -265,3 +265,49 @@ describe('editor surfaces', () => {
     }
   })
 })
+
+describe('moving a refinement with its branches', () => {
+  function parallel(): RadBuilder {
+    const b = new RadBuilder()
+    b.role('r', { left: 0, top: 0, width: 600, height: 500, agent: 'A', name: 'Working in parallel' })
+    b.refinement('split', 'r', 'RADPartRefinement', 0, 1, 'Split', [
+      { key: 'p1', col: 1, name: 'one' },
+      { key: 'p2', col: 2, name: 'two' }
+    ])
+    b.el('other', 'r', 'RADActivity', 0, 3, 'Other')
+    return b.done()
+  }
+  const pos = (v: View): string => `${(v as NodeView).left},${(v as NodeView).top}`
+
+  it('moves the circle and every branch when any of them is dragged', () => {
+    for (const key of ['p1', 'split']) {
+      const b = parallel()
+      const [split, p1, p2, other] = ['split', 'p1', 'p2', 'other'].map((k) => b.v(k)) as [View, View, View, View]
+      const before = [split, p1, p2].map((v) => (v as NodeView).left)
+      const otherBefore = pos(other)
+      moveSelection(env(b), [b.v(key)._id], 40, 16, undefined, layout(b))
+      expect([split, p1, p2].map((v) => (v as NodeView).left)).toEqual(before.map((x) => x + 40))
+      expect(pos(other)).toBe(otherBefore)
+    }
+  })
+
+  it('moves one branch alone with Option/Alt (to space the paths)', () => {
+    const b = parallel()
+    const [split, p1, p2] = ['split', 'p1', 'p2'].map((k) => b.v(k)) as [View, View, View]
+    const [s0, p10] = [pos(split), pos(p1)]
+    const p2x = (p2 as NodeView).left
+    moveSelection(env(b), [p2._id], 40, 0, undefined, layout(b), { alone: true })
+    expect((p2 as NodeView).left).toBe(p2x + 40)
+    expect([pos(split), pos(p1)]).toEqual([s0, p10])
+  })
+
+  it('is one undo step', () => {
+    const b = parallel()
+    const p1 = b.v('p1')
+    const split = b.v('split')
+    const before = pos(split)
+    moveSelection(env(b), [p1._id], 40, 16, undefined, layout(b))
+    b.engine.undo()
+    expect(pos(split)).toBe(before)
+  })
+})

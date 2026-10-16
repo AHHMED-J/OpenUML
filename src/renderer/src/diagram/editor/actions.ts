@@ -92,6 +92,11 @@ export interface DiagramHooks {
   liveReconnect?: boolean
   /** The view a dragged edge end is dropped on at `p` (default: the node under `p`). */
   pickReconnect?(layout: DiagramLayout, p: Point): string | null
+  /**
+   * Views that move along with `views` (e.g. the circle and branches of a RAD refinement), unless
+   * the move asks to move the views alone (Option/Alt while dragging).
+   */
+  moveGroup?(env: DiagramEnv, views: readonly View[]): View[]
 }
 
 /** A segment dragged as a whole: `y` moves a horizontal segment, `x` a vertical one. */
@@ -354,9 +359,12 @@ export function moveSelection(
   dx: number,
   dy: number,
   drop?: { container: View | null },
-  current?: DiagramLayout
+  current?: DiagramLayout,
+  options: { readonly alone?: boolean } = {}
 ): void {
-  const views = viewsById(env, ids)
+  const selected = viewsById(env, ids)
+  const group = options.alone ? [] : (hooksFor(env.diagram)?.moveGroup?.(env, selected) ?? [])
+  const views = [...selected, ...group.filter((v) => !selected.includes(v))]
   if (views.length === 0) return
   const nodes = views.filter((v) => isKindOf(v, 'NodeView'))
   const recontaining = drop !== undefined && isContainmentChange(nodes, drop.container)
