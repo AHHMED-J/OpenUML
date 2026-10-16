@@ -20,6 +20,7 @@
  *   item views to every view of the owner).
  * - Change: `setFields`, `setFieldsOfAll`, `rename`, `moveElement`, `reorderElement`.
  * - Geometry: `moveViews`, `setViewBounds`.
+ * - Retype: `retypeElement(b, el, type)` swaps an element for one of another type in place.
  * - Delete: `deleteFromModel(engine, elements)` (full cascade), `deleteFromView(engine, views)`;
  *   `collectDeletion` previews the cascade.
  * - Import: `importFragment(engine, text, owner)` (bypass).
@@ -32,4 +33,5 @@ export * from './builder'
 export * from './engine'
 export * from './edits'
 export * from './delete'
+export * from './retype'
 export * from './registry'

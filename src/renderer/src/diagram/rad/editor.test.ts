@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { deleteFromModel, deleteFromView, setFields } from '../../commands'
 import { isKindOf, setRadAutoThread, type Elem, type NodeView, type View } from '../../model'
-import { createEdgeBetween, createNodeAt, findDropContainer, moveSelection, reconnectEnd, type DiagramEnv } from '../editor/actions'
+import { createEdgeBetween, createNodeAt, findDropContainer, hooksFor, moveSelection, reconnectEnd, type DiagramEnv } from '../editor/actions'
 import { SelectionOverlay } from '../editor/Overlays'
 import { applyQuickEdit } from '../editor/quickEditApply'
 import { hitTestDiagram } from '../editor/hitTest'
@@ -367,5 +367,69 @@ describe('locking a role', () => {
     const markup = renderToStaticMarkup(createElement(nodeNotationFor(role).Render, { layout: node }))
     expect(markup).toContain('class="editor-only"')
     expect(renderDiagramSvg(b.diagram, b.repository, b.measurer).svg).not.toContain('editor-only')
+  })
+})
+
+describe('lines between roles are interactions', () => {
+  /** Role r1: a -> b (activities); role r2: y (activity), z (interaction with an external party). */
+  function roles(): RadBuilder {
+    const b = new RadBuilder()
+    b.role('r1', { left: 0, top: 0, width: 300, height: 400, agent: 'One', name: 'Doing one thing' })
+    b.role('r2', { left: 400, top: 0, width: 300, height: 400, agent: 'Two', name: 'Doing another thing' })
+    b.el('a', 'r1', 'RADActivity', 0, 0, 'Hand over')
+    b.el('b', 'r1', 'RADActivity', 0, 1, 'Wait for it')
+    b.el('y', 'r2', 'RADActivity', 0, 0, 'Receive')
+    b.el('z', 'r2', 'RADActivity', 0, 2, 'Other')
+    b.line('a', 'b')
+    return b.done()
+  }
+  const draw = (b: RadBuilder, kind: string, from: string, to: string): string | null | undefined =>
+    hooksFor(b.diagram)?.createEdge?.(env(b), layout(b), { kind }, b.v(from)._id, b.v(to)._id, { x: 0, y: 0 }, { x: 0, y: 0 })
+
+  it('turns the activities at both ends into interactions joined by an interaction link', () => {
+    const b = roles()
+    const [va, vy] = [b.v('a'), b.v('y')]
+    const id = draw(b, 'RADStateLine', 'a', 'y')
+    expect(id).toBeTruthy()
+    const link = b.repository.get(id as string) as View
+    expect(link._type).toBe('RADInteractionLinkView')
+    // Same views, now showing interactions with the same names, in the same roles.
+    expect(va.model?._type).toBe('RADInteraction')
+    expect(vy.model?._type).toBe('RADInteraction')
+    expect(va.model?.['name']).toBe('Hand over')
+    expect(va.model?._parent).toBe(b.roles.get('r1')?.model)
+    expect(link.model?.['source']).toBe(va.model)
+    expect(link.model?.['target']).toBe(vy.model)
+    // The state line a -> b still starts at the (retyped) element.
+    const line = b.e('a', 'b')
+    expect(line.model?.['source']).toBe(va.model)
+    // One undo step brings the activities back and removes the link.
+    b.engine.undo()
+    expect(b.v('a').model?._type).toBe('RADActivity')
+    expect(b.v('y').model?._type).toBe('RADActivity')
+    expect(b.repository.get(id as string)).toBeUndefined()
+  })
+
+  it('also converts with the Interaction Link tool, and leaves lines within a role to the state line', () => {
+    const b = roles()
+    expect(draw(b, 'RADInteractionLink', 'b', 'y')).toBeTruthy()
+    expect(b.v('b').model?._type).toBe('RADInteraction')
+    expect(draw(b, 'RADStateLine', 'a', 'b')).toBeUndefined()
+  })
+
+  it('turns an interaction back into an activity when its last link goes, unless it has an external party', () => {
+    const b = roles()
+    const id = draw(b, 'RADStateLine', 'a', 'y') as string
+    setFields(b.engine, b.v('y').model as Elem, { externalParty: 'The bank' })
+    // Delete from View only hides the line: the link (and the interactions) stay.
+    deleteFromView(b.engine, [b.repository.get(id) as View])
+    expect(b.v('a').model?._type).toBe('RADInteraction')
+    b.engine.undo()
+    deleteFromModel(b.engine, [(b.repository.get(id) as View).model as Elem])
+    expect(b.v('a').model?._type).toBe('RADActivity')
+    expect(b.v('y').model?._type).toBe('RADInteraction')
+    expect(b.v('a').model?.['name']).toBe('Hand over')
+    b.engine.undo()
+    expect(b.v('a').model?._type).toBe('RADInteraction')
   })
 })
