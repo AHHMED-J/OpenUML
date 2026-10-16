@@ -1273,6 +1273,24 @@ input.full {
   pointer-events: auto;
 }
 
+/* Tooltips of icon buttons (components/Tooltip.tsx). */
+.app-tooltip {
+  position: fixed;
+  z-index: 2000;
+  max-width: 320px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--toast-bg);
+  color: var(--toast-text);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
 .toast.error {
   border-left: 3px solid var(--danger);
 }

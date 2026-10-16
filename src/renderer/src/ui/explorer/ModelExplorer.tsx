@@ -39,7 +39,7 @@ export function ExplorerActions(): React.JSX.Element {
   return (
     <button
       className="icon-button"
-      title="Explorer options"
+      data-tip="Explorer options"
       aria-label="Explorer options"
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect()

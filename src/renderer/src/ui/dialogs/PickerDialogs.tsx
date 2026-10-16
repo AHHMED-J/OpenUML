@@ -209,25 +209,25 @@ export function ReferenceListDialog({
           })}
         </div>
         <div className="collection-buttons">
-          <button className="icon-button" aria-label="Add" title="Add..." onClick={() => void add()}>
+          <button className="icon-button" aria-label="Add" data-tip="Add..." onClick={() => void add()}>
             <UiIcon name="plus" />
           </button>
           <button
             className="icon-button"
             aria-label="Remove"
-            title="Remove"
+            data-tip="Remove"
             disabled={index < 0}
             onClick={() => setIds(ids.filter((i) => i !== selected))}
           >
             <UiIcon name="minus" />
           </button>
-          <button className="icon-button" aria-label="Move up" title="Move Up" disabled={index <= 0} onClick={() => move(-1)}>
+          <button className="icon-button" aria-label="Move up" data-tip="Move Up" disabled={index <= 0} onClick={() => move(-1)}>
             <UiIcon name="up" />
           </button>
           <button
             className="icon-button"
             aria-label="Move down"
-            title="Move Down"
+            data-tip="Move Down"
             disabled={index < 0 || index >= ids.length - 1}
             onClick={() => move(1)}
           >

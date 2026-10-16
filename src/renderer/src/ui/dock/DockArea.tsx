@@ -88,6 +88,7 @@ function DockPanel({ id, state, source }: { id: DockPanelId; state: DockPanelSta
           aria-expanded={!collapsed}
           aria-controls={bodyId}
           aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
+          data-tip={collapsed ? 'Expand' : 'Collapse'}
           onClick={toggle}
         >
           <UiIcon name={collapsed ? 'chevron-right' : 'chevron-down'} size={12} />
@@ -104,7 +105,7 @@ function DockPanel({ id, state, source }: { id: DockPanelId; state: DockPanelSta
           ref={menuButton}
           className="icon-button dock-menu-button"
           data-no-drag=""
-          title="Panel options"
+          data-tip="Panel options"
           aria-label={`${title} panel options`}
           aria-haspopup="menu"
           aria-expanded={menu !== null}
