@@ -110,12 +110,30 @@ export interface ChecklistRow {
   readonly detail: string
 }
 
+/** A diagram offered in the Export Interactive Website dialog. */
+export interface WebsiteDiagramRow {
+  readonly id: string
+  readonly label: string
+}
+
+/** What the Export Interactive Website dialog returns. */
+export interface WebsiteChoice {
+  readonly title: string
+  readonly diagramIds: readonly string[]
+}
+
 /** Modal dialogs; promise-based ones carry their resolver. */
 export type ModalState =
   | { readonly kind: 'palette' }
   | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
   | { readonly kind: 'shortcuts' }
+  | {
+      readonly kind: 'website'
+      readonly title: string
+      readonly diagrams: readonly WebsiteDiagramRow[]
+      readonly resolve: (choice: WebsiteChoice | null) => void
+    }
   | {
       readonly kind: 'checklist'
       readonly title: string

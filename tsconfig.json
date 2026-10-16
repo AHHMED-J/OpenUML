@@ -17,5 +17,5 @@
     "baseUrl": ".",
     "paths": { "@/*": ["src/renderer/src/*"] }
   },
-  "include": ["src", "electron.vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "electron.vite.config.ts", "vitest.config.ts", "viewer-runtime.plugin.ts"]
 }
