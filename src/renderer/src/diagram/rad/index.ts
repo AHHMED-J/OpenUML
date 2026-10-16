@@ -6,9 +6,16 @@
  * Editor hooks used: `ContainerBehavior` of the role view (`accepts`, `ownerFor` into the role's
  * `elements`, `reparent` moving the model between roles and snapping children back when dropped
  * outside any role), `outerHitAreas` (labels beside symbols), the `radRoleTitle` and `radName`
- * quick-edit syntaxes, and `connectKind` on both edge notations.
+ * quick-edit syntaxes, `connectKind` on both edge notations, the `moveGroup` diagram hook (a
+ * refinement moves with its branches), the `createEdge` hook (a line between two roles is an
+ * interaction), the `deleteViews` hook (deleted elements leave the model unless shown elsewhere)
+ * and a transaction hook (an interaction left without links is an activity again).
  */
-import { isKindOf, type Elem, type View } from '../../model'
+import { isKindOf, listField, type Elem, type View } from '../../model'
+import { registerTransactionHook } from '../../commands'
+import { registerDiagramHooks, type DiagramEnv } from '../editor/actions'
+import { deleteRadViews } from './deletion'
+import { connectRoles, revertUnlinkedInteractions } from './interactions'
 import { registerEdgeNotation, registerNodeNotation, type ContainerBehavior } from '../render/registry'
 import { interactionLinkNotation, stateLineNotation } from './edges'
 import {
@@ -96,7 +103,30 @@ const roleContainer: ContainerBehavior = {
   }
 }
 
+/**
+ * A refinement and its branches (the circle with its alternatives or parallel-path triangles) move
+ * as one group: moving any of them moves the others on the same diagram too.
+ */
+function refinementGroup(env: DiagramEnv, views: readonly View[]): View[] {
+  const repo = env.engine.repository
+  const extra: View[] = []
+  const seen = new Set<Elem>()
+  for (const view of views) {
+    const model = view.model
+    const refinement = !model ? null : isKindOf(model, 'RADRefinement') ? model : isKindOf(model, 'RADBranch') ? (model['refinement'] as Elem | null) : null
+    if (!refinement || seen.has(refinement)) continue
+    seen.add(refinement)
+    const members = [refinement, ...listField(refinement._parent, 'elements').filter((e) => isKindOf(e, 'RADBranch') && e['refinement'] === refinement)]
+    for (const member of members) {
+      for (const v of repo.viewsOf(member)) if (v._parent === env.diagram && !views.includes(v) && !extra.includes(v)) extra.push(v)
+    }
+  }
+  return extra
+}
+
 export function registerRadNotations(): void {
+  registerDiagramHooks('RADDiagram', { moveGroup: refinementGroup, createEdge: connectRoles, deleteViews: deleteRadViews })
+  registerTransactionHook(revertUnlinkedInteractions)
   registerRadQuickEdit()
   registerNodeNotation('RADRoleView', { layout: layoutRole, Render: RoleNode, container: roleContainer })
   registerNodeNotation('RADActivityView', { layout: layoutActivity, Render: ActivityNode })

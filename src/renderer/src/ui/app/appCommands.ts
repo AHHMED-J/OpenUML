@@ -26,6 +26,7 @@ import {
   exportAllDiagrams,
   exportAllDiagramsPdf,
   exportDiagram,
+  exportWebsite,
   newProject,
   openExample,
   openProjectDialog,
@@ -216,6 +217,12 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({ id: Cmd.fileClose, label: 'Close', run: () => closeWindow() })
   add({ id: Cmd.fileExportPng, label: 'Export Diagram as PNG...', run: () => exportDiagram('png'), isEnabled: () => hasDiagram() && bridge !== null })
   add({ id: Cmd.fileExportSvg, label: 'Export Diagram as SVG...', run: () => exportDiagram('svg'), isEnabled: () => hasDiagram() && bridge !== null })
+  add({
+    id: Cmd.fileExportWebsite,
+    label: 'Export Interactive Website...',
+    run: () => exportWebsite(),
+    isEnabled: () => bridge !== null && ps().repository.diagrams().length > 0
+  })
   add({ id: Cmd.fileExportPdf, label: 'Export Diagram as PDF...', run: () => exportDiagram('pdf'), isEnabled: () => hasDiagram() && bridge !== null })
   add({
     id: Cmd.fileExportAllPdf,

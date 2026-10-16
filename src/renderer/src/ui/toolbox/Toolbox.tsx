@@ -6,18 +6,30 @@
 import { useEffect, useState } from 'react'
 import type React from 'react'
 import { activeDiagram, useProjectStore } from '../../store'
+import { platform } from '../app/bridge'
+import { keymap } from '../app/commands'
+import { displayKeystroke } from '../keymap'
+import { Cmd } from '../menus/commandIds'
 import { ToolIcon, UiIcon } from '../icons'
 import { sameTool, uiStore, useUiStore } from '../uiStore'
 import { palettesFor, type PaletteGroup } from './palettes'
 
+/** "Select (Esc / A)", with the keys currently bound to the Select tool. */
+function selectToolTip(): string {
+  const keys = keymap.keystrokesFor(Cmd.toolSelect).map((k) => displayKeystroke(k, platform))
+  return keys.length > 0 ? `Select (${keys.join(' / ')})` : 'Select'
+}
+
 /** Toolbox header action: the Select tool. */
 export function ToolboxActions(): React.JSX.Element {
   const tool = useUiStore((s) => s.tool)
+  // Shown again when the shortcuts change.
+  useUiStore((s) => s.keybindings)
   return (
     <button
       className={`icon-button${tool === null ? ' pressed' : ''}`}
       aria-pressed={tool === null}
-      title="Select (Esc / A)"
+      data-tip={selectToolTip()}
       aria-label="Select tool"
       onClick={() => uiStore.getState().setTool(null)}
     >

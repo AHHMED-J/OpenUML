@@ -18,7 +18,7 @@ export const stateLineNotation: EdgeNotation<RadEdgeData> = {
     const points = routeStateLine(edge, ctx)
     const loop = edge.model?.['loopBack'] === true
     const arrow = loop && edge.model?.['showArrow'] !== false
-    return buildEdgeLayout<RadEdgeData>(edge, ctx, {
+    const laid = buildEdgeLayout<RadEdgeData>(edge, ctx, {
       dash: 'solid',
       tailEnd: { style: 'flat' },
       headEnd: { style: arrow ? 'stickArrow' : 'flat' },
@@ -27,6 +27,8 @@ export const stateLineNotation: EdgeNotation<RadEdgeData> = {
       data: { strokeWidth: loop ? RAD_LINE_WIDTH.loopBack : RAD_LINE_WIDTH.thread },
       ...(points ? { routed: { points, lineStyle: LineStyle.Rectilinear } } : {})
     })
+    // Thread lines carry no text in RAD.
+    return { ...laid, nameless: true }
   },
   Render: StateLineEdge
 }
@@ -36,7 +38,7 @@ export const interactionLinkNotation: EdgeNotation<RadEdgeData> = {
   layout(edge: EdgeView, ctx) {
     const points = routeInteractionLink(edge, ctx)
     const arrow = edge.model?.['showDirection'] === true
-    return buildEdgeLayout<RadEdgeData>(edge, ctx, {
+    const laid = buildEdgeLayout<RadEdgeData>(edge, ctx, {
       dash: 'solid',
       tailEnd: { style: 'flat' },
       headEnd: { style: arrow ? 'stickArrow' : 'flat' },
@@ -45,6 +47,8 @@ export const interactionLinkNotation: EdgeNotation<RadEdgeData> = {
       data: { strokeWidth: RAD_LINE_WIDTH.interaction },
       ...(points ? { routed: { points, lineStyle: LineStyle.Oblique } } : {})
     })
+    // Interaction lines carry no text in RAD.
+    return { ...laid, nameless: true }
   },
   Render: InteractionLinkEdge
 }

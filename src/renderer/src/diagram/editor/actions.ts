@@ -92,6 +92,11 @@ export interface DiagramHooks {
   liveReconnect?: boolean
   /** The view a dragged edge end is dropped on at `p` (default: the node under `p`). */
   pickReconnect?(layout: DiagramLayout, p: Point): string | null
+  /**
+   * Views that move along with `views` (e.g. the circle and branches of a RAD refinement), unless
+   * the move asks to move the views alone (Option/Alt while dragging).
+   */
+  moveGroup?(env: DiagramEnv, views: readonly View[]): View[]
 }
 
 /** A segment dragged as a whole: `y` moves a horizontal segment, `x` a vertical one. */
@@ -354,9 +359,13 @@ export function moveSelection(
   dx: number,
   dy: number,
   drop?: { container: View | null },
-  current?: DiagramLayout
+  current?: DiagramLayout,
+  options: { readonly alone?: boolean } = {}
 ): void {
-  const views = viewsById(env, ids)
+  // Locked views (a locked RAD role) never move.
+  const selected = viewsById(env, ids).filter((v) => v['locked'] !== true)
+  const group = options.alone ? [] : (hooksFor(env.diagram)?.moveGroup?.(env, selected) ?? [])
+  const views = [...selected, ...group.filter((v) => !selected.includes(v))]
   if (views.length === 0) return
   const nodes = views.filter((v) => isKindOf(v, 'NodeView'))
   const recontaining = drop !== undefined && isContainmentChange(nodes, drop.container)
@@ -551,13 +560,19 @@ export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeK
     }
   }
   const ownerTarget = container && kind !== 'InputPin' && kind !== 'OutputPin' ? nodeNotationFor(container).container?.ownerFor?.(container, probe) : null
+  // A thread symbol clicked into place is centered on the click (its thread runs through there).
+  let top = rect.top
+  if (click && spec.centered) {
+    left = rect.left - spec.size[0] / 2
+    top = rect.top - spec.size[1] / 2
+  }
   try {
     const plan = withGeometry(env, `Create ${kind}`, () =>
       createNode(env.engine, {
         kind,
         diagram: env.diagram,
         left,
-        top: rect.top,
+        top,
         ...(click ? {} : { width: rect.width, height: rect.height }),
         ...(covered ? { covered } : {}),
         ...(container ? { container } : {}),

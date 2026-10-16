@@ -329,7 +329,7 @@ function boundaryCode(port: Elem): string | undefined {
 }
 
 /** Where the other end of `arrow` goes, seen from its end of `role` (`from Output 1 of A1`, `from boundary I1`). */
-function otherEndText(arrow: Elem, role: Idef0Role): string {
+export function otherEndText(arrow: Elem, role: Idef0Role): string {
   if (role === 'call') {
     const target = arrowDisplayName(arrow)
     return target ? `calls ${target}` : 'calls no box yet'

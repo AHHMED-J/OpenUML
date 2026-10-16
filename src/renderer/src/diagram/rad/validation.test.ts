@@ -66,9 +66,13 @@ describe('interactions', () => {
     expect(codes(b).filter((c) => c === 'interaction-unlinked')).toHaveLength(2)
     b.link('i', 'j')
     expect(codes(b)).toEqual([])
-    deleteFromModel(b.engine, [b.k('i', 'j').model as Elem])
+    // Removing the link: an interaction with an outside party stays one (and is fine); the other
+    // has nothing to interact with and becomes an activity again.
     setFields(b.engine, b.v('i').model as Elem, { externalParty: 'Customer' })
-    expect(codes(b)).toEqual(['interaction-unlinked'])
+    deleteFromModel(b.engine, [b.k('i', 'j').model as Elem])
+    expect(b.v('i').model?._type).toBe('RADInteraction')
+    expect(b.v('j').model?._type).toBe('RADActivity')
+    expect(codes(b)).toEqual([])
   })
 
   it('reports a link inside one role as blocked (it cannot be created, but a file may contain one)', () => {

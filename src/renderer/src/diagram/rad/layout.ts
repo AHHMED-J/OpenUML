@@ -5,7 +5,7 @@
  * branches. Pure: reads the model and returns layout data.
  */
 import { isKindOf, type EdgeView, type Elem, type NodeView, type View } from '../../model'
-import { unionRects, wrapText, withFontStyle, type Font, type NodeOutline, type Rect } from '../core'
+import { inflateRect, unionRects, wrapText, withFontStyle, type Font, type NodeOutline, type Rect } from '../core'
 import { nameOf, nodeLayout, storedBox, styleOf } from '../layout/helpers'
 import type { EditRegion, LayoutContext, NodeLayout, TextLine, ViewStyle } from '../layout/types'
 import { edgesAt } from '../layout/passIndex'
@@ -100,6 +100,8 @@ export interface RoleData extends Warned {
   readonly titleLines: readonly TextLine[]
   readonly goalLines: readonly TextLine[]
   readonly headerOutside: boolean
+  /** Locked role (Format > Lock Position and Size): where the lock mark sits, after the title. */
+  readonly lock: Rect | null
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -274,8 +276,14 @@ function symbolNode<D>(
       return init.data(box, base)
     }
   })
-  return init.lines.length > 0 ? { ...laid, outerHitAreas: boxesOf(init.lines) } : laid
+  // One rectangle around the symbol, its text and its stub (a wait's arrow) is where it is grabbed.
+  const grab = unionRects([laid.box, ...init.content, ...boxesOf(init.lines)])
+  // Snapped by the center when moved, like it is placed: the thread through it stays straight.
+  return { ...laid, snapCenter: true, ...(grab ? { outerHitAreas: [inflateRect(grab, SYMBOL_GRAB_MARGIN)] } : {}) }
 }
+
+/** Margin of the grab rectangle around a symbol and its text (diagram units). */
+const SYMBOL_GRAB_MARGIN = 4
 
 /** Layout fields shared by symbol views: the symbol box moves with the stored position. */
 function boxAt(view: NodeView, width: number, height: number): Rect {
@@ -602,10 +610,12 @@ export function layoutRole(view: NodeView, ctx: LayoutContext): NodeLayout<RoleD
     width: view.autoResize ? 0 : Math.max(stored.left + stored.width - left, 0),
     height: view.autoResize ? 0 : Math.max(stored.top + stored.height - top, 0)
   } as NodeView
+  const locked = view['locked'] === true
   const laid = nodeLayout(positioned, {
     minWidth: reqRight - left,
     minHeight: reqBottom - top,
-    sizable: 'free',
+    sizable: locked ? 'none' : 'free',
+    movable: !locked,
     zIndex: -1,
     style,
     data: (box) => {
@@ -615,7 +625,9 @@ export function layoutRole(view: NodeView, ctx: LayoutContext): NodeLayout<RoleD
       const startTop = outside ? box.top - g.titleGap - total : box.top + g.titleGap / 2
       const titleLines = blockLeft(ctx, h.title, h.bold, { left: box.left + (outside ? 0 : 12), top: startTop })
       const goalLines = blockLeft(ctx, h.goal, h.italic, { left: box.left + (outside ? 0 : 12), top: startTop + h.title.length * lh })
-      return { radius: g.roleRadius, titleLines, goalLines, headerOutside: outside, ...warned(ctx, model, titleLines, box) }
+      const title = linesBounds(titleLines)
+      const lock = locked ? { left: (title ? title.left + title.width : box.left) + 6, top: (title ? title.top + title.height / 2 : box.top) - 6, width: 9, height: 11 } : null
+      return { radius: g.roleRadius, titleLines, goalLines, headerOutside: outside, lock, ...warned(ctx, model, titleLines, box) }
     },
     regions: (box) => {
       if (!model) return []
@@ -634,7 +646,14 @@ export function layoutRole(view: NodeView, ctx: LayoutContext): NodeLayout<RoleD
     }
   })
   const header = roleHeaderBounds(laid)
-  return { ...laid, derivedPosition: true, ...(header.length > 0 ? { extraBounds: header, outerHitAreas: outside ? header : [] } : {}) }
+  return {
+    ...laid,
+    derivedPosition: true,
+    ...(header.length > 0 ? { extraBounds: header, outerHitAreas: outside ? header : [] } : {}),
+    // A locked role is picked only by its header: presses on its body select what is inside
+    // (or start a rubber band) instead of grabbing the role.
+    ...(locked ? { hitAreas: header } : {})
+  }
 }
 
 /** Header rectangles of a role layout (title and goal), for export bounds and hit testing outside the box. */

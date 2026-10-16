@@ -4,11 +4,14 @@
  * - Copy serializes the selected top-level views (with sub-views). Edges are copied only with
  *   both of their ends; references to views outside the copied set (containers) are dropped.
  *   The payload records the model elements the views show (`outerRefs`).
- * - Paste creates new views (fresh IDs, internal references remapped) that show the *same*
- *   model elements; it is refused when one of them no longer exists. The pasted views are
- *   centered on a target point and become the selection.
- * - Duplicate deep-copies the models of the selected nodes (and the relationships drawn between
- *   them) and creates views for the copies, offset from the originals.
+ * - Copy also records the model elements of the copied nodes (with their owned elements) and the
+ *   relationships drawn between them (`models`).
+ * - Paste creates *new, independent* elements from those copies (same names, fresh IDs) and views
+ *   for them, so editing the pasted elements never changes the originals. The copies go to the
+ *   owners of the originals; it is refused when one of them no longer exists. The pasted views are
+ *   centered on a target point and become the selection. A payload without `models` (written by
+ *   an older version) pastes views of the same elements, as before.
+ * - Duplicate is a paste of the selection, offset from the originals.
  *
  * The payload is JSON text so it can travel through the system clipboard.
  */
@@ -19,6 +22,8 @@ import {
   formatPoints,
   isKindOf,
   isSubtype,
+  listField,
+  nextFreeBoxNumber,
   parsePoints,
   type Diagram,
   type Elem,
@@ -31,11 +36,20 @@ import type { DiagramLayout } from './layout/types'
 
 export const VIEW_CLIPBOARD_FORMAT = 'openuml/views'
 
+/** A copied model element: its JSON (subtree), and where the original is owned. */
+interface ModelCopy {
+  readonly json: JsonObject
+  readonly owner: string
+  readonly field: string
+}
+
 export interface ViewClipboardPayload {
   readonly format: typeof VIEW_CLIPBOARD_FORMAT
   readonly version: 1
   readonly diagramType: string
   readonly views: readonly JsonObject[]
+  /** Models the copied views show, pasted as new elements (absent in older payloads). */
+  readonly models?: readonly ModelCopy[]
   /** IDs of elements outside the copied views that they reference (their models). */
   readonly outerRefs: readonly string[]
   /** Bounds of the copied views when copied (for placement). */
@@ -125,15 +139,17 @@ export function copyViews(repo: Repository, diagram: Diagram, ids: readonly stri
     delete j['_parent']
     return j
   })
-  const inside = collectIds(json)
-  dropOuterViewRefs(json, inside, repo)
+  dropOuterViewRefs(json, collectIds(json), repo)
+  const models = modelCopies(views)
+  const inside = collectIds([...json, ...models.map((m) => m.json)])
   const boxes = layout ? views.map((v) => layout.nodes.get(v._id)?.box).filter((b): b is Rect => b !== undefined) : []
   return {
     format: VIEW_CLIPBOARD_FORMAT,
     version: 1,
     diagramType: diagram._type,
     views: json,
-    outerRefs: outerRefIds(json, inside),
+    models,
+    outerRefs: [...new Set([...outerRefIds(json, inside), ...outerRefIds(models.map((m) => m.json), inside), ...models.map((m) => m.owner).filter((id) => !inside.has(id))])],
     bounds: unionRects(boxes) ?? jsonBounds(json)
   }
 }
@@ -154,7 +170,8 @@ export function parseClipboard(text: string): ViewClipboardPayload | null {
       Array.isArray(value['views']) &&
       value['views'].every(isJsonObject) &&
       Array.isArray(value['outerRefs']) &&
-      value['outerRefs'].every((id) => typeof id === 'string')
+      value['outerRefs'].every((id) => typeof id === 'string') &&
+      (value['models'] === undefined || (Array.isArray(value['models']) && value['models'].every(isModelCopy)))
     ) {
       return value as unknown as ViewClipboardPayload
     }
@@ -162,6 +179,10 @@ export function parseClipboard(text: string): ViewClipboardPayload | null {
     // Not JSON.
   }
   return null
+}
+
+function isModelCopy(value: Json): boolean {
+  return isJsonObject(value) && isJsonObject(value['json']) && typeof value['owner'] === 'string' && typeof value['field'] === 'string'
 }
 
 /** Translates every node box (`left`/`top`) and edge polyline (`points`) in view JSON. */
@@ -212,13 +233,28 @@ export class PasteError extends Error {}
 /** Whether a diagram of type `diagramType` may hold a top-level view of type `viewType`. */
 export type ViewHostPredicate = (diagramType: string, viewType: string) => boolean
 
+export interface PasteOptions {
+  /** Undo label (default "Paste"). */
+  readonly name?: string
+  /** Shift when no `center` is given (default 20, 20). */
+  readonly offset?: Point
+}
+
 /**
- * Pastes views into `diagram` as one operation. `center` is where the pasted bounding box is
- * centered (default: 20 units offset from the copied position). Views copied from another diagram
- * type are pasted only when `canHost` accepts every one of them (without `canHost`, only into the
- * same diagram type). Returns the new top-level view IDs.
+ * Pastes `payload` into `diagram` as one operation: new elements copied from `payload.models`
+ * (inserted where the originals are owned) and new views of them. `center` is where the pasted
+ * bounding box is centered (default: `offset` from the copied position). Views copied from another
+ * diagram type are pasted only when `canHost` accepts every one of them (without `canHost`, only
+ * into the same diagram type). Returns the new top-level view IDs.
  */
-export function pasteViews(engine: ModelEngine, diagram: Diagram, payload: ViewClipboardPayload, center?: Point, canHost?: ViewHostPredicate): string[] {
+export function pasteViews(
+  engine: ModelEngine,
+  diagram: Diagram,
+  payload: ViewClipboardPayload,
+  center?: Point,
+  canHost?: ViewHostPredicate,
+  options: PasteOptions = {}
+): string[] {
   const repo = engine.repository
   const missing = payload.outerRefs.filter((id) => !repo.has(id))
   if (missing.length > 0) throw new PasteError('Some copied elements no longer exist')
@@ -227,15 +263,31 @@ export function pasteViews(engine: ModelEngine, diagram: Diagram, payload: ViewC
     const hostable = (v: JsonObject): boolean => canHost !== undefined && typeof v['_type'] === 'string' && canHost(diagram._type, v['_type'])
     if (!payload.views.every(hostable)) throw new PasteError('The copied views cannot be pasted into this kind of diagram')
   }
+  const models = payload.models ?? []
   // The payload passed `parseClipboard` (parsed with the file guards); `remapTreeIds` copies it.
-  const { roots } = remapTreeIds(payload.views, () => repo.generateId())
+  // Models and views are remapped together, so the new views show the new elements.
+  const { roots, ids: mapping } = remapTreeIds([...models.map((m) => m.json), ...payload.views], () => repo.generateId())
+  const viewRoots = roots.slice(models.length)
   const b = payload.bounds
-  const dx = center && b ? Math.round(center.x - (b.left + b.width / 2)) : 20
-  const dy = center && b ? Math.round(center.y - (b.top + b.height / 2)) : 20
+  const offset = options.offset ?? { x: 20, y: 20 }
+  const dx = center && b ? Math.round(center.x - (b.left + b.width / 2)) : offset.x
+  const dy = center && b ? Math.round(center.y - (b.top + b.height / 2)) : offset.y
   // Keep the pasted views inside the positive quadrant.
-  shiftViewJson(roots, b ? Math.max(dx, -b.left) : dx, b ? Math.max(dy, -b.top) : dy)
-  const views = readAll(repo, roots)
-  engine.transact('Paste', (builder) => {
+  shiftViewJson(viewRoots, b ? Math.max(dx, -b.left) : dx, b ? Math.max(dy, -b.top) : dy)
+  const elements = readAll(repo, roots)
+  const copies = elements.slice(0, models.length)
+  const views = elements.slice(models.length)
+  const byId = new Map(elements.map((e) => [e._id, e]))
+  const ownerOf = (id: string): Elem | undefined => byId.get(mapping.get(id) ?? '') ?? repo.get(id)
+  engine.transact(options.name ?? 'Paste', (builder) => {
+    models.forEach((m, i) => {
+      const owner = ownerOf(m.owner)
+      const copy = copies[i] as Elem
+      if (!owner) throw new PasteError('Some copied elements no longer exist')
+      // A pasted IDEF0 box takes the next free box number on its diagram.
+      if (copy._type === 'IDEF0Function') copy['boxNumber'] = nextFreeBoxNumber(listField(owner, 'functions'))
+      builder.insert(owner, m.field, copy)
+    })
     for (const v of views) builder.insert(diagram, 'ownedViews', v)
   })
   return views.map((v) => v._id)
@@ -248,7 +300,7 @@ function isRelationshipType(type: unknown): boolean {
   return typeof type === 'string' && (isSubtype(type, 'DirectedRelationship') || isSubtype(type, 'UndirectedRelationship'))
 }
 
-/** Removes owned relationships and diagrams from a model subtree JSON (they are not duplicated). */
+/** Removes owned relationships and diagrams from a model subtree JSON (they are not copied). */
 function stripOwned(json: JsonObject): void {
   visitJson(json, (o) => {
     const owned = o['ownedElements']
@@ -266,54 +318,55 @@ function hasAncestorIn(el: Elem, set: ReadonlySet<Elem>): boolean {
 }
 
 /**
- * Duplicates the selected node views' model elements (deep copy with fresh IDs) and relationships
- * drawn between them, plus views of the copies offset by `offset`. One operation; returns the new
- * top-level view IDs.
+ * An IDEF0 box is copied as a plain box: not its decomposition (child boxes, their arrows, the
+ * boundary ports and the child diagram), which belong to the original.
+ */
+function stripDecomposition(json: JsonObject): void {
+  if (json['_type'] !== 'IDEF0Function') return
+  for (const field of ['functions', 'arrows', 'ports', 'childDiagram']) delete json[field]
+}
+
+function copyOf(el: Elem): ModelCopy | null {
+  const c = findContainment(el)
+  if (!c || c.index < 0) return null
+  const json = serializeElement(el)
+  delete json['_parent']
+  return { json, owner: c.owner._id, field: c.field }
+}
+
+/**
+ * The model elements to copy with `views`: the models of the node views (each with its owned
+ * elements, minus owned relationships and diagrams; a model inside another copied one comes with
+ * its owner), then the relationships drawn between them. Diagrams shown as nodes are not copied.
+ */
+function modelCopies(views: readonly View[]): ModelCopy[] {
+  const nodeModels = new Set(
+    views.filter((v) => !isKindOf(v, 'EdgeView')).map((v) => v.model).filter((m): m is Elem => m !== null && !isKindOf(m, 'Diagram'))
+  )
+  const out: ModelCopy[] = []
+  for (const m of nodeModels) {
+    if (hasAncestorIn(m, nodeModels)) continue
+    const copy = copyOf(m)
+    if (!copy) continue
+    stripOwned(copy.json)
+    stripDecomposition(copy.json)
+    out.push(copy)
+  }
+  for (const v of views) {
+    const rel = isKindOf(v, 'EdgeView') ? v.model : null
+    if (!rel || !isRelationshipType(rel._type)) continue
+    const copy = copyOf(rel)
+    if (copy) out.push(copy)
+  }
+  return out
+}
+
+/**
+ * Duplicates the selected views: new elements copied from their models (and the relationships
+ * drawn between them) with views offset by `offset`. One operation; returns the new top-level
+ * view IDs.
  */
 export function duplicateViews(engine: ModelEngine, diagram: Diagram, ids: readonly string[], offset: Point = { x: 20, y: 20 }): string[] {
-  const repo = engine.repository
-  const views = copyableViews(repo, diagram, ids)
-  const nodes = views.filter((v) => !isKindOf(v, 'EdgeView'))
-  const nodeModels = new Set(nodes.map((v) => v.model).filter((m): m is Elem => m !== null))
-  const edges = views.filter((v) => isKindOf(v, 'EdgeView') && v.model && isRelationshipType(v.model._type))
-  const models: Array<{ json: JsonObject; owner: Elem; field: string }> = []
-  for (const m of nodeModels) {
-    // A model nested in another duplicated model is copied with its owner's subtree.
-    if (hasAncestorIn(m, nodeModels)) continue
-    const c = findContainment(m)
-    if (!c || c.index < 0) continue
-    const json = serializeElement(m)
-    delete json['_parent']
-    stripOwned(json)
-    models.push({ json, owner: c.owner, field: c.field })
-  }
-  const relationships: Array<{ json: JsonObject; owner: Elem; field: string }> = []
-  for (const e of edges) {
-    const rel = e.model as Elem
-    const c = findContainment(rel)
-    if (!c || c.index < 0) continue
-    const json = serializeElement(rel)
-    delete json['_parent']
-    relationships.push({ json, owner: c.owner, field: c.field })
-  }
-  const keptEdges = edges.concat(views.filter((v) => isKindOf(v, 'EdgeView') && !v.model))
-  const viewJson = [...nodes, ...keptEdges].map((v) => {
-    const j = serializeElement(v)
-    delete j['_parent']
-    return j
-  })
-  dropOuterViewRefs(viewJson, collectIds(viewJson), repo)
-  shiftViewJson(viewJson, offset.x, offset.y)
-  const all = [...models.map((m) => m.json), ...relationships.map((r) => r.json), ...viewJson]
-  const { roots, ids: mapping } = remapTreeIds(all, () => repo.generateId())
-  const elements = readAll(repo, roots)
-  const modelCount = models.length
-  const relCount = relationships.length
-  const ownerOf = (owner: Elem): Elem => repo.get(mapping.get(owner._id) ?? '') ?? elements.find((e) => e._id === mapping.get(owner._id)) ?? owner
-  engine.transact('Duplicate', (b) => {
-    models.forEach((m, i) => b.insert(m.owner, m.field, elements[i] as Elem))
-    relationships.forEach((r, i) => b.insert(ownerOf(r.owner), r.field, elements[modelCount + i] as Elem))
-    for (const v of elements.slice(modelCount + relCount)) b.insert(diagram, 'ownedViews', v)
-  })
-  return elements.slice(modelCount + relCount).map((v) => v._id)
+  const payload = copyViews(engine.repository, diagram, ids)
+  return payload ? pasteViews(engine, diagram, payload, undefined, () => true, { name: 'Duplicate', offset }) : []
 }

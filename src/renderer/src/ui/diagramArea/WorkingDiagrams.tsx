@@ -53,7 +53,7 @@ export function WorkingDiagrams(): React.JSX.Element {
             <button
               className="icon-button row-close"
               aria-label={`Close ${diagramLabel(d)}`}
-              title="Close"
+              data-tip="Close"
               onClick={(e) => {
                 e.stopPropagation()
                 projectStore.getState().closeDiagram(d._id)

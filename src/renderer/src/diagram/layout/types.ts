@@ -74,6 +74,8 @@ export interface NodeLayout<D = unknown> {
    */
   readonly resizeOutline?: boolean
   readonly movable: boolean
+  /** Snapped to the grid by its center when moved (symbols on a vertical thread, RAD). */
+  readonly snapCenter?: boolean
   /** Outline used to clip edge ends. */
   readonly outline: NodeOutline
   /** Edge attachment override (e.g. the circle of a lollipop interface); default `{ box, outline }`. */
@@ -186,6 +188,8 @@ export interface EdgeLayout<D = unknown> {
   readonly dragAxis?: 'vert'
   /** Edge views drawn as one with this edge (an IDEF0 fork), highlighted with their labels when it is selected. */
   readonly highlightGroup?: readonly string[]
+  /** The notation shows no name on this edge (RAD lines): no name editor opens on it. */
+  readonly nameless?: boolean
   readonly data: D
 }
 

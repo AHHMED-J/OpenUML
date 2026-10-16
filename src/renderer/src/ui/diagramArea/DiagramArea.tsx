@@ -73,6 +73,7 @@ function DiagramTabs(): React.JSX.Element | null {
             <button
               className="icon-button tab-close"
               aria-label={`Close ${diagramLabel(d)}`}
+              data-tip="Close"
               tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation()
