@@ -337,6 +337,11 @@ interface NodeKindSpec {
   readonly size: readonly [number, number]
   /** Insert the view at the start of `ownedViews` so it is drawn behind other views. */
   readonly behind?: boolean
+  /**
+   * A symbol on a vertical thread (RAD): a click places its center, not its corner, so symbols of
+   * different widths line up on one axis.
+   */
+  readonly centered?: boolean
 }
 
 const CLASSIFIER_SIZE = [120, 70] as const

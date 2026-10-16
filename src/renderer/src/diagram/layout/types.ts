@@ -74,6 +74,8 @@ export interface NodeLayout<D = unknown> {
    */
   readonly resizeOutline?: boolean
   readonly movable: boolean
+  /** Snapped to the grid by its center when moved (symbols on a vertical thread, RAD). */
+  readonly snapCenter?: boolean
   /** Outline used to clip edge ends. */
   readonly outline: NodeOutline
   /** Edge attachment override (e.g. the circle of a lollipop interface); default `{ box, outline }`. */

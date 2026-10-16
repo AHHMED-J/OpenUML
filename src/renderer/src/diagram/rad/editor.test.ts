@@ -433,3 +433,24 @@ describe('lines between roles are interactions', () => {
     expect(b.v('a').model?._type).toBe('RADInteraction')
   })
 })
+
+describe('symbols of different widths on one thread', () => {
+  it('are centered on the click, so the state lines between them are straight', () => {
+    const b = new RadBuilder()
+    b.role('r', { left: 0, top: 0, width: 300, height: 500, agent: 'A', name: 'Doing it' })
+    b.done()
+    const ids = (['RADStartMarker', 'RADWait', 'RADActivity', 'RADEndMarker'] as const).map((kind, i) =>
+      createNodeAt(env(b), layout(b), kind, { left: 96, top: 60 + i * 80, width: 0, height: 0 })
+    )
+    const centers = ids.map((id) => {
+      const v = b.repository.get(id as string) as NodeView
+      return v.left + v.width / 2
+    })
+    expect(new Set(centers)).toEqual(new Set([96]))
+    // Auto-thread joined them; every line is vertical.
+    const l = layout(b)
+    const lines = [...l.edges.values()].filter((e) => e.viewType === 'RADStateLineView')
+    expect(lines).toHaveLength(3)
+    for (const line of lines) expect(new Set(line.points.map((p) => Math.round(p.x)))).toEqual(new Set([96]))
+  })
+})

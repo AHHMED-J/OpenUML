@@ -278,7 +278,8 @@ function symbolNode<D>(
   })
   // One rectangle around the symbol, its text and its stub (a wait's arrow) is where it is grabbed.
   const grab = unionRects([laid.box, ...init.content, ...boxesOf(init.lines)])
-  return grab ? { ...laid, outerHitAreas: [inflateRect(grab, SYMBOL_GRAB_MARGIN)] } : laid
+  // Snapped by the center when moved, like it is placed: the thread through it stays straight.
+  return { ...laid, snapCenter: true, ...(grab ? { outerHitAreas: [inflateRect(grab, SYMBOL_GRAB_MARGIN)] } : {}) }
 }
 
 /** Margin of the grab rectangle around a symbol and its text (diagram units). */

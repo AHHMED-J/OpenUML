@@ -560,13 +560,19 @@ export function createNodeAt(env: DiagramEnv, layout: DiagramLayout, kind: NodeK
     }
   }
   const ownerTarget = container && kind !== 'InputPin' && kind !== 'OutputPin' ? nodeNotationFor(container).container?.ownerFor?.(container, probe) : null
+  // A thread symbol clicked into place is centered on the click (its thread runs through there).
+  let top = rect.top
+  if (click && spec.centered) {
+    left = rect.left - spec.size[0] / 2
+    top = rect.top - spec.size[1] / 2
+  }
   try {
     const plan = withGeometry(env, `Create ${kind}`, () =>
       createNode(env.engine, {
         kind,
         diagram: env.diagram,
         left,
-        top: rect.top,
+        top,
         ...(click ? {} : { width: rect.width, height: rect.height }),
         ...(covered ? { covered } : {}),
         ...(container ? { container } : {}),
