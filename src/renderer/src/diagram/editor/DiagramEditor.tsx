@@ -119,6 +119,8 @@ type Gesture =
       axis: 'horz' | 'vert' | null
       /** Option/Alt held: move the selection without the views grouped with it (`moveGroup`). */
       alone: boolean
+      /** The grabbed node snaps by its center (`NodeLayout.snapCenter`). */
+      snapCenter: boolean
     }
   | { type: 'divider'; start: Point; viewId: string; divider: NodeDivider; y: number; moved: boolean }
   | { type: 'edge-shift'; start: Point; edgeId: string; points: Point[]; dy: number; moved: boolean }
@@ -771,7 +773,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           container: null,
           recontain: false,
           axis: moveAxisOf(l, movable.map((v) => v._id)),
-          alone: e.altKey
+          alone: e.altKey,
+          snapCenter: l.nodes.get(hit.viewId)?.snapCenter === true
         }
         return
       }
@@ -826,7 +829,9 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         if (!g.moved && Math.hypot(rawDx, rawDy) * live.current.zoom < DRAG_THRESHOLD) return
         g.moved = true
         const step = snapOn ? gs : 1
-        g.dx = g.axis === 'vert' ? 0 : snapWithDeadZone(g.primary.left, g.primary.left + rawDx, step) - g.primary.left
+        // Thread symbols snap by their center, so symbols of different widths stay on one axis.
+        const anchor = g.snapCenter ? g.primary.left + g.primary.width / 2 : g.primary.left
+        g.dx = g.axis === 'vert' ? 0 : snapWithDeadZone(anchor, anchor + rawDx, step) - anchor
         g.dy = g.axis === 'horz' ? 0 : snapWithDeadZone(g.primary.top, g.primary.top + rawDy, step) - g.primary.top
         const container = findDropContainer(en, l, p, g.nodes)
         g.container = container
