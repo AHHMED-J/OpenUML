@@ -70,14 +70,34 @@ export function registerIdef0Hooks(): void {
   // Renaming an arrow renames its counterparts on the other levels.
   registerRenameHook((b, _repo, el) => syncLinkedNames(b, el))
   // Renaming a box renames the diagram that details it (and the A-0 title with the top function).
+  // A diagram is always titled with its box, so renaming the diagram (Model Explorer, Properties)
+  // renames that box instead; otherwise the new name would be reverted by the next edit.
   registerRenameHook((b, _repo, el) => {
-    if (!isIdef0Function(el)) return
-    const child = el['childDiagram'] as Elem | null
-    if (child) b.set(child, 'name', el['name'])
-    if (isIdef0Function(el) && el._parent && el._parent._type === 'IDEF0Model') {
-      for (const sibling of (el._parent['ownedElements'] as Elem[]) ?? []) {
-        if (sibling._type === 'IDEF0Diagram' && sibling['diagramKind'] === 'context') b.set(sibling, 'name', el['name'])
-      }
-    }
+    if (el._type === 'IDEF0Diagram') {
+      const fn = detailedFunction(el)
+      if (!fn) return
+      if (fn['name'] !== el['name']) b.set(fn, 'name', el['name'])
+      renameTitles(b, fn)
+    } else if (isIdef0Function(el)) renameTitles(b, el)
   })
+}
+
+/** The function a diagram is titled with: the top function for A-0, else the box it details. */
+function detailedFunction(diagram: Elem): Elem | null {
+  const scope = diagram._parent
+  if (!scope) return null
+  if (isContextDiagram(diagram)) return (scope['topFunction'] as Elem | null) ?? null
+  return isIdef0Function(scope) ? scope : null
+}
+
+/** Gives the name of `fn` to the diagram detailing it and, for the top function, to the A-0 diagram. */
+function renameTitles(b: OperationBuilder, fn: Elem): void {
+  const name = fn['name']
+  const child = fn['childDiagram'] as Elem | null
+  if (child && child['name'] !== name) b.set(child, 'name', name)
+  if (fn._parent && fn._parent._type === 'IDEF0Model') {
+    for (const sibling of (fn._parent['ownedElements'] as Elem[]) ?? []) {
+      if (sibling._type === 'IDEF0Diagram' && isContextDiagram(sibling) && sibling['name'] !== name) b.set(sibling, 'name', name)
+    }
+  }
 }
