@@ -188,6 +188,8 @@ export interface EdgeLayout<D = unknown> {
   readonly dragAxis?: 'vert'
   /** Edge views drawn as one with this edge (an IDEF0 fork), highlighted with their labels when it is selected. */
   readonly highlightGroup?: readonly string[]
+  /** The notation shows no name on this edge (RAD lines): no name editor opens on it. */
+  readonly nameless?: boolean
   readonly data: D
 }
 
