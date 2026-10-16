@@ -34,18 +34,39 @@ function roleForSide(side: Idef0Side): Idef0Role | null {
   return ENTER_ROLE[side] ?? null
 }
 
+/** The side of `box` the segment from `a` (outside the box) to `b` (inside) crosses to get in. */
+function crossedSide(box: Rect, a: Point, b: Point): Idef0Side {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  let entry = -Infinity
+  let side: Idef0Side = 'top'
+  // Liang-Barsky: the segment gets in across the boundary line it reaches last.
+  const enter = (p: number, q: number, s: Idef0Side): void => {
+    if (p >= 0) return
+    const t = q / p
+    if (t > entry) {
+      entry = t
+      side = s
+    }
+  }
+  enter(-dx, a.x - box.left, 'left')
+  enter(dx, box.left + box.width - a.x, 'right')
+  enter(-dy, a.y - box.top, 'top')
+  enter(dy, box.top + box.height - a.y, 'bottom')
+  return side
+}
+
 /**
- * The side of `box` that `p` lies straight out from: below the box within its width is `bottom`,
- * above it `top`, beside it within its height `left` or `right`. Null inside the box or diagonally
- * off a corner.
+ * The side of `box` the pointer crossed the last time it came into the box along `path` (press to
+ * release). Null when the path ends outside the box or never was outside it.
  */
-function sideFacing(box: Rect, p: Point): Idef0Side | null {
-  const withinX = p.x >= box.left && p.x <= box.left + box.width
-  const withinY = p.y >= box.top && p.y <= box.top + box.height
-  if (withinX && p.y > box.top + box.height) return 'bottom'
-  if (withinX && p.y < box.top) return 'top'
-  if (withinY && p.x < box.left) return 'left'
-  if (withinY && p.x > box.left + box.width) return 'right'
+function entrySide(box: Rect, path: readonly Point[]): Idef0Side | null {
+  const last = path[path.length - 1]
+  if (!last || !rectContainsPoint(box, last)) return null
+  for (let i = path.length - 2; i >= 0; i--) {
+    const p = path[i] as Point
+    if (!rectContainsPoint(box, p)) return crossedSide(box, p, path[i + 1] as Point)
+  }
   return null
 }
 
@@ -173,7 +194,8 @@ export function createIdef0Edge(
   tailId: string | null,
   headId: string | null,
   press: Point,
-  release: Point
+  release: Point,
+  path: readonly Point[] = [press, release]
 ): string | null {
   const tail = viewOf(env, tailId)
   const head = viewOf(env, headId)
@@ -189,16 +211,17 @@ export function createIdef0Edge(
     return plan.view?._id ?? null
   }
   if (!tail && !head) throw new ModelRuleError(REFUSAL.noBox)
-  // Role from the side a box end is dropped on / started from. A boundary arrow drawn from empty
-  // canvas straight below, above or left of the box comes in from that side (its port goes on that
-  // edge of the frame) wherever it is released over the box: dragging up from below and letting go
-  // near the top of the box still makes a mechanism, not a control.
+  // Role from the side the drag came into the box through (the last time the pointer entered it),
+  // wherever the end is released inside the box: coming down from above makes a control even when
+  // released near the bottom or a corner. An end released just outside the box (it never got in)
+  // takes the side it was released next to; so does a drag that came in through the right side
+  // (outputs), which is refused only when released next to the right side too.
   let role: Idef0Role | undefined
   if (head && head._type === 'IDEF0FunctionView') {
     const box = layout.nodes.get(head._id)?.box
     if (!box) return null
-    const facing = tail ? null : sideFacing(box, press)
-    role = (facing ? roleForSide(facing) : null) ?? roleForSide(nearestSide(box, release)) ?? undefined
+    const entered = entrySide(box, path)
+    role = roleForSide(entered && entered !== 'right' ? entered : nearestSide(box, release)) ?? undefined
     if (!role) throw new ModelRuleError(tail === head ? REFUSAL.selfLoop : REFUSAL.rightSide)
   }
   if (tail && head && !canConnect('IDEF0Arrow', tail, head)) throw new ModelRuleError(arrowRefusal(tail, head))

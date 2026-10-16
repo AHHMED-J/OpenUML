@@ -142,20 +142,48 @@ describe('box numbering', () => {
 describe('arrow gestures', () => {
   const rolesOf = (k: ReturnType<typeof newKit>) => (k.top['arrows'] as Elem[]).map((a) => `${a['role']}:${a['name']}`)
 
-  it('derives the role from the side an arrow is dropped on and refuses the right side', () => {
+  it('derives the role from the side the drag came into the box through and refuses the right side', () => {
     const k = newKit()
     const [b1, b2] = k.boxes(k.child) as [NodeView, NodeView]
     const layout = k.layoutOf(k.child)
-    const box = layout.nodes.get(b2._id)!.box
+    const r = layout.nodes.get(b2._id)!.box
+    const from = { x: b1.left + b1.width / 2, y: b1.top + b1.height / 2 }
+    const [cx, cy, right, bottom] = [r.left + r.width / 2, r.top + r.height / 2, r.left + r.width, r.top + r.height]
     const env = k.envOf(k.child)
     const tool = { kind: 'IDEF0Arrow' }
-    const onLeft = createIdef0Edge(env, layout, tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + 4, y: box.top + box.height / 2 })
-    const onTop = createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + box.width / 2, y: box.top + 4 })
-    const onBottom = createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + box.width / 2, y: box.top + box.height - 4 })
-    expect(() => createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, { x: 0, y: 0 }, { x: box.left + box.width - 4, y: box.top + box.height / 2 })).toThrow(/right side of a box/)
+    const draw = (path: Array<{ x: number; y: number }>) => createIdef0Edge(env, k.layoutOf(k.child), tool, b1._id, b2._id, from, path[path.length - 1]!, [from, ...path])
+    // In through the left side, released in the middle: input.
+    const onLeft = draw([{ x: r.left - 30, y: cy }, { x: r.left + 40, y: cy }])
+    // Down through the top, released near the bottom: control.
+    const onTop = draw([{ x: cx, y: r.top - 30 }, { x: cx, y: bottom - 4 }])
+    // Around and up through the bottom, released near the top: mechanism.
+    const onBottom = draw([{ x: r.left - 30, y: bottom + 30 }, { x: cx, y: bottom + 30 }, { x: cx, y: r.top + 4 }])
+    // In through the right side and released next to it: refused (outputs leave there).
+    expect(() => draw([{ x: right + 30, y: 700 }, { x: right + 30, y: cy }, { x: right - 4, y: cy }])).toThrow(/right side of a box/)
     expect(onLeft && onTop && onBottom).toBeTruthy()
     expect((k.top['arrows'] as Elem[]).map((a) => a['role'])).toEqual(['input', 'control', 'mechanism'])
     expect(k.engine.undoName).toBe('Create Arrow')
+  })
+
+  it('keeps the side the pointer last came in through, near corners and after detours', () => {
+    const k = newKit()
+    const [b1] = k.boxes(k.child) as [NodeView]
+    const r = k.layoutOf(k.child).nodes.get(b1._id)!.box
+    const bottom = r.top + r.height
+    const env = k.envOf(k.child)
+    const tool = { kind: 'IDEF0Arrow' }
+    const draw = (path: Array<{ x: number; y: number }>) =>
+      createIdef0Edge(env, k.layoutOf(k.child), tool, null, b1._id, path[0]!, path[path.length - 1]!, path)
+    // Pressed up-left of the box (not above it), moved right above it, then down into it; released
+    // near the bottom-left corner: control.
+    draw([{ x: r.left - 60, y: r.top - 50 }, { x: r.left + 30, y: r.top - 50 }, { x: r.left + 30, y: r.top + 10 }, { x: r.left + 6, y: bottom - 6 }])
+    // Down into the top right next to the top-left corner, released at the corner: control.
+    draw([{ x: r.left + 3, y: r.top - 40 }, { x: r.left + 3, y: r.top + 2 }])
+    // In through the top, out through the left, back in through the bottom: mechanism.
+    draw([{ x: r.left + 50, y: r.top - 40 }, { x: r.left + 50, y: r.top + 20 }, { x: r.left - 20, y: r.top + 20 }, { x: r.left - 20, y: bottom + 20 }, { x: r.left + 50, y: bottom + 20 }, { x: r.left + 50, y: bottom - 10 }])
+    // Released just above the top without getting in: control (the side it was released next to).
+    draw([{ x: r.left + 70, y: r.top - 60 }, { x: r.left + 70, y: r.top - 4 }])
+    expect((k.top['arrows'] as Elem[]).map((a) => a['role'])).toEqual(['control', 'control', 'mechanism', 'control'])
   })
 
   it('takes the side a boundary arrow comes from, not where it is released, when drawn straight at a box', () => {

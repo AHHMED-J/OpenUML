@@ -114,9 +114,11 @@ describe('creating arrows on crowded box sides', () => {
     const press = emptyOutside(k, box, 'right')
     expect(pickEnd(layout, release, ARROW)).toBe(view._id)
     expect(() => createIdef0Edge(k.envOf(k.child), layout, ARROW, pickEnd(layout, press, ARROW), view._id, press, release)).toThrow(/right side of a box/)
-    // Drawn from the left of the box, the arrow comes in on the left (an input) wherever it is released.
+    // Drawn from the left of the box into it, the arrow comes in on the left (an input) even when
+    // released next to the right side.
     const fromLeft = emptyOutside(k, box, 'left')
-    const id = createIdef0Edge(k.envOf(k.child), layout, ARROW, pickEnd(layout, fromLeft, ARROW), view._id, fromLeft, release)
+    const inside = onSide(box, 'right', release.y, -3)
+    const id = createIdef0Edge(k.envOf(k.child), layout, ARROW, pickEnd(layout, fromLeft, ARROW), view._id, fromLeft, inside)
     expect(((k.repository.get(id as string) as View).model as Elem)['role']).toBe('input')
   })
 
