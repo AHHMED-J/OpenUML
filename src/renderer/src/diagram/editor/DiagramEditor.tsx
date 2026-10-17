@@ -127,7 +127,7 @@ type Gesture =
   | { type: 'resize'; start: Point; id: string; handle: HandlePosition; box: Rect; minWidth: number; minHeight: number; keepRatio: boolean; rect: Rect }
   | { type: 'band'; start: Point; additive: boolean; rect: Rect | null; mode: RubberBandMode }
   | { type: 'create-node'; start: Point; kind: string; rect: Rect }
-  | { type: 'create-edge'; start: Point; tool: ToolSpec; tailId: string; from: Point }
+  | { type: 'create-edge'; start: Point; tool: ToolSpec; tailId: string; from: Point; path: Point[] }
   | { type: 'vertex'; start: Point; edgeId: string; index: number; points: Point[]; end: 'tail' | 'head' | null; moved: boolean }
   | { type: 'segment'; start: Point; edgeId: string; index: number; orientation: SegmentOrientation; base: Point[]; points: Point[]; moved: boolean }
   | { type: 'run'; start: Point; edgeId: string; drag: SegmentDrag; value: number; moved: boolean }
@@ -628,7 +628,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         gesture.current = { type: 'create-node', start, kind: t.kind, rect: { left: start.x, top: start.y, width: 0, height: 0 } }
       } else if (t.freeEnd === 'tail') {
         // Found message: starts on empty canvas, ends on a lifeline.
-        gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p }
+        gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p, path: [p] }
         setPreview({ kind: 'line', from: p, to: p })
       } else {
         const hooks = hooksFor(en.diagram)
@@ -636,7 +636,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: z, nodesOnly: true })
         if (!target && hooks?.freeEnds?.(t)) {
           // Line tools that may start on empty canvas (IDEF0 boundary arrows).
-          gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p }
+          gesture.current = { type: 'create-edge', start: p, tool: t, tailId: '', from: p, path: [p] }
           setPreview({ kind: 'line', from: p, to: p })
         }
         if (target) {
@@ -651,7 +651,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
             }
             return
           }
-          gesture.current = { type: 'create-edge', start: p, tool: t, tailId: target.viewId, from }
+          gesture.current = { type: 'create-edge', start: p, tool: t, tailId: target.viewId, from, path: [p] }
           setPreview({ kind: 'line', from, to: p })
         }
       }
@@ -883,6 +883,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return
       }
       case 'create-edge':
+        g.path.push(p)
         setPreview({ kind: 'line', from: g.from, to: p })
         return
       case 'vertex': {
@@ -987,7 +988,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
         let hooked: string | null | undefined
         try {
-          hooked = hooks?.createEdge?.(en, l, g.tool, g.tailId || null, target?.viewId ?? null, g.start, p)
+          hooked = hooks?.createEdge?.(en, l, g.tool, g.tailId || null, target?.viewId ?? null, g.start, p, [...g.path, p])
         } catch (err) {
           notify(refusalReason(err, `Couldn't create ${withArticle(readableName(toolName(g.tool)))}`))
           return

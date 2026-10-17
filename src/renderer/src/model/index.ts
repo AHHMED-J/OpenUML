@@ -55,6 +55,7 @@ export {
   IDEF0_CONTEXT_BOX,
   IDEF0_PORT_SIZE,
   diagramOfScope,
+  newFunctionName,
   planBoundaryArrow,
   planDecompose,
   planIdef0Arrow,

@@ -77,8 +77,11 @@ export interface DiagramHooks {
   deleteViews?(env: DiagramEnv, views: readonly View[]): View[]
   /** Reconnects an edge end (`at`: where it was released); `undefined` = use the default. */
   reconnect?(env: DiagramEnv, edge: EdgeView, end: 'tail' | 'head', view: View, at: Point | undefined): boolean | undefined
-  /** Creates an edge from a line gesture whose ends may be null (empty canvas); `undefined` = use the default. */
-  createEdge?(env: DiagramEnv, layout: DiagramLayout, tool: ToolSpec, tailId: string | null, headId: string | null, press: Point, release: Point): string | null | undefined
+  /**
+   * Creates an edge from a line gesture whose ends may be null (empty canvas); `undefined` = use the
+   * default. `path` is the pointer trail of the gesture from `press` to `release`.
+   */
+  createEdge?(env: DiagramEnv, layout: DiagramLayout, tool: ToolSpec, tailId: string | null, headId: string | null, press: Point, release: Point, path?: readonly Point[]): string | null | undefined
   /** The view a line gesture picks at `p` as an end (nodes by default); null = none. */
   pickEnd?(layout: DiagramLayout, p: Point, tool: ToolSpec): string | null
   /** Whether the line tool may start on empty canvas. */
