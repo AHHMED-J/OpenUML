@@ -4,32 +4,23 @@
  */
 import { applyPlan, type ModelEngine } from '../../commands'
 import {
-  createElement,
-  drawingAreaOf,
-  diagramOfScope,
   isContextDiagram,
   isIdef0Function,
   planBoundaryArrow,
   planBoxNumberSwap,
   planDecompose,
   planRenumber,
-  rootArrow,
-  roleOf,
-  portBounds,
-  attachedArrows,
-  viewFinder,
   type Diagram,
   type Elem,
-  type Idef0Role,
-  type NodeView,
   type View
 } from '../../model'
 import { syncGeometry, withGeometry, type DiagramEnv } from '../editor/actions'
 import type { TextMeasurer } from '../core'
 import { getTextMeasurer } from '../layout/measurer'
+import { addMissingPorts, missingPorts } from './assignment'
 import { insertedPorts, propagateUp, removeCounterpartsUp } from './propagation'
 
-/** Decomposes `fn` into `count` boxes seeded with its arrows; returns the new child diagram. */
+/** Decomposes `fn` into `count` boxes, its arrows pending on the frame edge; returns the new child diagram. */
 export function decomposeFunction(engine: ModelEngine, fn: Elem, count = 3): Diagram {
   const plan = planDecompose(fn, count)
   engine.transact('Decompose', (b) => {
@@ -40,40 +31,15 @@ export function decomposeFunction(engine: ModelEngine, fn: Elem, count = 3): Dia
 }
 
 /**
- * Adds the boundary ports a child diagram lacks for the untunneled arrows of its parent box
- * (their arrows are not drawn: only ports are added; ports without a parent arrow are left alone).
- * Returns the number of ports added.
+ * Adds the boundary ports a child diagram lacks for the untunneled arrows of its parent box, as
+ * pending arrows (ports without a parent arrow are left alone). Every geometry operation does this
+ * too (`normalize` hook); the command catches up a diagram nothing has edited yet. Returns the
+ * number of ports added.
  */
 export function syncPorts(engine: ModelEngine, diagram: Elem): number {
   const fn = diagram._parent
-  if (!isIdef0Function(fn) || isContextDiagram(diagram)) return 0
-  const parentScope = fn._parent
-  const parentArrows = ((parentScope?.['arrows'] as Elem[] | undefined) ?? []) as Elem[]
-  const find = viewFinder(diagramOfScope(parentScope))
-  const missing: Array<{ role: Idef0Role; arrow: Elem }> = []
-  for (const role of ['input', 'control', 'mechanism', 'output'] as Idef0Role[]) {
-    for (const arrow of attachedArrows(fn, role, parentArrows, (a) => find(a))) {
-      if (roleOf(arrow) === 'call' || (role === 'output' ? arrow['tunnelSource'] : arrow['tunnelTarget'])) continue
-      const ports = (fn['ports'] as Elem[]) ?? []
-      const root = rootArrow(arrow)
-      if (!ports.some((p) => p['corresponds'] === arrow || (p['corresponds'] && rootArrow(p['corresponds'] as Elem) === root))) missing.push({ role, arrow })
-    }
-  }
-  if (missing.length === 0) return 0
-  const counts = new Map<Idef0Role, number>()
-  const area = drawingAreaOf(diagram)
-  engine.transact('Synchronize Boundary Arrows', (b) => {
-    for (const { role, arrow } of missing) {
-      const k = counts.get(role) ?? 0
-      counts.set(role, k + 1)
-      const vertical = role === 'input' || role === 'output'
-      const along = (vertical ? area.top + 90 : area.left + 180) + k * 56
-      const port = createElement('IDEF0Port', { role, corresponds: arrow })
-      b.insert(fn, 'ports', port)
-      b.insert(diagram, 'ownedViews', createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, along, area) }))
-    }
-  })
-  return missing.length
+  if (!isIdef0Function(fn) || isContextDiagram(diagram) || missingPorts(fn).length === 0) return 0
+  return engine.transact('Synchronize Boundary Arrows', (b) => addMissingPorts(b, fn))
 }
 
 /** Renumbers the boxes of a diagram along the staircase regardless of `autoNumber`. Returns the number of changes. */

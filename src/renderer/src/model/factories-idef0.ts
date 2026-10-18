@@ -1,7 +1,8 @@
 /**
  * IDEF0 factories: the model with its A-0 context diagram, decomposition diagrams (child boxes
- * seeded with the parent box's arrows), function boxes, model notes, arrows (ICOM roles, boundary
- * ports, fork/join branches, call arrows) and the connection rules. Called from `factories.ts`.
+ * with a pending boundary port for each arrow of the parent box), function boxes, model notes,
+ * arrows (ICOM roles, boundary ports, fork/join branches, call arrows) and the connection rules.
+ * Called from `factories.ts`.
  */
 import { isKindOf } from './metamodel'
 import { ModelRuleError } from './errors'
@@ -9,17 +10,14 @@ import type { CreationPlan, DiagramPlan, EdgeRequest, Insertion, NodeRequest, Re
 import {
   attachedArrows,
   contextDiagramOf,
-  effectiveArrowName,
   isContextDiagram,
   isIdef0Function,
   modelOf,
   nextFreeBoxNumber,
   ROLE_SIDE,
   roleOf,
-  slotOffsets,
   viewFinder,
-  type Idef0Role,
-  type Idef0Side
+  type Idef0Role
 } from './idef0-numbering'
 import { inheritedTitleBlock } from './idef0-titleblock'
 import { IDEF0_AREA, IDEF0_SHEET, areaOfSheet, sheetSizeOf, type DrawingArea, type SheetSize } from './idef0-sheet'
@@ -152,11 +150,6 @@ export function staircaseBox(index: number, count: number, area: DrawingArea = I
   return { left: FIRST_BOX.left + index * dx, top: FIRST_BOX.top + index * dy, width, height }
 }
 
-interface BoxSlot {
-  fn: Elem
-  view: NodeView
-}
-
 /** Every function of the IDEF0 model `el` lives in: the top function and all the levels below it. */
 function functionsOfModel(el: Elem): Elem[] {
   const out: Elem[] = []
@@ -181,11 +174,12 @@ export function newFunctionName(scope: Elem, pending: readonly Elem[] = []): str
 /**
  * Plans the decomposition of `fn` into `count` boxes. The new diagram is owned by `fn` and set as
  * its `childDiagram`; it takes the author, date and status of the parent diagram and the next
- * sheet number (`inheritedTitleBlock`), and the parent's sheet size (boxes and ports are placed on it). Every arrow attached to `fn` on its own diagram that is not tunneled at the
- * connected end (call arrows excluded) gets a boundary port (ICOM role of the parent attachment,
- * `corresponds` = the parent arrow) and a default-wired arrow labeled with the parent arrow's
- * effective label (an unlabeled branch gives its trunk's): inputs to the first box, controls
- * forked to every box, mechanisms to the first box, outputs from the last box.
+ * sheet number (`inheritedTitleBlock`), and the parent's sheet size (boxes and ports are placed on it).
+ * Every arrow attached to `fn` on its own diagram that is not tunneled at the connected end (call
+ * arrows excluded) gets a boundary port (ICOM role of the parent attachment, `corresponds` = the
+ * parent arrow), spread along the edge of its role in the order of the parent box sides. No arrow
+ * is wired to the boxes: each port waits as a pending arrow until the modeler assigns it
+ * (`assignParentArrow` in `diagram/idef0/assignment.ts`).
  */
 export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   if (!isIdef0Function(fn)) throw new ModelRuleError('Only a function can be decomposed')
@@ -201,69 +195,39 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   const insertions: Insertion[] = []
   const functions: Elem[] = []
   const ports: Elem[] = []
-  const arrows: Elem[] = []
   const add = (view: View): View => {
     view._parent = diagram
     diagram.ownedViews.push(view)
     return view
   }
 
-  const boxes: BoxSlot[] = []
   for (let i = 0; i < n; i++) {
     const child = createElement('IDEF0Function', { name: newFunctionName(fn, functions), boxNumber: i + 1 })
     functions.push(child)
-    boxes.push({ fn: child, view: add(createElement<NodeView>('IDEF0FunctionView', { model: child, ...staircaseBox(i, n, area) })) as NodeView })
+    add(createElement<NodeView>('IDEF0FunctionView', { model: child, ...staircaseBox(i, n, area) }))
   }
 
-  // Parent attachments, in their order along the parent box sides.
+  // Parent attachments, in their order along the parent box sides, spread along the edge of their role.
   const parentScope = fn._parent
   const parentArrows = listField(parentScope, 'arrows')
   const find = viewFinder(diagramOfScope(parentScope))
-  const first = boxes[0] as BoxSlot
-  const last = boxes[boxes.length - 1] as BoxSlot
-  const perSide = new Map<string, number>()
   const attached = (role: Idef0Role): Elem[] =>
-    attachedArrows(fn, role, parentArrows, (a) => find(a)).filter((a) => (role === 'output' ? !a['tunnelSource'] : !a['tunnelTarget']))
-  const takeSlot = (b: BoxSlot, side: Idef0Side, total: number): number => {
-    const key = `${b.fn._id}:${side}`
-    const index = perSide.get(key) ?? 0
-    perSide.set(key, index + 1)
-    const box = boundsOf(b.view)!
-    const length = side === 'left' || side === 'right' ? box.height : box.width
-    const offset = slotOffsets(length, total)[index] ?? length / 2
-    return side === 'left' || side === 'right' ? box.top + offset : box.left + offset
-  }
-  const addPort = (role: Idef0Role, parent: Elem, along: number): View => {
-    const port = createElement('IDEF0Port', { role, corresponds: parent })
-    ports.push(port)
-    return add(createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, along, area) }))
-  }
-  const addArrow = (role: Idef0Role, label: string, source: Elem | null, target: Elem | null, tail: View, head: View): View => {
-    const arrow = createElement('IDEF0Arrow', { name: label, role, source, target })
-    arrows.push(arrow)
-    return add(arrowView(arrow, tail, head))
-  }
-
-  for (const role of ['input', 'control', 'mechanism'] as Idef0Role[]) {
-    const parents = attached(role).filter((a) => roleOf(a) !== 'call')
-    for (const parent of parents) {
-      const along = takeSlot(first, ROLE_SIDE[role], parents.length)
-      const portView = addPort(role, parent, along)
-      const trunk = addArrow(role, effectiveArrowName(parent), portView.model, first.fn, portView, first.view)
-      if (role === 'control') {
-        for (const box of boxes.slice(1)) addArrow('control', '', trunk.model, box.fn, trunk, box.view)
-      }
-    }
-  }
-  const outputs = attached('output')
-  for (const parent of outputs) {
-    const portView = addPort('output', parent, takeSlot(last, 'right', outputs.length))
-    addArrow('output', effectiveArrowName(parent), last.fn, portView.model, last.view, portView)
+    attachedArrows(fn, role, parentArrows, (a) => find(a)).filter((a) => roleOf(a) !== 'call' && (role === 'output' ? !a['tunnelSource'] : !a['tunnelTarget']))
+  for (const role of ['input', 'control', 'mechanism', 'output'] as Idef0Role[]) {
+    const parents = attached(role)
+    const vertical = ROLE_SIDE[role] === 'left' || ROLE_SIDE[role] === 'right'
+    const lo = (vertical ? area.top : area.left) + 32
+    const hi = (vertical ? area.bottom : area.right) - 32
+    parents.forEach((parent, i) => {
+      const along = Math.round((lo + ((i + 1) * (hi - lo)) / (parents.length + 1)) / 8) * 8
+      const port = createElement('IDEF0Port', { role, corresponds: parent })
+      ports.push(port)
+      add(createElement<NodeView>('IDEF0PortView', { model: port, ...portBounds(role, along, area) }))
+    })
   }
 
   for (const child of functions) insertions.push({ owner: fn, field: 'functions', element: child })
   for (const port of ports) insertions.push({ owner: fn, field: 'ports', element: port })
-  for (const arrow of arrows) insertions.push({ owner: fn, field: 'arrows', element: arrow })
   insertions.push({ owner: fn, field: 'ownedElements', element: diagram })
   return {
     diagram,

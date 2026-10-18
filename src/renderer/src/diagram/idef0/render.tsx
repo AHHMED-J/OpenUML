@@ -4,7 +4,7 @@ import { edgeEndShapes, fmt, polylinePath, roundedPolylinePath } from '../core'
 import type { EdgeLayout, NodeLayout } from '../layout/types'
 import { EdgeLabel, EndDecorations, SvgLines, SvgText } from '../render/primitives'
 import type { ArrowData } from './edges'
-import type { FrameData, FunctionData, NoteData, PortData } from './layout'
+import { PENDING_HANDLE, type FrameData, type FunctionData, type NoteData, type PortData } from './layout'
 import { IDEF0_STYLE } from './geometry'
 
 /** Color of a boundary port that stands for no parent arrow. */
@@ -33,10 +33,19 @@ export function FunctionNode({ layout }: { layout: NodeLayout<FunctionData> }): 
 export function PortNode({ layout }: { layout: NodeLayout<PortData> }): React.JSX.Element {
   const { style, data } = layout
   const color = data.unlinked ? UNLINKED_COLOR : style.lineColor
+  const stub = data.pending
   return (
     <g>
-      <rect x={fmt(data.anchor.x - 2)} y={fmt(data.anchor.y - 2)} width={4} height={4} fill={color} stroke="none" />
-      {data.codeLine && <SvgText line={data.codeLine} color={style.fontColor} />}
+      {stub && (
+        // A pending arrow: dashed stub from the frame edge, round handle at its free end, parent arrow name beside it.
+        <g className="idef0-pending">
+          <line x1={fmt(data.anchor.x)} y1={fmt(data.anchor.y)} x2={fmt(stub.handle.x)} y2={fmt(stub.handle.y)} stroke={stub.color} strokeWidth={IDEF0_STYLE.arrowLine} strokeDasharray="5 3" />
+          <circle cx={fmt(stub.handle.x)} cy={fmt(stub.handle.y)} r={PENDING_HANDLE} fill="#ffffff" stroke={stub.color} strokeWidth={1.5} />
+          {stub.label && <SvgText line={stub.label} color={stub.color} />}
+        </g>
+      )}
+      <rect x={fmt(data.anchor.x - 2)} y={fmt(data.anchor.y - 2)} width={4} height={4} fill={stub ? stub.color : color} stroke="none" />
+      {data.codeLine && <SvgText line={data.codeLine} color={stub ? stub.color : style.fontColor} />}
     </g>
   )
 }

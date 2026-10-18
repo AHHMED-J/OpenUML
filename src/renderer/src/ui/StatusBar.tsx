@@ -5,7 +5,7 @@ import { typeDisplayName, type Elem } from '../model'
 import { useProjectStore } from '../store'
 import { selectInExplorer } from './app/appCommands'
 import { runCommand } from './app/commands'
-import { idef0WarningCount } from './app/idef0'
+import { idef0PendingCount, idef0WarningCount } from './app/idef0'
 import { offerUpdate } from './app/updates'
 import { explorerLabel, pathTo } from './explorer/tree'
 import { TypeIcon } from './icons'
@@ -21,6 +21,8 @@ export function StatusBar(): React.JSX.Element {
   const tool = useUiStore((s) => s.tool)
   // IDEF0 consistency warnings of the active diagram (recomputed on every model change).
   const warnings = useProjectStore((s) => (s.version >= 0 ? idef0WarningCount() : 0))
+  // Parent arrows no box of the active IDEF0 diagram uses yet (dashed stubs on the frame edge).
+  const pending = useProjectStore((s) => (s.version >= 0 ? idef0PendingCount() : 0))
   const locked = useUiStore((s) => s.toolLocked)
   const update = useUiStore((s) => s.update)
   const single = models.length === 1 ? (models[0] as Elem) : null
@@ -57,6 +59,15 @@ export function StatusBar(): React.JSX.Element {
           onClick={() => void offerUpdate()}
         >
           Update {update.version}
+        </button>
+      ) : null}
+      {pending > 0 ? (
+        <button
+          className="status-item status-button status-pending"
+          title="Parent arrows waiting on the frame edge: connect each to a box (click to list them)"
+          onClick={() => runCommand(Idef0CommandIds.validate)}
+        >
+          {pending} parent arrow{pending === 1 ? '' : 's'} not connected
         </button>
       ) : null}
       {warnings > 0 ? (

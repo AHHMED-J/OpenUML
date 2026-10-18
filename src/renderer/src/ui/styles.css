@@ -975,6 +975,12 @@ textarea:focus {
   font-weight: 600;
 }
 
+/* IDEF0 parent arrows still pending on the active diagram: amber, like an unconnected stub. */
+.status-pending {
+  color: var(--role-control);
+  font-weight: 600;
+}
+
 /* ---------------------------------------------------------------- menus */
 
 .menu {
