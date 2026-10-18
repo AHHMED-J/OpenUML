@@ -31,6 +31,9 @@ for which file to pick.
   snap to the right side, forks and joins, call and tunneled arrows, the A-0 context diagram, *Decompose* into
   child diagrams with Go to Parent/Child, *Set Number of Child Boxes* (add boxes, or choose which boxes to remove
   with their arrows and sub-diagrams; one undo step), the title block, and consistency warnings with a status-bar count.
+  Decomposing no longer wires the parent's arrows to the child boxes: each one waits on the frame edge as a dashed
+  *pending arrow* (role color, ICOM code and name) until you drag it onto the side of a box that matches its role;
+  dragging it to more boxes makes a fork (a join for outputs), and the status bar counts the arrows still pending.
 - **Editing** – live preview while moving, resizing and drawing, animated zoom, grid and snap-to-grid, inline
   name editing and quick-edit syntax (e.g. `-total : Money [0..1] = 0`, `trigger [guard] / effect`), copy,
   paste and duplicate (pasted elements are new, independent copies with the same names), alignment commands.
