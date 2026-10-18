@@ -4,9 +4,8 @@ import { renderDiagramSvg } from '../../export/svg'
 import type { Diagram, Elem, View } from '../../model'
 import { arrowFlow, colorIdef0Arrows, isFlowColorEdit } from './colorFlow'
 import { IDEF0_ROLE_COLORS } from './colors'
-import { decomposeFunction } from './decompose'
 import type { ArrowData } from './edges'
-import { edgeLayoutOf, exampleKit, measurer, type IdefKit } from './testkit'
+import { decomposeWired, edgeLayoutOf, exampleKit, measurer, type IdefKit } from './testkit'
 
 const RED = '#d1242f'
 const BLUE = '#0969da'
@@ -74,7 +73,7 @@ describe('IDEF0 arrow colors', () => {
 
   it('colors the child boundary arrows standing for a colored parent arrow', () => {
     const { k } = salesPolicy()
-    const child = decomposeFunction(k.engine, k.example.a3, 3) as Diagram
+    const child = decomposeWired(k, k.example.a3, 3) as Diagram
     const parent = named(k.top, 'Shipped Order')
     colorIdef0Arrows(k.engine, [viewOf(k, parent)], 'lineColor', RED)
     const onChild = named(k.example.a3, 'Shipped Order')

@@ -161,6 +161,7 @@ export {
   isFlowColorEdit,
   deleteIdef0Elements,
   issueItems,
+  pendingPorts,
   registerIdef0Commands,
   setBoxNumber,
   validateDiagram,

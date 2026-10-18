@@ -1,5 +1,5 @@
 /** Shell side of the IDEF0 commands: the box-count prompt, result lists and opening diagrams. */
-import { registerIdef0Commands, validateDiagram, type Idef0CommandContext } from '../../diagram'
+import { pendingPorts, registerIdef0Commands, validateDiagram, type Idef0CommandContext } from '../../diagram'
 import type { CommandRegistry } from '../../commands'
 import { activeDiagram, projectStore } from '../../store'
 import { chooseRows, uiStore } from '../uiStore'
@@ -52,6 +52,12 @@ export const idef0Context: Idef0CommandContext = {
 
 export function registerIdef0(registry: CommandRegistry): void {
   registerIdef0Commands(registry, idef0Context)
+}
+
+/** Number of parent arrows waiting unconnected on the active IDEF0 diagram (0 elsewhere). */
+export function idef0PendingCount(): number {
+  const diagram = activeDiagram(ps())
+  return diagram && diagram._type === 'IDEF0Diagram' ? pendingPorts(diagram).length : 0
 }
 
 /** Number of IDEF0 warnings of the model shown by the active diagram (0 elsewhere). */

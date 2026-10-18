@@ -246,7 +246,7 @@ describe('IDEF0 boundary arrows', () => {
 })
 
 describe('IDEF0 decomposition seeding', () => {
-  it('seeds ports and default wiring from the parent arrows and sets childDiagram', () => {
+  it('seeds a port per parent arrow, wires none of them, and sets childDiagram', () => {
     const ex = buildOrderExample()
     const repo = new Repository(ex.project)
     const engine = new ModelEngine(repo)
@@ -261,9 +261,8 @@ describe('IDEF0 decomposition seeding', () => {
     const corresponds = list(ex.a2, 'ports').map((p) => (p['corresponds'] as Elem)['name'])
     expect(corresponds).toEqual(['Validated Order', '', 'Approved Order'])
     expect(list(ex.a2, 'functions').map((f) => nodeNumber(f))).toEqual(['A21', 'A22', 'A23'])
-    // Control is forked to the controls of the other boxes.
-    const arrows = list(ex.a2, 'arrows')
-    expect(arrows.filter((a) => a['role'] === 'control')).toHaveLength(3)
+    // The modeler decides which boxes use each parent arrow: none is wired yet.
+    expect(list(ex.a2, 'arrows')).toHaveLength(0)
     expect(validateModel(ex.project)).toEqual([])
     engine.undo()
     expect(ex.a2['childDiagram']).toBeNull()
