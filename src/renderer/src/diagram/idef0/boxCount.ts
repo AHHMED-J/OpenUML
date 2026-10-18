@@ -14,7 +14,7 @@ import {
   functionViewsOf,
   isContextDiagram,
   isKindOf,
-  nextName,
+  newFunctionName,
   planCloseGaps,
   scopeOf,
   staircaseBox,
@@ -109,7 +109,7 @@ export function addChildBoxes(env: DiagramEnv, count: number): Elem[] {
     const added: Elem[] = []
     const siblings = [...((scope['functions'] as Elem[] | undefined) ?? [])]
     for (let i = old; i < total; i++) {
-      const fn = createElement('IDEF0Function', { name: nextName(siblings, 'New Function '), boxNumber: i + 1 })
+      const fn = createElement('IDEF0Function', { name: newFunctionName(scope, siblings), boxNumber: i + 1 })
       siblings.push(fn)
       added.push(fn)
       b.insert(scope, 'functions', fn)

@@ -101,6 +101,26 @@ describe('upward propagation of boundary arrows', () => {
     expect(parentPorts.map((p) => (p['corresponds'] as Elem | null)?._parent)).toEqual([k.model, k.model, k.model, k.model])
   })
 
+  it('keeps a mechanism drawn up from below a box a mechanism on every level, wherever it is released (regression)', () => {
+    const k = newKit()
+    const a2 = boxesOf(k, k.child)[1]!.model as Elem
+    const a2Diagram = decomposeFunction(k.engine, a2, 3)
+    const a21 = boxesOf(k, a2Diagram)[0]!
+    const box = k.layoutOf(a2Diagram as Diagram).nodes.get(a21._id)!.box
+    const x = box.left + 40
+    // Pressed below A21 near the bottom edge of the sheet, released in the upper part of the box.
+    const id = createIdef0Edge(k.envOf(a2Diagram), k.layoutOf(a2Diagram), { kind: 'IDEF0Arrow' }, null, a21._id, { x, y: 690 }, { x, y: box.top + 10 })
+    const arrow = modelOfView(k, id)
+    expect(arrow['role']).toBe('mechanism')
+    // A2's port on the bottom edge stands for a mechanism of A2 on A0, whose port stands for a mechanism of A0 on A-0.
+    const onA0 = (arrow['source'] as Elem)['corresponds'] as Elem
+    expect([onA0['role'], onA0['target']]).toEqual(['mechanism', a2])
+    const onContext = (onA0['source'] as Elem)['corresponds'] as Elem
+    expect([onContext['role'], onContext['target']]).toEqual(['mechanism', k.top])
+    for (const port of [arrow['source'], onA0['source'], onContext['source']] as Elem[]) expect(port['role']).toBe('mechanism')
+    expect(validateIdef0(k.model).filter((i) => i.id === 'W08')).toHaveLength(0)
+  })
+
   it('names the parent arrows after a named boundary arrow', () => {
     const k = newKit()
     const [b1] = boxesOf(k, k.child) as [NodeView]

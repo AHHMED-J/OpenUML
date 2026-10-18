@@ -12,6 +12,7 @@ import {
   effectiveArrowName,
   isContextDiagram,
   isIdef0Function,
+  modelOf,
   nextFreeBoxNumber,
   ROLE_SIDE,
   roleOf,
@@ -156,6 +157,27 @@ interface BoxSlot {
   view: NodeView
 }
 
+/** Every function of the IDEF0 model `el` lives in: the top function and all the levels below it. */
+function functionsOfModel(el: Elem): Elem[] {
+  const out: Elem[] = []
+  const queue = [...listField(modelOf(el), 'ownedElements').filter(isIdef0Function)]
+  while (queue.length > 0) {
+    const fn = queue.shift() as Elem
+    out.push(fn)
+    queue.push(...listField(fn, 'functions'))
+  }
+  return out
+}
+
+/**
+ * Default name of a new box of `scope`: "New Function N" with N free in the whole IDEF0 model, so
+ * the boxes of a child diagram never repeat the names of the boxes above them (A21 is not "New
+ * Function 1" again when A1 still is). `pending` holds boxes planned in the same operation.
+ */
+export function newFunctionName(scope: Elem, pending: readonly Elem[] = []): string {
+  return nextName([...functionsOfModel(scope), ...listField(scope, 'functions'), ...pending], 'New Function ')
+}
+
 /**
  * Plans the decomposition of `fn` into `count` boxes. The new diagram is owned by `fn` and set as
  * its `childDiagram`; it takes the author, date and status of the parent diagram and the next
@@ -187,9 +209,8 @@ export function planDecompose(fn: Elem, count = 3, name?: string): DiagramPlan {
   }
 
   const boxes: BoxSlot[] = []
-  const existing = listField(fn, 'functions')
   for (let i = 0; i < n; i++) {
-    const child = createElement('IDEF0Function', { name: nextName([...existing, ...functions], 'New Function '), boxNumber: i + 1 })
+    const child = createElement('IDEF0Function', { name: newFunctionName(fn, functions), boxNumber: i + 1 })
     functions.push(child)
     boxes.push({ fn: child, view: add(createElement<NodeView>('IDEF0FunctionView', { model: child, ...staircaseBox(i, n, area) })) as NodeView })
   }
@@ -280,7 +301,7 @@ export function planIdef0Node(req: NodeRequest): CreationPlan {
     requireDecomposition(req.diagram)
     const siblings = listField(scope, 'functions')
     const boxNumber = nextFreeBoxNumber(siblings)
-    model = createElement('IDEF0Function', { name: req.name ?? nextName(siblings, 'New Function '), boxNumber })
+    model = createElement('IDEF0Function', { name: req.name ?? newFunctionName(scope), boxNumber })
     insertions.push({ owner: scope, field: 'functions', element: model })
     view = createElement<NodeView>('IDEF0FunctionView', { model, ...bounds, width: Math.max(IDEF0_BOX.minWidth, bounds.width), height: Math.max(IDEF0_BOX.minHeight, bounds.height) })
   } else {
