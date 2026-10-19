@@ -956,7 +956,8 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'move': {
         if (!g.moved) {
           if (g.reselect) setSelection([g.clickedId])
-          hooksFor(en.diagram)?.clickView?.(en, l, g.clickedId, p)
+          // A Shift or Cmd/Ctrl click only changes the selection.
+          if (!e.shiftKey && !e.metaKey && !e.ctrlKey) hooksFor(en.diagram)?.clickView?.(en, l, g.clickedId, p)
           return
         }
         // Dropped inside a container that does not take these views: they stay where they belong.
