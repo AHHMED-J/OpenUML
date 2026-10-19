@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { writeMdj } from '../../format'
 import { functionViewsOf, type Elem, type View } from '../../model'
+import { duplicateViews } from '../clipboard'
 import { assignParentArrow } from './assignment'
 import { addBoundaryArrow, toggleTunnel } from './decompose'
 import { pendingPorts } from './pending'
@@ -50,5 +51,23 @@ describe('a parent arrow tunneled at the decomposed box', () => {
     toggleTunnel(k.engine, k.parent('output'), 'source', measurer)
     expect(linkedPorts(k, 'output')).toHaveLength(1)
     expect(pendingPorts(k.child).map((p) => p['role'])).not.toContain('output')
+  })
+})
+
+describe('copying parent arrows on a child diagram', () => {
+  it('never duplicates the pending arrow of a parent arrow', () => {
+    const k = parentArrows()
+    const view = k.child.ownedViews.find((v) => v.model === k.port('control')) as View
+    expect(duplicateViews(k.engine, k.child, [view._id])).toEqual([])
+    expect(linkedPorts(k, 'control')).toHaveLength(1)
+  })
+
+  it('duplicates a box without the boundary arrow of the parent arrow it uses', () => {
+    const k = parentArrows()
+    assignParentArrow(k.envOf(k.child), k.port('input'), [k.box(1)])
+    const ids = k.child.ownedViews.filter((v) => v.model === k.box(1) || v.model === k.port('input') || v._type === 'IDEF0ArrowView').map((v) => v._id)
+    expect(duplicateViews(k.engine, k.child, ids)).toHaveLength(1)
+    expect(linkedPorts(k, 'input')).toHaveLength(1)
+    expect(w19(k)).toHaveLength(3)
   })
 })
