@@ -4,7 +4,7 @@
  * arrow reaches that box; toggling a cell applies at once through `assignParentArrow` (one undo
  * step per toggle). This module builds the matrix the panel shows; the panel lives in the shell.
  */
-import { isContextDiagram, isIdef0Function, listField, type Elem, type Idef0Role } from '../../model'
+import { icomCodes, isContextDiagram, isIdef0Function, listField, type Elem, type Idef0Role } from '../../model'
 import { portAssignment } from './assignment'
 import { arrowHeader, assignResult, boxChoices } from './assignPopover'
 
@@ -44,10 +44,11 @@ export function arrowMatrix(diagram: Elem): ArrowMatrix | null {
   if (!hasParentArrows(diagram)) return null
   const boxes = boxChoices(diagram)
   const rows: ArrowRow[] = []
+  const codes = icomCodes(diagram)
   for (const port of listField(diagram._parent, 'ports')) {
     const assignment = portAssignment(port)
     if (!assignment) continue
-    const header = arrowHeader(diagram, port)
+    const header = arrowHeader(diagram, port, codes)
     rows.push({
       port,
       code: header.code,

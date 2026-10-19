@@ -196,26 +196,33 @@ function detach(b: OperationBuilder, env: DiagramEnv, port: Elem, arrow: Elem): 
   return [arrow, ...cascadeDown([arrow])]
 }
 
-/** Adds the arrow from the port's tree to `box`: the trunk when the tree is empty, else a branch of the trunk. */
-function attach(b: OperationBuilder, env: DiagramEnv, port: Elem, box: Elem): void {
+/**
+ * Adds the arrows from the port's tree to `boxes`: the trunk when the tree is empty, then branches
+ * of the trunk. Ports running straight into these sides stay straight as the sides make room for
+ * the new arrows, and a pending port moves to where its first arrow meets its box: the straight
+ * ports are measured once before and aligned once after (two layouts, whatever the box count).
+ */
+function attach(b: OperationBuilder, env: DiagramEnv, port: Elem, boxes: readonly Elem[]): void {
+  if (boxes.length === 0) return
   const role = roleOf(port)
   const portView = viewOn(env, port, 'IDEF0PortView')
-  const boxView = viewOn(env, box, 'IDEF0FunctionView')
-  if (!portView || !boxView) throw new ModelRuleError('The box and the boundary arrow must be drawn on this diagram')
-  const trunk = treeOf(port)[0] ?? null
-  const trunkView = trunk ? viewOn(env, trunk, 'IDEF0ArrowView') : null
-  const near = trunk && trunkView ? trunkView : portView
-  const name = trunk ? '' : effectiveArrowName(port['corresponds'] as Elem)
-  const plan =
-    role === 'output'
-      ? planIdef0Arrow({ diagram: env.diagram, role: 'output', tail: boxView, head: near, name })
-      : planIdef0Arrow({ diagram: env.diagram, role, tail: near, head: boxView, name })
-  // Ports running straight into this side of the box stay straight as the side makes room for
-  // the new arrow; a pending port moves to where its first arrow meets the box.
-  const straight = straightPorts(env, box, role)
-  applyPlan(b, plan)
-  if (!trunk) straight.push(port)
-  alignPorts(b, env, straight)
+  const boxViews = boxes.map((box) => viewOn(env, box, 'IDEF0FunctionView'))
+  if (!portView || boxViews.some((v) => !v)) throw new ModelRuleError('The box and the boundary arrow must be drawn on this diagram')
+  const layout = layoutOf(env)
+  const straight = new Set(boxes.flatMap((box) => straightPorts(env, layout, box, role)))
+  if (treeOf(port).length === 0) straight.add(port)
+  for (const boxView of boxViews as View[]) {
+    const trunk = treeOf(port)[0] ?? null
+    const trunkView = trunk ? viewOn(env, trunk, 'IDEF0ArrowView') : null
+    const near = trunk && trunkView ? trunkView : portView
+    const name = trunk ? '' : effectiveArrowName(port['corresponds'] as Elem)
+    const plan =
+      role === 'output'
+        ? planIdef0Arrow({ diagram: env.diagram, role: 'output', tail: boxView, head: near, name })
+        : planIdef0Arrow({ diagram: env.diagram, role, tail: near, head: boxView, name })
+    applyPlan(b, plan)
+  }
+  alignPorts(b, env, [...straight])
 }
 
 /** The arrow of `port`'s tree that leaves the port (its trunk) and its points in `layout`. */
@@ -237,9 +244,8 @@ function isVertical(role: Idef0Role): boolean {
   return role === 'input' || role === 'output'
 }
 
-/** The linked ports of `role` whose trunk runs straight from the frame edge into `box`. */
-function straightPorts(env: DiagramEnv, box: Elem, role: Idef0Role): Elem[] {
-  const layout = layoutOf(env)
+/** The linked ports of `role` whose trunk runs straight from the frame edge into `box` in `layout`. */
+function straightPorts(env: DiagramEnv, layout: DiagramLayout, box: Elem, role: Idef0Role): Elem[] {
   const far = farField(role)
   return listField(box._parent, 'ports').filter((p) => {
     if (!isLinkedPort(p) || roleOf(p) !== role) return false
@@ -287,7 +293,8 @@ export function assignParentArrow(env: DiagramEnv, port: Elem, boxes: readonly E
   if (removed.length === 0 && added.length === 0) return false
   withGeometry(env, 'Assign Parent Arrow', (b) => {
     // The other straight trunks into the sides losing an arrow follow their new slots.
-    const straight = [...new Set(removed.flatMap((fn) => straightPorts(env, fn, current.role)))].filter((p) => p !== port)
+    const layout = removed.length > 0 ? layoutOf(env) : null
+    const straight = layout ? [...new Set(removed.flatMap((fn) => straightPorts(env, layout, fn, current.role)))].filter((p) => p !== port) : []
     const doomed: Elem[] = []
     for (const fn of removed) {
       const arrow = arrowToBox(port, fn)
@@ -299,7 +306,7 @@ export function assignParentArrow(env: DiagramEnv, port: Elem, boxes: readonly E
       syncLevels(b, env, levels)
       alignPorts(b, env, straight.filter((p) => env.engine.repository.contains(p)))
     }
-    for (const fn of added) attach(b, env, port, fn)
+    attach(b, env, port, added)
   })
   return true
 }
