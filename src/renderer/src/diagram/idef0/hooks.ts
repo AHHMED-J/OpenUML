@@ -4,7 +4,7 @@ import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, ty
 import { registerDiagramHooks, type DiagramEnv, type SegmentDrag, type ToolSpec } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { registerRenameHook } from '../editor/quickEditApply'
-import { addMissingPorts, spreadPendingPorts } from './assignment'
+import { addMissingPorts, dropTunneledPorts, spreadPendingPorts } from './assignment'
 import { AssignGhost, AssignPopover } from './assignOverlay'
 import { openAssignPopover } from './assignPopover'
 import { deleteIdef0Views } from './deletion'
@@ -29,7 +29,8 @@ function titleOf(diagram: Elem): string | null {
  * they are (moving a box never renumbers) unless the diagram opted into `autoNumber`, which makes
  * them follow the staircase. A resized sheet takes its output and mechanism ports along. Every
  * parent arrow has its pending port on the child diagram: the diagram's own (from its parent box)
- * and those of the decomposed boxes drawn on it, so an arrow added to a box shows up below it.
+ * and those of the decomposed boxes drawn on it, so an arrow added to a box shows up below it
+ * (and a pending one whose parent arrow got tunneled at the box goes away).
  * A pending arrow never sits on another boundary arrow: it moves to the nearest free spot.
  */
 function normalizeIdef0(b: OperationBuilder, env: DiagramEnv): void {
@@ -39,8 +40,10 @@ function normalizeIdef0(b: OperationBuilder, env: DiagramEnv): void {
   }
   syncTitles(b, diagram)
   normalizeSheet(b, diagram)
-  if (!isContextDiagram(diagram) && isIdef0Function(diagram._parent)) addMissingPorts(b, diagram._parent)
-  for (const fn of functionsOfDiagram(diagram)) addMissingPorts(b, fn)
+  for (const fn of [...(!isContextDiagram(diagram) && isIdef0Function(diagram._parent) ? [diagram._parent] : []), ...functionsOfDiagram(diagram)]) {
+    dropTunneledPorts(env.engine, fn)
+    addMissingPorts(b, fn)
+  }
   spreadPendingPorts(b, env)
 }
 

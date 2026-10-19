@@ -17,7 +17,7 @@
  * The parent level is never touched. A box that is unassigned and has its own child diagram loses
  * the boundary arrows standing for the flow there (`assignmentLosses` lists them for a warning).
  */
-import { applyPlan, deleteFromModel, type OperationBuilder } from '../../commands'
+import { applyPlan, deleteFromModel, type ModelEngine, type OperationBuilder } from '../../commands'
 import {
   ModelRuleError,
   attachedArrows,
@@ -43,7 +43,7 @@ import type { Point, Rect } from '../core'
 import { layoutOf, withGeometry, type DiagramEnv } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { PENDING_HANDLE, type PortData } from './layout'
-import { isLinkedPort, isPendingPort } from './pending'
+import { hiddenByTunnel, isLinkedPort, isPendingPort } from './pending'
 import { childCounterparts, syncLevels } from './propagation'
 
 /** What a parent arrow reaches on its child diagram. */
@@ -427,6 +427,18 @@ export function missingPorts(fn: Elem): Array<{ role: Idef0Role; arrow: Elem }> 
     }
   }
   return missing
+}
+
+/**
+ * Removes the pending ports of the child diagram of `fn` whose parent arrow is now tunneled at
+ * `fn` (`hiddenByTunnel`): that flow is not shown below. Ports with arrows are left alone.
+ * Returns the number of ports removed.
+ */
+export function dropTunneledPorts(engine: ModelEngine, fn: Elem): number {
+  const arrows = listField(fn, 'arrows')
+  const doomed = listField(fn, 'ports').filter((p) => isLinkedPort(p) && hiddenByTunnel(p) && !arrows.some((a) => a['source'] === p || a['target'] === p))
+  if (doomed.length > 0) deleteFromModel(engine, doomed)
+  return doomed.length
 }
 
 /**

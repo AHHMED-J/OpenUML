@@ -17,7 +17,7 @@ import {
 import { syncGeometry, withGeometry, type DiagramEnv } from '../editor/actions'
 import type { TextMeasurer } from '../core'
 import { getTextMeasurer } from '../layout/measurer'
-import { addMissingPorts, missingPorts } from './assignment'
+import { addMissingPorts, dropTunneledPorts, missingPorts } from './assignment'
 import { insertedPorts, propagateUp, removeCounterpartsUp } from './propagation'
 
 /** Decomposes `fn` into `count` boxes, its arrows pending on the frame edge; returns the new child diagram. */
@@ -84,6 +84,8 @@ export function addBoundaryArrow(env: DiagramEnv, fnView: View, role: 'input' | 
  * Toggles the tunnel at one end of an arrow. Tunneling a port end (the unconnected end: the flow
  * is not needed at the parent level) unlinks the port and removes its parent counterpart when that
  * only carried this arrow (up through every level); untunneling it propagates the arrow up again.
+ * Tunneling the end at a decomposed box removes the arrow's pending port on the child diagram (the
+ * flow is not shown there); untunneling it gives the child diagram its pending port back.
  */
 export function toggleTunnel(engine: ModelEngine, arrow: Elem, end: 'source' | 'target', measurer: TextMeasurer = getTextMeasurer()): void {
   const flag = end === 'source' ? 'tunnelSource' : 'tunnelTarget'
@@ -92,6 +94,11 @@ export function toggleTunnel(engine: ModelEngine, arrow: Elem, end: 'source' | '
   engine.transact('Tunnel Arrow End', (b) => {
     b.set(arrow, flag, next)
     const other = arrow[end] as Elem | null
+    if (isIdef0Function(other) && other['childDiagram']) {
+      if (next) dropTunneledPorts(engine, other)
+      else addMissingPorts(b, other)
+      return
+    }
     if (!other || other._type !== 'IDEF0Port') return
     if (next) {
       removeCounterpartsUp(b, env, other)

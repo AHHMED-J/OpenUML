@@ -14,9 +14,20 @@ export function isLinkedPort(port: Elem | null | undefined): port is Elem {
   return isPort(port) && !!port['corresponds'] && isIdef0Function(port._parent) && roleOf(port) !== 'call'
 }
 
-/** Whether `port` is a pending arrow: linked to a parent arrow and connected to nothing on its diagram. */
+/**
+ * Whether the parent arrow a linked `port` stands for is tunneled where it meets the box the port
+ * details: the flow is not shown below, so the port stands for nothing there.
+ */
+export function hiddenByTunnel(port: Elem): boolean {
+  const arrow = port['corresponds'] as Elem | null
+  const fn = port._parent
+  if (!arrow) return false
+  return (arrow['target'] === fn && arrow['tunnelTarget'] === true) || (arrow['source'] === fn && arrow['tunnelSource'] === true)
+}
+
+/** Whether `port` is a pending arrow: linked to a parent arrow shown below and connected to nothing on its diagram. */
 export function isPendingPort(port: Elem | null | undefined): boolean {
-  if (!isLinkedPort(port)) return false
+  if (!isLinkedPort(port) || hiddenByTunnel(port)) return false
   return !listField(port._parent, 'arrows').some((a) => a['source'] === port || a['target'] === port)
 }
 
