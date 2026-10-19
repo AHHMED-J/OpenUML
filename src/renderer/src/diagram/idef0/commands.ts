@@ -44,6 +44,8 @@ export const Idef0CommandIds = {
   tunnelEnd: 'idef0.tunnel-end',
   resetRoute: 'idef0.reset-route',
   connectTo: 'idef0.connect-to',
+  /** Shows the Advanced Arrows panel (registered by the shell, which owns the panels). */
+  advancedArrows: 'idef0.advanced-arrows',
   applyTitleBlock: 'idef0.apply-title-block',
   applySheetSize: 'idef0.apply-sheet-size',
   addBoundary: (role: string) => `idef0.add-boundary-${role}`,

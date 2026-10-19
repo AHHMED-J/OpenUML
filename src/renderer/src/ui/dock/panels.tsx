@@ -3,6 +3,7 @@ import { memo } from 'react'
 import type React from 'react'
 import { WorkingDiagrams } from '../diagramArea/WorkingDiagrams'
 import { ExplorerActions, ModelExplorer } from '../explorer/ModelExplorer'
+import { AdvancedArrowsPanel } from '../idef0/AdvancedArrowsPanel'
 import { DocumentationPanel, PropertiesPanel, StylesPanel } from '../properties/EditorsPanel'
 import { Toolbox, ToolboxActions } from '../toolbox/Toolbox'
 import type { DockPanelId } from './dockModel'
@@ -18,7 +19,8 @@ const DOCK_PANELS: Readonly<Record<DockPanelId, PanelSpec>> = {
   toolbox: { body: Toolbox, actions: ToolboxActions },
   styles: { body: StylesPanel },
   properties: { body: PropertiesPanel },
-  documentation: { body: DocumentationPanel }
+  documentation: { body: DocumentationPanel },
+  advancedArrows: { body: AdvancedArrowsPanel }
 }
 
 /** Panel content, memoized so dock re-renders (drag targets, resizing) skip the panel bodies. */
