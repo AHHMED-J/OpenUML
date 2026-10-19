@@ -56,11 +56,14 @@ export function subscribeAssignPopover(listener: () => void): () => void {
 const ROLE_NAMES: Readonly<Record<string, string>> = { input: 'Input', control: 'Control', output: 'Output', mechanism: 'Mechanism' }
 const ROLE_SIDES: Readonly<Record<string, string>> = { input: 'enters from the left of', control: 'enters from the top of', output: 'leaves from the right of', mechanism: 'enters from the bottom of' }
 
-/** Header texts of a parent arrow: ICOM code on its diagram, name (or "(unnamed)"), and the role line. */
-export function arrowHeader(diagram: Elem, port: Elem): { code: string; name: string; role: Idef0Role; subtitle: string } {
+/**
+ * Header texts of a parent arrow: ICOM code on its diagram, name (or "(unnamed)"), and the role
+ * line. `codes` is the diagram's `icomCodes`, passed when several headers are built at once.
+ */
+export function arrowHeader(diagram: Elem, port: Elem, codes: ReadonlyMap<string, string> = icomCodes(diagram)): { code: string; name: string; role: Idef0Role; subtitle: string } {
   const role = roleOf(port)
   const name = effectiveArrowName(port['corresponds'] as Elem).trim()
-  return { code: icomCodes(diagram).get(port._id) ?? '', name: name || '(unnamed)', role, subtitle: `${ROLE_NAMES[role] ?? role} · ${ROLE_SIDES[role] ?? 'goes to'}:` }
+  return { code: codes.get(port._id) ?? '', name: name || '(unnamed)', role, subtitle: `${ROLE_NAMES[role] ?? role} · ${ROLE_SIDES[role] ?? 'goes to'}:` }
 }
 
 /** The boxes of a diagram a parent arrow can go to, in box-number order, with their node number and name. */
