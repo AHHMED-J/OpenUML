@@ -1,12 +1,13 @@
 /** Registration of the IDEF0 editor hooks: auto-renumbering, rename sync, title blocks, gestures and deletion. */
 import { registerTransactionHook, type OperationBuilder } from '../../commands'
 import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Elem, type Point, type View } from '../../model'
+import { projectStore } from '../../store'
 import { registerDiagramHooks, type DiagramEnv, type SegmentDrag, type ToolSpec } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { registerRenameHook } from '../editor/quickEditApply'
 import { addMissingPorts, dropTunneledPorts, spreadPendingPorts } from './assignment'
 import { AssignGhost, AssignPopover } from './assignOverlay'
-import { openAssignPopover } from './assignPopover'
+import { closeAssignPopover, openAssignPopover } from './assignPopover'
 import { deleteIdef0Views } from './deletion'
 import { arrowRunAt, createIdef0Edge, freeEnds, moveArrowRun, pickEnd, pickReconnect, reconnectIdef0 } from './gestures'
 import { PENDING_HANDLE, type PortData } from './layout'
@@ -82,6 +83,10 @@ let registered = false
 export function registerIdef0Hooks(): void {
   if (registered) return
   registered = true
+  // The box table belongs to the diagram it was opened on: switching diagrams closes it.
+  projectStore.subscribe((s, prev) => {
+    if (s.activeDiagramId !== prev.activeDiagramId) closeAssignPopover()
+  })
   registerDiagramHooks('IDEF0Diagram', {
     normalize: normalizeIdef0,
     deleteViews: deleteIdef0Views,

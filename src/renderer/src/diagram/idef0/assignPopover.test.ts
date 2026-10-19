@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { functionViewsOf, type Elem, type View } from '../../model'
+import { projectStore } from '../../store'
 import { hooksFor } from '../editor/actions'
 import { assignParentArrow, linkedPortOf } from './assignment'
 import { arrowHeader, assignPopoverState, assignResult, boxChoices, closeAssignPopover, lossWarning, openAssignPopover, toggleAssignBox } from './assignPopover'
@@ -51,6 +52,18 @@ describe('the box table of a parent arrow', () => {
     expect(assignPopoverState()?.checked).toEqual([k.box(1)._id, k.box(2)._id])
     // An arrow between two boxes stands for no parent arrow.
     expect(linkedPortOf(null)).toBeNull()
+  })
+
+  it('closes when another diagram becomes active, so it never comes back on its own', () => {
+    const k = kitWithArrows()
+    projectStore.getState().newProject()
+    openAssignPopover(k.child, k.port('control'))
+    expect(assignPopoverState()).not.toBeNull()
+    const other = (projectStore.getState().repository.project as Elem)['ownedElements'] as Elem[]
+    const diagram = other.flatMap((m) => (m['ownedElements'] as Elem[] | undefined) ?? []).find((d) => d._type.endsWith('Diagram')) as Elem
+    projectStore.getState().setActiveDiagram(null)
+    projectStore.getState().setActiveDiagram(diagram._id)
+    expect(assignPopoverState()).toBeNull()
   })
 
   it('says what the arrow is, where it goes and what the choice makes of it', () => {
