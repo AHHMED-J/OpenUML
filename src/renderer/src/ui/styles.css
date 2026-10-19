@@ -1724,3 +1724,118 @@ body.dock-dragging * {
     stroke-opacity: 0.9;
   }
 }
+
+/* ---------------------------------------------------------------- IDEF0 box table */
+
+/* Box table of a parent arrow, next to the arrow on the canvas (diagram/idef0/assignOverlay.tsx). */
+.idef0-assign-popover {
+  position: absolute;
+  z-index: 20;
+  width: 260px;
+  padding: 10px 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  font-size: var(--font-size);
+  cursor: default;
+}
+
+.idef0-assign-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.idef0-role-pill {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 9px;
+  color: #ffffff;
+  background: var(--role);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.idef0-assign-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.idef0-assign-subtitle {
+  margin: 4px 0 6px;
+  font-size: 12px;
+}
+
+.idef0-assign-boxes {
+  display: grid;
+  gap: 1px;
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+.idef0-assign-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--row-height);
+  padding: 0 4px;
+  border-radius: var(--radius);
+}
+
+.idef0-assign-box:hover {
+  background: var(--hover);
+}
+
+.idef0-assign-number {
+  flex: none;
+  min-width: 30px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.idef0-assign-boxname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.idef0-assign-result {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.idef0-assign-result.warn {
+  color: var(--role-control);
+  font-weight: 600;
+}
+
+.idef0-assign-loss,
+.idef0-assign-note {
+  margin-top: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.idef0-assign-loss {
+  color: var(--danger);
+  border-left: 3px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.idef0-assign-note {
+  background: var(--surface-alt);
+}
+
+.idef0-assign-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}

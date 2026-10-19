@@ -5,6 +5,7 @@ import { buildOrderExample } from '../../model/idef0-example'
 import type { Elem, View } from '../../model'
 import { projectStore } from '../../store'
 import { ensureNotations } from '../notations'
+import { assignPopoverState, closeAssignPopover } from './assignPopover'
 import { Idef0CommandIds, registerIdef0Commands, type Idef0BoxChoice, type Idef0CommandContext, type Idef0ListItem } from './commands'
 
 const ps = () => projectStore.getState()
@@ -283,5 +284,20 @@ describe('IDEF0 commands', () => {
     expect(arrow['routeY']).toBe(-1)
     expect(ps().engine.undoName).toBe('Reset Arrow Route')
     expect(registry.isEnabled(Idef0CommandIds.resetRoute)).toBe(false)
+  })
+  it('opens the box table of the selected boundary arrow (Connect to...), not of an arrow between boxes', () => {
+    const { example, registry, repo } = setup()
+    const diagramId = example.childDiagram._id
+    ps().openDiagram(diagramId)
+    const views = (repo.get(diagramId) as Elem)['ownedViews'] as View[]
+    const named = (name: string): View => views.find((v) => v._type === 'IDEF0ArrowView' && (v.model as Elem)['name'] === name) as View
+    ps().select({ views: [named('Validated Order')._id] })
+    expect(registry.isEnabled(Idef0CommandIds.connectTo)).toBe(false)
+    ps().select({ views: [named('Customer Order')._id] })
+    expect(registry.isEnabled(Idef0CommandIds.connectTo)).toBe(true)
+    registry.execute(Idef0CommandIds.connectTo)
+    const port = (named('Customer Order').model as Elem)['source'] as Elem
+    expect(assignPopoverState()).toMatchObject({ diagramId, portId: port._id, checked: [example.a1._id] })
+    closeAssignPopover()
   })
 })

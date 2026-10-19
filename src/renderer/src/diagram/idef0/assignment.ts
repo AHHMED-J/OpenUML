@@ -112,6 +112,23 @@ export function portAssignment(port: Elem): PortAssignment | null {
   return { port, parent: port['corresponds'] as Elem, role, boxes, readOnly }
 }
 
+/**
+ * The port standing for a parent arrow that `el` belongs to: the port itself, or the port at the
+ * root of the arrow's fork or join tree. Null for arrows between boxes and unlinked ports.
+ */
+export function linkedPortOf(el: Elem | null | undefined): Elem | null {
+  if (isLinkedPort(el)) return el
+  let current = el
+  for (let guard = 0; current && isKindOf(current, 'IDEF0Arrow') && guard < 64; guard++) {
+    const source = current['source'] as Elem | null
+    const target = current['target'] as Elem | null
+    if (isLinkedPort(source)) return source
+    if (isLinkedPort(target)) return target
+    current = isKindOf(source, 'IDEF0Arrow') ? source : isKindOf(target, 'IDEF0Arrow') ? target : null
+  }
+  return null
+}
+
 /** The arrow of the port's tree that reaches `box`. */
 export function arrowToBox(port: Elem, box: Elem): Elem | null {
   const far = farField(roleOf(port))
