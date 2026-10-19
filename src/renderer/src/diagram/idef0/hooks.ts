@@ -1,12 +1,16 @@
 /** Registration of the IDEF0 editor hooks: auto-renumbering, rename sync, title blocks, gestures and deletion. */
 import { registerTransactionHook, type OperationBuilder } from '../../commands'
-import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Diagram, type Elem } from '../../model'
-import { registerDiagramHooks, type DiagramEnv, type SegmentDrag } from '../editor/actions'
+import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Diagram, type Elem, type Point, type View } from '../../model'
+import { registerDiagramHooks, type DiagramEnv, type SegmentDrag, type ToolSpec } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { registerRenameHook } from '../editor/quickEditApply'
 import { addMissingPorts } from './assignment'
+import { AssignGhost, AssignPopover } from './assignOverlay'
+import { openAssignPopover } from './assignPopover'
 import { deleteIdef0Views } from './deletion'
 import { arrowRunAt, createIdef0Edge, freeEnds, moveArrowRun, pickEnd, pickReconnect, reconnectIdef0 } from './gestures'
+import { PENDING_HANDLE, type PortData } from './layout'
+import { isPendingPort } from './pending'
 import { syncLinkedNames } from './propagation'
 import { normalizeSheet } from './sheet'
 import { propagateTitleBlock } from './titleBlock'
@@ -54,6 +58,19 @@ function arrowSegmentDrag(env: DiagramEnv, layout: DiagramLayout, edgeId: string
   return { axis: run.axis, value: run.value, commit: (value) => void moveArrowRun(env, layout, edgeId, index, value) }
 }
 
+/** Pressing the round handle of a pending arrow draws it to a box (with the Select tool too). */
+function pendingHandle(layout: DiagramLayout, viewId: string, p: Point): ToolSpec | null {
+  const node = layout.nodes.get(viewId)
+  const handle = node?.viewType === 'IDEF0PortView' ? (node.data as PortData).pending?.handle : undefined
+  return handle && Math.hypot(p.x - handle.x, p.y - handle.y) <= PENDING_HANDLE + 4 ? { kind: 'IDEF0Arrow' } : null
+}
+
+/** Clicking a pending arrow opens its box table. */
+function openPendingArrow(env: DiagramEnv, _layout: DiagramLayout, viewId: string): void {
+  const view = env.engine.repository.get(viewId) as View | undefined
+  if (view?._type === 'IDEF0PortView' && isPendingPort(view.model)) openAssignPopover(env.diagram, view.model as Elem)
+}
+
 let registered = false
 
 export function registerIdef0Hooks(): void {
@@ -68,7 +85,11 @@ export function registerIdef0Hooks(): void {
     freeEnds,
     segmentDrag: arrowSegmentDrag,
     liveReconnect: true,
-    pickReconnect
+    pickReconnect,
+    dragHandle: pendingHandle,
+    clickView: openPendingArrow,
+    SvgOverlay: AssignGhost,
+    HtmlOverlay: AssignPopover
   })
   // Author, date and status edits flow down to the child diagrams that still follow (any UI path).
   registerTransactionHook(propagateTitleBlock)

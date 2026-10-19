@@ -127,7 +127,8 @@ type Gesture =
   | { type: 'resize'; start: Point; id: string; handle: HandlePosition; box: Rect; minWidth: number; minHeight: number; keepRatio: boolean; rect: Rect }
   | { type: 'band'; start: Point; additive: boolean; rect: Rect | null; mode: RubberBandMode }
   | { type: 'create-node'; start: Point; kind: string; rect: Rect }
-  | { type: 'create-edge'; start: Point; tool: ToolSpec; tailId: string; from: Point; path: Point[] }
+  /** `handle`: started with the Select tool on a node's edge handle (`DiagramHooks.dragHandle`); a click there is a click on the node. */
+  | { type: 'create-edge'; start: Point; tool: ToolSpec; tailId: string; from: Point; path: Point[]; handle?: boolean }
   | { type: 'vertex'; start: Point; edgeId: string; index: number; points: Point[]; end: 'tail' | 'head' | null; moved: boolean }
   | { type: 'segment'; start: Point; edgeId: string; index: number; orientation: SegmentOrientation; base: Point[]; points: Point[]; moved: boolean }
   | { type: 'run'; start: Point; edgeId: string; drag: SegmentDrag; value: number; moved: boolean }
@@ -734,6 +735,13 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
         return
       }
       case 'node': {
+        const handleTool = !e.shiftKey && !mod ? hooksFor(en.diagram)?.dragHandle?.(l, hit.viewId, p) : null
+        if (handleTool) {
+          // A node's edge handle (an IDEF0 pending arrow): dragging draws an edge from it.
+          setSelection([hit.viewId])
+          gesture.current = { type: 'create-edge', start: p, tool: handleTool, tailId: hit.viewId, from: p, path: [p], handle: true }
+          return
+        }
         let ids: string[]
         let reselect = false
         if (e.shiftKey || mod) {
@@ -948,6 +956,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       case 'move': {
         if (!g.moved) {
           if (g.reselect) setSelection([g.clickedId])
+          hooksFor(en.diagram)?.clickView?.(en, l, g.clickedId, p)
           return
         }
         // Dropped inside a container that does not take these views: they stay where they belong.
@@ -984,6 +993,10 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
       }
       case 'create-edge': {
         const hooks = hooksFor(en.diagram)
+        if (g.handle && Math.hypot(p.x - g.start.x, p.y - g.start.y) * live.current.zoom < DRAG_THRESHOLD) {
+          hooks?.clickView?.(en, l, g.tailId, p)
+          return
+        }
         const pickedId = hooks?.pickEnd ? hooks.pickEnd(l, p, g.tool) : null
         const target = hooks?.pickEnd ? (pickedId ? { viewId: pickedId } : null) : hitTestDiagram(l, p, { selected: new Set(), zoom: live.current.zoom, nodesOnly: true })
         let hooked: string | null | undefined
@@ -997,7 +1010,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
           if (hooked) {
             setSelection([hooked])
             onToolUsed()
-            requestEdit(hooked)
+            if (!g.handle) requestEdit(hooked)
           } else {
             const view = (id: string | undefined): View | null => (id ? ((repository.get(id) as View | undefined) ?? null) : null)
             notify(connectionRefusal(toolName(g.tool), view(g.tailId), view(target?.viewId)))
@@ -1185,6 +1198,7 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
 
   const width = canvasWidth * zoom
   const height = canvasHeight * zoom
+  const { SvgOverlay, HtmlOverlay } = (env && hooksFor(env.diagram)) || {}
   const lineSpacing = gridLineSpacing(grid)
   const effectiveCursor = gesture.current?.type === 'pan' ? 'grabbing' : tool ? 'crosshair' : cursor
 
@@ -1232,9 +1246,11 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
             <SelectionOverlay layout={liveLayout ?? layout} selected={selected} zoom={zoom} />
             <HighlightOverlay layout={liveLayout ?? layout} zoom={zoom} />
             <DragOverlay preview={preview} zoom={zoom} />
+            {SvgOverlay && env && <SvgOverlay env={env} layout={liveLayout ?? layout} zoom={zoom} notify={notify} />}
           </g>
         </svg>
         {editing && <QuickEditor key={`${editing.viewId}:${JSON.stringify(editing.target)}`} state={editing} zoom={zoom} onCommit={commitEdit} onCancel={cancelEdit} />}
+        {HtmlOverlay && env && <HtmlOverlay env={env} layout={layout} zoom={zoom} notify={notify} />}
       </div>
     </div>
   )
