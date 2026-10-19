@@ -73,7 +73,7 @@ export interface ToolSpec {
  */
 export interface DiagramHooks {
   /** Runs inside every geometry operation of the diagram before the geometry write-back (e.g. auto-numbering). */
-  normalize?(b: OperationBuilder, diagram: Diagram): void
+  normalize?(b: OperationBuilder, env: DiagramEnv): void
   /** Handles the delete gesture; returns the views it left to the default deletion. */
   deleteViews?(env: DiagramEnv, views: readonly View[]): View[]
   /** Reconnects an edge end (`at`: where it was released); `undefined` = use the default. */
@@ -223,7 +223,7 @@ export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: Opera
     const from = b.steps.length
     const result = change(b)
     applyDefaultFontSize(b, env, from)
-    hooksFor(env.diagram)?.normalize?.(b, env.diagram)
+    hooksFor(env.diagram)?.normalize?.(b, env)
     syncGeometry(env, b)
     return result
   })

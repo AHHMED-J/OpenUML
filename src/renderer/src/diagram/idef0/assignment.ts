@@ -39,10 +39,11 @@ import {
   type NodeView,
   type View
 } from '../../model'
-import type { Point } from '../core'
+import type { Point, Rect } from '../core'
 import { layoutOf, withGeometry, type DiagramEnv } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
-import { isLinkedPort } from './pending'
+import { PENDING_HANDLE, type PortData } from './layout'
+import { isLinkedPort, isPendingPort } from './pending'
 import { childCounterparts, syncLevels } from './propagation'
 
 /** What a parent arrow reaches on its child diagram. */
@@ -317,6 +318,82 @@ function freeAlong(diagram: Elem, role: Idef0Role, taken: number[]): number {
     }
   }
   return start
+}
+
+/** Room left between a pending arrow and its neighbors on the frame edge. */
+const PENDING_GAP = 6
+
+/** A boundary port on the frame edge: where it is along the edge and what it covers around that point. */
+interface EdgeSpan {
+  readonly view: NodeView
+  readonly at: number
+  /** Extent before and after `at` along the edge (port square, ICOM code, stub, name). */
+  readonly before: number
+  readonly after: number
+  readonly pending: boolean
+}
+
+function edgeSpans(layout: DiagramLayout, diagram: Elem, role: Idef0Role): EdgeSpan[] {
+  const vertical = isVertical(role)
+  const spans: EdgeSpan[] = []
+  for (const v of listField(diagram, 'ownedViews')) {
+    if (v._type !== 'IDEF0PortView' || roleOf((v as View).model as Elem) !== role) continue
+    const node = layout.nodes.get(v._id)
+    if (!node) continue
+    const data = node.data as PortData
+    const at = vertical ? data.anchor.y : data.anchor.x
+    let lo = vertical ? node.box.top : node.box.left
+    let hi = vertical ? node.box.top + node.box.height : node.box.left + node.box.width
+    const cover = (r: Rect): void => {
+      lo = Math.min(lo, vertical ? r.top : r.left)
+      hi = Math.max(hi, vertical ? r.top + r.height : r.left + r.width)
+    }
+    if (data.codeLine) cover(data.codeLine.box)
+    if (data.pending) {
+      const h = data.pending.handle
+      cover({ left: h.x - PENDING_HANDLE, top: h.y - PENDING_HANDLE, width: 2 * PENDING_HANDLE, height: 2 * PENDING_HANDLE })
+      if (data.pending.label) cover(data.pending.label.box)
+    }
+    spans.push({ view: v as NodeView, at, before: at - lo, after: hi - at, pending: !!data.pending })
+  }
+  return spans
+}
+
+/**
+ * Moves every pending arrow of `env.diagram` that sits on another boundary arrow of its edge (its
+ * stub, ICOM code or name over theirs) to the nearest free spot of that edge; the others stay put.
+ * Ports keep the place they had when their last arrow went away, which on a crowded edge can be on
+ * top of a neighbor.
+ */
+export function spreadPendingPorts(b: OperationBuilder, env: DiagramEnv): void {
+  const diagram = env.diagram
+  if (!listField(diagram, 'ownedViews').some((v) => v._type === 'IDEF0PortView' && isPendingPort((v as View).model))) return
+  const layout = layoutOf(env)
+  const area = drawingAreaOf(diagram)
+  for (const role of ['input', 'control', 'output', 'mechanism'] as Idef0Role[]) {
+    const spans = edgeSpans(layout, diagram, role)
+    const placed = spans.filter((s) => !s.pending)
+    const vertical = isVertical(role)
+    const lo = (vertical ? area.top : area.left) + 16
+    const hi = (vertical ? area.bottom : area.right) - 16
+    for (const span of spans.filter((s) => s.pending).sort((x, y) => x.at - y.at)) {
+      const free = (at: number): boolean =>
+        placed.every((o) => at + span.after + PENDING_GAP <= o.at - o.before || o.at + o.after + PENDING_GAP <= at - span.before)
+      let at = span.at
+      if (!free(at)) {
+        const start = Math.round(span.at / 8) * 8
+        const found = [...Array(Math.ceil((hi - lo) / 8) + 1).keys()]
+          .flatMap((i) => [start + i * 8, start - i * 8])
+          .find((c) => c >= lo && c <= hi && free(c))
+        if (found !== undefined) {
+          at = found
+          const bounds = portBounds(role, at, area)
+          b.setAll(span.view, { left: bounds.left, top: bounds.top })
+        }
+      }
+      placed.push({ ...span, at })
+    }
+  }
 }
 
 /** Positions along their edge of the ports of `role` drawn on `diagram`. */
