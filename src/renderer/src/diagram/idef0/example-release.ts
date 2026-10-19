@@ -28,6 +28,7 @@ import {
 import { FixedWidthTextMeasurer } from '../core'
 import { withGeometry, type DiagramEnv } from '../editor/actions'
 import { ensureNotations } from '../notations'
+import { assignParentArrow } from './assignment'
 import { decomposeFunction } from './decompose'
 import { insertedPorts, propagateUp } from './propagation'
 
@@ -151,7 +152,7 @@ export function buildReleaseExample(): ReleaseExample {
   const poolArrow = pool.model as Elem
   engine.transact('Tunnel', (b) => b.set(poolArrow, 'tunnelTarget', true))
 
-  // --- A3: two boxes, seeded with the boundary arrows of A3, then refined.
+  // --- A3: two boxes, the boundary arrows of A3 assigned to them, then refined.
   const a3Diagram = decomposeFunction(engine, a3, 2)
   set(a3Diagram, { author: 'OpenUML example', status: 'recommended' })
   const children = (a3['functions'] as Elem[]).slice().sort((x, y) => (x['boxNumber'] as number) - (y['boxNumber'] as number)) as [Elem, Elem]
@@ -162,6 +163,16 @@ export function buildReleaseExample(): ReleaseExample {
   })
   const [c1, c2] = children
   const wb = (fn: Elem): View => boxView(a3Diagram, fn)
+  // The arrows of A3 wait on the frame edge of its diagram until they are given to the boxes.
+  const assign = (parent: string, to: Elem[]): void => {
+    const port = (a3['ports'] as Elem[]).find((p) => (p['corresponds'] as Elem | null)?.['name'] === parent) as Elem
+    assignParentArrow(envOf(a3Diagram), port, to)
+  }
+  assign('Build Assignment', [c1])
+  assign('Rework Request', [c1])
+  assign('Quality Standards', [c1, c2])
+  assign('Engineers', [c1, c2])
+  assign('Package', [c2])
   connect(a3Diagram, wb(c1), wb(c2), 'input', 'Build Candidate')
   connect(a3Diagram, wb(c2), wb(c1), 'control', 'Test Failures')
   // Calls: deployment reuses the test suites for its smoke checks.

@@ -7,7 +7,7 @@
  * persists it (`version` guards the persisted schema).
  */
 
-export const DOCK_PANEL_IDS = ['explorer', 'workingDiagrams', 'toolbox', 'styles', 'properties', 'documentation'] as const
+export const DOCK_PANEL_IDS = ['explorer', 'workingDiagrams', 'toolbox', 'styles', 'properties', 'documentation', 'advancedArrows'] as const
 export type DockPanelId = (typeof DOCK_PANEL_IDS)[number]
 
 export const DOCK_AREA_IDS = ['left', 'right'] as const
@@ -34,7 +34,8 @@ export const DOCK_PANEL_TITLES: Readonly<Record<DockPanelId, string>> = {
   toolbox: 'Toolbox',
   styles: 'Styles',
   properties: 'Properties',
-  documentation: 'Documentation'
+  documentation: 'Documentation',
+  advancedArrows: 'Advanced Arrows'
 }
 
 export const DOCK_AREA_TITLES: Readonly<Record<DockAreaId, string>> = {
@@ -45,12 +46,12 @@ export const DOCK_AREA_TITLES: Readonly<Record<DockAreaId, string>> = {
 const MIN_PANEL_SIZE = 40
 const MAX_PANEL_SIZE = 5000
 
-/** The default (factory) layout: explorer over working diagrams; toolbox over the editors. */
+/** The default (factory) layout: explorer over working diagrams; toolbox over the editors; Advanced Arrows hidden. */
 export const DEFAULT_DOCK_LAYOUT: DockLayout = {
   version: DOCK_LAYOUT_VERSION,
   areas: {
     left: ['explorer', 'workingDiagrams'],
-    right: ['toolbox', 'styles', 'properties', 'documentation']
+    right: ['toolbox', 'styles', 'properties', 'documentation', 'advancedArrows']
   },
   panels: {
     explorer: { size: 520, collapsed: false, visible: true },
@@ -58,7 +59,8 @@ export const DEFAULT_DOCK_LAYOUT: DockLayout = {
     toolbox: { size: 260, collapsed: false, visible: true },
     styles: { size: 150, collapsed: false, visible: true },
     properties: { size: 300, collapsed: false, visible: true },
-    documentation: { size: 120, collapsed: false, visible: true }
+    documentation: { size: 120, collapsed: false, visible: true },
+    advancedArrows: { size: 300, collapsed: false, visible: false }
   }
 }
 

@@ -21,6 +21,8 @@ import {
 } from '../../model'
 import { activeDiagram, projectStore, selectedViews } from '../../store'
 import { getTextMeasurer } from '../layout/measurer'
+import { linkedPortOf } from './assignment'
+import { openAssignPopover } from './assignPopover'
 import { addChildBoxes, childBoxes, removeChildBoxes } from './boxCount'
 import { addBoundaryArrow, decomposeFunction, renumberBoxes, syncPorts, toggleTunnel } from './decompose'
 import { hasRouteHints, resetArrowRoutes } from './gestures'
@@ -41,6 +43,9 @@ export const Idef0CommandIds = {
   nodeIndex: 'idef0.node-index',
   tunnelEnd: 'idef0.tunnel-end',
   resetRoute: 'idef0.reset-route',
+  connectTo: 'idef0.connect-to',
+  /** Shows the Advanced Arrows panel (registered by the shell, which owns the panels). */
+  advancedArrows: 'idef0.advanced-arrows',
   applyTitleBlock: 'idef0.apply-title-block',
   applySheetSize: 'idef0.apply-sheet-size',
   addBoundary: (role: string) => `idef0.add-boundary-${role}`,
@@ -112,6 +117,12 @@ function lossText(arrows: number, decomposed: boolean): string {
 
 function selectedArrowViews(): View[] {
   return selectedViews(state()).filter((v) => v._type === 'IDEF0ArrowView' && v.model)
+}
+
+/** The port of the parent arrow the single selected arrow or port stands for (its box table). */
+function selectedParentArrowPort(): Elem | null {
+  const views = selectedViews(state())
+  return views.length === 1 ? linkedPortOf((views[0] as View).model) : null
 }
 
 function envOf(diagram: Diagram) {
@@ -279,6 +290,16 @@ export function registerIdef0Commands(registry: CommandRegistry, ctx: Idef0Comma
     run: () => {
       const d = idefDiagram()
       if (d) resetArrowRoutes(envOf(d), selectedArrowViews())
+    }
+  })
+  add({
+    id: Idef0CommandIds.connectTo,
+    label: 'Connect to...',
+    isEnabled: () => !!idefDiagram() && !!selectedParentArrowPort(),
+    run: () => {
+      const d = idefDiagram()
+      const port = selectedParentArrowPort()
+      if (d && port) openAssignPopover(d, port)
     }
   })
   add({

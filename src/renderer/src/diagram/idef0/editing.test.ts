@@ -4,6 +4,7 @@ import { isKindOf, type Diagram, type Elem, type NodeView, type View } from '../
 import { applyQuickEdit } from '../editor/quickEditApply'
 import { createNodeAt, deleteViews, moveSelection, reconnectEnd, resizeNode } from '../editor/actions'
 import { addBoundaryArrow, decomposeFunction, renumberBoxes, syncPorts, toggleTunnel } from './decompose'
+import { isPendingPort, pendingPorts } from './pending'
 import { createIdef0Edge } from './gestures'
 import { arrowView, edgeLayoutOf, exampleKit, newKit, nodeLayoutOf } from './testkit'
 import { validateIdef0 } from './validate'
@@ -12,24 +13,53 @@ const fnName = (v: View): string => (v.model as Elem)['name'] as string
 const numbers = (boxes: NodeView[]): number[] => boxes.map((b) => (b.model as Elem)['boxNumber'] as number)
 
 describe('decomposition', () => {
-  it('decomposes in one undo step with ports, arrows and routed geometry written back', () => {
+  it('decomposes in one undo step with a pending port per parent arrow and no arrows', () => {
     const k = exampleKit()
     const child = decomposeFunction(k.engine, k.example.a1, 3)
     expect(child.ownedViews.filter((v) => v._type === 'IDEF0FunctionView')).toHaveLength(3)
     expect(k.example.a1['childDiagram']).toBe(child)
-    // A1 has an input, a control, a mechanism and an output on the parent diagram.
-    expect((k.example.a1['ports'] as Elem[]).map((p) => p['role'])).toEqual(['input', 'control', 'mechanism', 'output'])
-    const arrowViews = child.ownedViews.filter((v) => v._type === 'IDEF0ArrowView')
-    expect(arrowViews.length).toBe(4 + 2)
-    for (const v of arrowViews) expect((v as never as { points: unknown[] }).points.length).toBeGreaterThanOrEqual(2)
+    // A1 has an input, a control, a mechanism and an output on the parent diagram: each waits on the frame edge.
+    const ports = k.example.a1['ports'] as Elem[]
+    expect(ports.map((p) => p['role'])).toEqual(['input', 'control', 'mechanism', 'output'])
+    expect(ports.every((p) => isPendingPort(p))).toBe(true)
+    expect(pendingPorts(child)).toEqual(ports)
+    expect(child.ownedViews.filter((v) => v._type === 'IDEF0ArrowView')).toHaveLength(0)
+    expect(k.example.a1['arrows'] as Elem[]).toHaveLength(0)
     expect(validateModel(k.example.project)).toEqual([])
-    // The seeded child diagram is consistent with its parent.
-    expect(validateIdef0(k.model).filter((i) => ['W08', 'W09', 'W11'].includes(i.id))).toEqual([])
+    // The child diagram is consistent with its parent; it only says what is still pending.
+    const issues = validateIdef0(k.model).filter((i) => i.diagramId === child._id && ['W08', 'W09', 'W11', 'W19'].includes(i.id))
+    expect(issues.map((i) => i.id)).toEqual(['W19', 'W19', 'W19', 'W19'])
+    expect(issues.map((i) => i.elementId)).toEqual(ports.map((p) => p._id))
     const codes = k.layoutOf(child)
     expect([...codes.nodes.values()].filter((n) => n.viewType === 'IDEF0PortView').map((n) => (n.data as { codeLine: { text: string } | null }).codeLine?.text)).toEqual(['I1', 'C1', 'M1', 'O1'])
     k.engine.undo()
     expect(k.example.a1['childDiagram']).toBeNull()
     expect((k.example.a1['ports'] as Elem[]).length).toBe(0)
+  })
+
+  it('excludes tunneled and call arrows from the pending ports of a decomposition', () => {
+    const k = exampleKit()
+    const a1 = k.example.a1
+    const control = (k.top['arrows'] as Elem[]).find((a) => a['target'] === a1 && a['role'] === 'control') as Elem
+    k.engine.transact('Tunnel', (b) => b.set(control, 'tunnelTarget', true))
+    const call = createIdef0Edge(k.envOf(k.child), k.layoutOf(k.child), { kind: 'IDEF0Call' }, k.boxes(k.child)[0]!._id, k.boxes(k.child)[2]!._id, { x: 0, y: 0 }, { x: 0, y: 0 })
+    expect(call).toBeTruthy()
+    decomposeFunction(k.engine, a1, 3)
+    expect((a1['ports'] as Elem[]).map((p) => p['role'])).toEqual(['input', 'mechanism', 'output'])
+  })
+
+  it('makes an arrow added to a decomposed box wait on its child diagram, in the same undo step', () => {
+    const k = exampleKit()
+    const a1 = k.example.a1
+    const child = decomposeFunction(k.engine, a1, 3)
+    const depth = k.engine.undoDepth
+    addBoundaryArrow(k.envOf(k.child), k.boxes(k.child)[0] as NodeView, 'control')
+    expect(k.engine.undoDepth).toBe(depth + 1)
+    const pending = pendingPorts(child)
+    expect(pending.map((p) => p['role'])).toEqual(['input', 'control', 'mechanism', 'output', 'control'])
+    expect(validateIdef0(k.model).filter((i) => i.id === 'W09')).toEqual([])
+    k.engine.undo()
+    expect(pendingPorts(child)).toHaveLength(4)
   })
 
   it('seeds an unconnected box with an empty three-box diagram', () => {
@@ -361,12 +391,17 @@ describe('deleting', () => {
     expect(k.repository.get(topView._id)).toBeDefined()
   })
 
-  it('removes an unused boundary port together with its only arrow', () => {
+  it('removes an unlinked boundary port with its only arrow; a linked one waits pending', () => {
     const k = newKit()
     const [b1] = k.boxes(k.child) as [NodeView]
     const id = addBoundaryArrow(k.envOf(k.child), b1, 'input')!
     deleteViews(k.envOf(k.child), [id])
-    expect(k.top['ports'] as Elem[]).toHaveLength(0)
     expect(k.top['arrows'] as Elem[]).toHaveLength(0)
+    expect((k.top['ports'] as Elem[]).map((p) => isPendingPort(p))).toEqual([true])
+    // Tunneled at the port, a boundary arrow stands for nothing above: its port goes with it.
+    const tunneled = addBoundaryArrow(k.envOf(k.child), b1, 'control')!
+    toggleTunnel(k.engine, (k.repository.get(tunneled) as View).model as Elem, 'source')
+    deleteViews(k.envOf(k.child), [tunneled])
+    expect((k.top['ports'] as Elem[]).map((p) => p['role'])).toEqual(['input'])
   })
 })

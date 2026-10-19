@@ -41,6 +41,7 @@ import {
   type Rect,
   type TextMeasurer
 } from '../core'
+import type { ComponentType } from 'react'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import type { DiagramLayout, NodeLayout } from '../layout/types'
 import { edgeNotationFor, nodeNotationFor, type ContainerBehavior } from '../render/registry'
@@ -72,7 +73,7 @@ export interface ToolSpec {
  */
 export interface DiagramHooks {
   /** Runs inside every geometry operation of the diagram before the geometry write-back (e.g. auto-numbering). */
-  normalize?(b: OperationBuilder, diagram: Diagram): void
+  normalize?(b: OperationBuilder, env: DiagramEnv): void
   /** Handles the delete gesture; returns the views it left to the default deletion. */
   deleteViews?(env: DiagramEnv, views: readonly View[]): View[]
   /** Reconnects an edge end (`at`: where it was released); `undefined` = use the default. */
@@ -100,6 +101,26 @@ export interface DiagramHooks {
    * the move asks to move the views alone (Option/Alt while dragging).
    */
   moveGroup?(env: DiagramEnv, views: readonly View[]): View[]
+  /**
+   * With the Select tool, a press at `p` on the node `viewId` that draws an edge instead of moving
+   * the node (e.g. the handle of an IDEF0 pending arrow): the line tool to draw it with, else null.
+   */
+  dragHandle?(layout: DiagramLayout, viewId: string, p: Point): ToolSpec | null
+  /** A click (press and release without moving) on the view `viewId`, after it was selected. */
+  clickView?(env: DiagramEnv, layout: DiagramLayout, viewId: string, p: Point): void
+  /** Screen-only drawing over the diagram, inside the zoomed SVG group (never exported). */
+  SvgOverlay?: ComponentType<OverlayProps>
+  /** HTML over the canvas (popovers), positioned in diagram coordinates times `zoom`. */
+  HtmlOverlay?: ComponentType<OverlayProps>
+}
+
+/** Props of the overlays a notation draws over its diagrams (`DiagramHooks.SvgOverlay`, `HtmlOverlay`). */
+export interface OverlayProps {
+  readonly env: DiagramEnv
+  readonly layout: DiagramLayout
+  readonly zoom: number
+  /** Shows a short message (refusals) like the editor's own. */
+  readonly notify: (message: string) => void
 }
 
 /** A segment dragged as a whole: `y` moves a horizontal segment, `x` a vertical one. */
@@ -202,7 +223,7 @@ export function withGeometry<T>(env: DiagramEnv, name: string, change: (b: Opera
     const from = b.steps.length
     const result = change(b)
     applyDefaultFontSize(b, env, from)
-    hooksFor(env.diagram)?.normalize?.(b, env.diagram)
+    hooksFor(env.diagram)?.normalize?.(b, env)
     syncGeometry(env, b)
     return result
   })

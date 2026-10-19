@@ -363,6 +363,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add(panelToggle(Cmd.viewStyles, 'Styles', 'styles'))
   add(panelToggle(Cmd.viewProperties, 'Properties', 'properties'))
   add(panelToggle(Cmd.viewDocumentation, 'Documentation', 'documentation'))
+  add(panelToggle(Cmd.viewAdvancedArrows, 'Advanced Arrows', 'advancedArrows'))
   add({ id: Cmd.viewResetLayout, label: 'Reset Layout', run: () => ui().resetLayout() })
 
   // Explorer
