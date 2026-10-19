@@ -1839,3 +1839,116 @@ body.dock-dragging * {
   gap: 6px;
   margin-top: 10px;
 }
+
+/* Advanced Arrows panel: parent arrows (rows) by boxes (columns) of the active decomposition diagram. */
+.advanced-arrows {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.advanced-arrows-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.advanced-arrows-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size);
+}
+
+.advanced-arrows-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 4px;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.advanced-arrows-table thead th.aa-arrow,
+.advanced-arrows-table thead th.aa-result {
+  text-align: left;
+}
+
+.advanced-arrows-table .aa-box {
+  font-family: var(--font-mono);
+}
+
+.aa-row > * {
+  padding: 1px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.aa-row:hover {
+  background: var(--hover);
+}
+
+.aa-row.selected {
+  background: var(--selection);
+}
+
+.aa-row.pending {
+  background: color-mix(in srgb, var(--role-control) 10%, transparent);
+}
+
+.aa-row th.aa-arrow {
+  max-width: 0;
+  width: 45%;
+  font-weight: normal;
+  text-align: left;
+}
+
+.aa-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aa-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aa-cell {
+  text-align: center;
+}
+
+.aa-cell input {
+  margin: 0;
+  accent-color: var(--role);
+}
+
+.aa-result {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.aa-result.warn,
+.aa-footer.warn {
+  color: var(--role-control);
+  font-weight: 600;
+}
+
+.aa-footer {
+  flex: none;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}

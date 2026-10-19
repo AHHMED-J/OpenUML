@@ -93,6 +93,7 @@ export const Cmd = {
   viewStyles: 'view.styles',
   viewProperties: 'view.properties',
   viewDocumentation: 'view.documentation',
+  viewAdvancedArrows: 'view.advanced-arrows',
   viewResetLayout: 'view.reset-layout',
   // Explorer
   explorerSortByAdded: 'explorer.sort-by-added',

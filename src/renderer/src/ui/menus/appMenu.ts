@@ -3,6 +3,7 @@
  * Visibility of Add items follows the selected element; enablement and check marks come from
  * the command registry when the tree is resolved.
  */
+import { Idef0CommandIds, hasParentArrows } from '../../diagram'
 import { projectStore, selectedModels } from '../../store'
 import type { Platform } from '../keymap'
 import { addDiagramItemsFor, addItemsFor } from '../modelActions'
@@ -268,7 +269,8 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
           { id: 'view.working-diagrams', label: 'Working Diagrams', command: Cmd.viewWorkingDiagrams, checkbox: true },
           { id: 'view.styles', label: 'Styles', command: Cmd.viewStyles, checkbox: true },
           { id: 'view.properties', label: 'Properties', command: Cmd.viewProperties, checkbox: true },
-          { id: 'view.documentation', label: 'Documentation', command: Cmd.viewDocumentation, checkbox: true }
+          { id: 'view.documentation', label: 'Documentation', command: Cmd.viewDocumentation, checkbox: true },
+          { id: 'view.advanced-arrows', label: 'Advanced Arrows', command: Cmd.viewAdvancedArrows, checkbox: true }
         ]
       },
       SEP,
@@ -314,10 +316,18 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
 // ---------------------------------------------------------------------------------------------
 // Context menus (in-app)
 
+/** Advanced Arrows shows for a decomposition diagram (A0, A1...) selected in the Model Explorer. */
+function explorerShowsParentArrows(): boolean {
+  const s = projectStore.getState()
+  const models = s.selectedElementIds.length === 1 ? selectedModels(s) : []
+  return models.length === 1 && hasParentArrows(models[0])
+}
+
 export function explorerContextMenu(): MenuNode[] {
   return [
     addDiagramMenu(),
     addElementMenu(),
+    { label: 'Advanced Arrows', command: Idef0CommandIds.advancedArrows, visible: explorerShowsParentArrows },
     SEP,
     { label: 'Cut', command: Cmd.editCut },
     { label: 'Copy', command: Cmd.editCopy },
