@@ -6,7 +6,15 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # Electron bundles its own Node: @types/node follows the Node major of the Electron in use.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
+      # vite, its React plugin and electron-vite only work in matching majors: one pull request
+      # for all of them, majors included.
+      vite-build:
+        patterns: [vite, '@vitejs/*', electron-vite]
       dev-tooling:
         dependency-type: development
         update-types: [minor, patch]
