@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createElement, type Diagram, type Elem, type NodeView, type View } from '../../model'
 import { applyQuickEdit, renameElements } from '../editor/quickEditApply'
-import { decomposeFunction } from './decompose'
 import { createIdef0Edge } from './gestures'
 import { linkedArrows } from './propagation'
-import { exampleKit } from './testkit'
+import { decomposeWired, exampleKit } from './testkit'
 
 const named = (scope: Elem, name: string): Elem => {
   const found = (scope['arrows'] as Elem[]).find((a) => a['name'] === name)
@@ -34,8 +33,8 @@ describe('linked arrow names', () => {
 
   it('follows a box-to-box arrow into both decomposed boxes, from the Model Explorer or Property Editor too', () => {
     const k = exampleKit()
-    decomposeFunction(k.engine, k.example.a1, 3)
-    decomposeFunction(k.engine, k.example.a2, 3)
+    decomposeWired(k, k.example.a1, 3)
+    decomposeWired(k, k.example.a2, 3)
     const onA2 = named(k.example.a2, 'Validated Order')
     const onA1 = named(k.example.a1, 'Validated Order')
     const onA0 = named(k.top, 'Validated Order')
@@ -49,7 +48,7 @@ describe('linked arrow names', () => {
 
   it('names the counterparts of a newly drawn boundary arrow when its label is typed', () => {
     const k = exampleKit()
-    const child = decomposeFunction(k.engine, k.example.a3, 3)
+    const child = decomposeWired(k, k.example.a3, 3)
     const box = k.boxes(child as Diagram)[0] as NodeView
     const id = createIdef0Edge(k.envOf(child as Diagram), k.layoutOf(child as Diagram), { kind: 'IDEF0Arrow' }, null, box._id, { x: 60, y: 600 }, { x: box.left + 3, y: box.top + 40 })
     const arrow = (k.repository.get(id as string) as View).model as Elem

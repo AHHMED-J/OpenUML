@@ -16,6 +16,7 @@ import type { ArrowData } from './edges'
 import { arrowRunAt, hasRouteHints, moveArrowRun, pickReconnect, reconnectIdef0, resetArrowRoutes } from './gestures'
 import { busOf, resolveRun, routeArrowDetailed, type RouteEnd } from './routing'
 import { hintsOf } from './runs'
+import { wireLikeDecompose } from './testkit'
 
 const measurer = new FixedWidthTextMeasurer(0.55)
 
@@ -47,6 +48,7 @@ function forkedModel(controls: number): Model {
   add('mechanism', 'Staff')
   const a0 = decomposeFunction(engine, model['topFunction'] as Elem, 6)
   const env = { engine, diagram: a0, measurer }
+  wireLikeDecompose(env)
   return {
     repository,
     engine,

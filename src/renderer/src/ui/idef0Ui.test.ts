@@ -202,6 +202,7 @@ describe('IDEF0 menus', () => {
       'Tunnel Source End',
       'Tunnel Target End',
       'Reset Arrow Route',
+      'Connect to...',
       'Validate IDEF0 Model',
       'Show Node Index'
     ])

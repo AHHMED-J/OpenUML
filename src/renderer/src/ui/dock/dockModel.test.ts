@@ -27,7 +27,7 @@ describe('dock model: moving panels', () => {
   it('moves the toolbox to the left sidebar above Working Diagrams', () => {
     const next = movePanel(base(), 'toolbox', 'left', 'workingDiagrams')
     expect(next.areas.left).toEqual(['explorer', 'toolbox', 'workingDiagrams'])
-    expect(next.areas.right).toEqual(['styles', 'properties', 'documentation'])
+    expect(next.areas.right).toEqual(['styles', 'properties', 'documentation', 'advancedArrows'])
     expect(areaOf(next, 'toolbox')).toBe('left')
   })
 
@@ -38,13 +38,13 @@ describe('dock model: moving panels', () => {
 
   it('reorders within an area', () => {
     const next = movePanel(base(), 'documentation', 'right', 'toolbox')
-    expect(next.areas.right).toEqual(['documentation', 'toolbox', 'styles', 'properties'])
+    expect(next.areas.right).toEqual(['documentation', 'toolbox', 'styles', 'properties', 'advancedArrows'])
   })
 
   it('returns the same layout for a no-op move', () => {
     const layout = base()
     expect(movePanel(layout, 'styles', 'right', 'properties')).toBe(layout)
-    expect(movePanel(layout, 'documentation', 'right', null)).toBe(layout)
+    expect(movePanel(layout, 'documentation', 'right', 'advancedArrows')).toBe(layout)
     expect(movePanel(layout, 'styles', 'right', 'styles')).not.toBe(undefined)
   })
 
@@ -148,8 +148,10 @@ describe('dock model: sanitizing persisted layouts', () => {
       panels: {}
     })
     expect(layout.areas.left).toEqual(['explorer', 'toolbox', 'workingDiagrams'])
-    // styles/properties come back after their default predecessors (toolbox is elsewhere).
-    expect(layout.areas.right).toEqual(['styles', 'properties', 'documentation'])
+    // styles/properties come back after their default predecessors (toolbox is elsewhere); a
+    // layout saved before Advanced Arrows existed gets it after Documentation.
+    expect(layout.areas.right).toEqual(['styles', 'properties', 'documentation', 'advancedArrows'])
+    expect(layout.panels.advancedArrows.visible).toBe(false)
     expect(allPanels(layout)).toEqual([...DOCK_PANEL_IDS].sort())
   })
 

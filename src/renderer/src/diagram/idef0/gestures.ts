@@ -8,8 +8,10 @@ import type { OperationBuilder } from '../../commands'
 import {
   ModelRuleError,
   canConnect,
+  ROLE_SIDE,
   isKindOf,
   planIdef0Arrow,
+  roleOf,
   sourceSide,
   targetSide,
   type EdgeView,
@@ -24,6 +26,8 @@ import { connectionRefusal } from '../editor/feedback'
 import type { DiagramLayout } from '../layout/types'
 import type { ArrowData } from './edges'
 import { AREA_RECT, areaRectOfSheet, nearestSide } from './geometry'
+import { arrowToBox, assignParentArrow, portAssignment } from './assignment'
+import { isLinkedPort } from './pending'
 import { insertedPorts, propagateUp } from './propagation'
 import { NO_HINT, hasRouteHint, hintField, validRunValue, type RunHandle } from './runs'
 
@@ -114,7 +118,7 @@ function frameAreaOf(layout: DiagramLayout): Rect {
  * accepting new arrows:
  * 1. a function box under `p`, or within `END_DROP_TOLERANCE` of its outline, wins: the arrow ends
  *    on that side of the box (a new slot), even where the stubs of other arrows meet the side;
- * 2. else (arrow tool) a boundary port under `p`;
+ * 2. else (arrow tool) a boundary port under `p` (or the stub of a pending arrow);
  * 3. else (arrow tool) an arrow within `ARROW_PICK_TOLERANCE` of `p` (fork / join), except near the
  *    frame edge, where an end on empty canvas makes a new boundary arrow;
  * 4. else nothing (empty canvas).
@@ -128,7 +132,7 @@ export function pickEnd(layout: DiagramLayout, p: Point, tool: ToolSpec): string
     const id = layout.order[i] as string
     const node = layout.nodes.get(id)
     if (node) {
-      if (node.viewType === 'IDEF0PortView' && distanceToRect(node.box, p) <= 4) return id
+      if (node.viewType === 'IDEF0PortView' && (distanceToRect(node.box, p) <= 4 || node.outerHitAreas?.some((r) => rectContainsPoint(r, p)))) return id
       continue
     }
     const edge = layout.edges.get(id)
@@ -211,6 +215,12 @@ export function createIdef0Edge(
     return plan.view?._id ?? null
   }
   if (!tail && !head) throw new ModelRuleError(REFUSAL.noBox)
+  // A parent arrow (pending or already connected) dragged to a box: the box joins its assignment.
+  const linked = tail?._type === 'IDEF0PortView' && isLinkedPort(tail.model) ? tail : head?._type === 'IDEF0PortView' && isLinkedPort(head.model) ? head : null
+  const box = linked === tail ? head : tail
+  if (linked && box?._type === 'IDEF0FunctionView' && portAssignment(linked.model as Elem)?.readOnly === null) {
+    return assignByDrag(env, layout, linked, box, linked === tail, path)
+  }
   // Role from the side the drag came into the box through (the last time the pointer entered it),
   // wherever the end is released inside the box: coming down from above makes a control even when
   // released near the bottom or a corner. An end released just outside the box (it never got in)
@@ -235,6 +245,32 @@ export function createIdef0Edge(
     return plan
   })
   return plan.view?._id ?? null
+}
+
+const ROLE_SIDE_NAME: Readonly<Record<string, string>> = { input: 'left', control: 'top', mechanism: 'bottom', output: 'right' }
+
+/**
+ * Connects the parent arrow of `portView` to `boxView` from a drag between them (either way): the
+ * role comes from the port, so only the side of that role accepts it (a control only on the top of
+ * a box). The side is the one a drag from the port came into the box through, or the side of the
+ * box the drag was released (or, from the box, pressed) next to. Outputs leave the right side.
+ */
+function assignByDrag(env: DiagramEnv, layout: DiagramLayout, portView: View, boxView: View, fromPort: boolean, path: readonly Point[]): string | null {
+  const port = portView.model as Elem
+  const box = boxView.model as Elem
+  const role = roleOf(port)
+  const rect = layout.nodes.get(boxView._id)?.box
+  const atBox = (fromPort ? path[path.length - 1] : path[0]) as Point
+  if (!rect || !atBox) return null
+  if (role !== 'output') {
+    const side = (fromPort ? entrySide(rect, path) : null) ?? nearestSide(rect, atBox)
+    if (side !== ROLE_SIDE[role]) throw new ModelRuleError(`This ${role} of the parent box goes on the ${ROLE_SIDE_NAME[role]} side of a box`)
+  }
+  const current = portAssignment(port)?.boxes ?? []
+  if (current.includes(box)) throw new ModelRuleError('This parent arrow already reaches that box')
+  assignParentArrow(env, port, [...current, box])
+  const arrow = arrowToBox(port, box)
+  return (arrow && env.diagram.ownedViews.find((v) => v.model === arrow)?._id) ?? null
 }
 
 const SIDE_ROLE: Readonly<Partial<Record<Idef0Side, Idef0Role>>> = { left: 'input', top: 'control', bottom: 'mechanism' }

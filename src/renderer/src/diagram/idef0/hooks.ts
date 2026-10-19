@@ -1,11 +1,17 @@
 /** Registration of the IDEF0 editor hooks: auto-renumbering, rename sync, title blocks, gestures and deletion. */
 import { registerTransactionHook, type OperationBuilder } from '../../commands'
-import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Diagram, type Elem } from '../../model'
-import { registerDiagramHooks, type DiagramEnv, type SegmentDrag } from '../editor/actions'
+import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Elem, type Point, type View } from '../../model'
+import { projectStore } from '../../store'
+import { registerDiagramHooks, type DiagramEnv, type SegmentDrag, type ToolSpec } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { registerRenameHook } from '../editor/quickEditApply'
+import { addMissingPorts, dropTunneledPorts, spreadPendingPorts } from './assignment'
+import { AssignGhost, AssignPopover } from './assignOverlay'
+import { closeAssignPopover, openAssignPopover } from './assignPopover'
 import { deleteIdef0Views } from './deletion'
 import { arrowRunAt, createIdef0Edge, freeEnds, moveArrowRun, pickEnd, pickReconnect, reconnectIdef0 } from './gestures'
+import { PENDING_HANDLE, type PortData } from './layout'
+import { isPendingPort } from './pending'
 import { syncLinkedNames } from './propagation'
 import { normalizeSheet } from './sheet'
 import { propagateTitleBlock } from './titleBlock'
@@ -22,14 +28,24 @@ function titleOf(diagram: Elem): string | null {
  * Runs inside every geometry operation of an IDEF0 diagram: diagram titles follow the names of the
  * boxes they detail, in the same undo step as the edit that caused them. Box numbers stay where
  * they are (moving a box never renumbers) unless the diagram opted into `autoNumber`, which makes
- * them follow the staircase. A resized sheet takes its output and mechanism ports along.
+ * them follow the staircase. A resized sheet takes its output and mechanism ports along. Every
+ * parent arrow has its pending port on the child diagram: the diagram's own (from its parent box)
+ * and those of the decomposed boxes drawn on it, so an arrow added to a box shows up below it
+ * (and a pending one whose parent arrow got tunneled at the box goes away).
+ * A pending arrow never sits on another boundary arrow: it moves to the nearest free spot.
  */
-function normalizeIdef0(b: OperationBuilder, diagram: Diagram): void {
+function normalizeIdef0(b: OperationBuilder, env: DiagramEnv): void {
+  const diagram = env.diagram
   if (diagram['autoNumber'] === true) {
     for (const change of planRenumber(diagram)) b.set(change.fn, 'boxNumber', change.boxNumber)
   }
   syncTitles(b, diagram)
   normalizeSheet(b, diagram)
+  for (const fn of [...(!isContextDiagram(diagram) && isIdef0Function(diagram._parent) ? [diagram._parent] : []), ...functionsOfDiagram(diagram)]) {
+    dropTunneledPorts(env.engine, fn)
+    addMissingPorts(b, fn)
+  }
+  spreadPendingPorts(b, env)
 }
 
 function syncTitles(b: OperationBuilder, diagram: Elem): void {
@@ -49,11 +65,28 @@ function arrowSegmentDrag(env: DiagramEnv, layout: DiagramLayout, edgeId: string
   return { axis: run.axis, value: run.value, commit: (value) => void moveArrowRun(env, layout, edgeId, index, value) }
 }
 
+/** Pressing the round handle of a pending arrow draws it to a box (with the Select tool too). */
+function pendingHandle(layout: DiagramLayout, viewId: string, p: Point): ToolSpec | null {
+  const node = layout.nodes.get(viewId)
+  const handle = node?.viewType === 'IDEF0PortView' ? (node.data as PortData).pending?.handle : undefined
+  return handle && Math.hypot(p.x - handle.x, p.y - handle.y) <= PENDING_HANDLE + 4 ? { kind: 'IDEF0Arrow' } : null
+}
+
+/** Clicking a pending arrow opens its box table. */
+function openPendingArrow(env: DiagramEnv, _layout: DiagramLayout, viewId: string): void {
+  const view = env.engine.repository.get(viewId) as View | undefined
+  if (view?._type === 'IDEF0PortView' && isPendingPort(view.model)) openAssignPopover(env.diagram, view.model as Elem)
+}
+
 let registered = false
 
 export function registerIdef0Hooks(): void {
   if (registered) return
   registered = true
+  // The box table belongs to the diagram it was opened on: switching diagrams closes it.
+  projectStore.subscribe((s, prev) => {
+    if (s.activeDiagramId !== prev.activeDiagramId) closeAssignPopover()
+  })
   registerDiagramHooks('IDEF0Diagram', {
     normalize: normalizeIdef0,
     deleteViews: deleteIdef0Views,
@@ -63,7 +96,11 @@ export function registerIdef0Hooks(): void {
     freeEnds,
     segmentDrag: arrowSegmentDrag,
     liveReconnect: true,
-    pickReconnect
+    pickReconnect,
+    dragHandle: pendingHandle,
+    clickView: openPendingArrow,
+    SvgOverlay: AssignGhost,
+    HtmlOverlay: AssignPopover
   })
   // Author, date and status edits flow down to the child diagrams that still follow (any UI path).
   registerTransactionHook(propagateTitleBlock)

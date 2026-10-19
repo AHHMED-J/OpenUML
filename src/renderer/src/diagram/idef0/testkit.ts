@@ -7,6 +7,8 @@ import type { DiagramEnv } from '../editor/actions'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import type { DiagramLayout, EdgeLayout, NodeLayout } from '../layout/types'
 import { ensureNotations } from '../notations'
+import { assignParentArrow } from './assignment'
+import { pendingPorts } from './pending'
 import { decomposeFunction } from './decompose'
 
 export interface IdefKit {
@@ -80,4 +82,25 @@ export function arrowView(diagram: Diagram, name: string): View {
   const v = diagram.ownedViews.find((x) => x._type === 'IDEF0ArrowView' && (x.model as Elem | null)?.['name'] === name)
   if (!v) throw new Error(`no arrow ${name}`)
   return v
+}
+
+/**
+ * Assigns the pending arrows of the diagram of `env` the way decomposition used to wire them:
+ * inputs and mechanisms to the first box, controls forked to every box, outputs from the last box.
+ */
+export function wireLikeDecompose(env: DiagramEnv): void {
+  const boxes = (env.diagram.ownedViews.filter((v) => v._type === 'IDEF0FunctionView') as NodeView[])
+    .map((v) => v.model as Elem)
+    .sort((a, b) => (a['boxNumber'] as number) - (b['boxNumber'] as number))
+  for (const port of pendingPorts(env.diagram)) {
+    const role = port['role'] as string
+    assignParentArrow(env, port, role === 'control' ? boxes : role === 'output' ? boxes.slice(-1) : boxes.slice(0, 1))
+  }
+}
+
+/** Decomposes `fn` and wires its pending arrows like decomposition used to (`wireLikeDecompose`). */
+export function decomposeWired(k: IdefKit, fn: Elem, count = 3): Diagram {
+  const diagram = decomposeFunction(k.engine, fn, count)
+  wireLikeDecompose(k.envOf(diagram))
+  return diagram
 }

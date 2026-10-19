@@ -31,6 +31,14 @@ for which file to pick.
   snap to the right side, forks and joins, call and tunneled arrows, the A-0 context diagram, *Decompose* into
   child diagrams with Go to Parent/Child, *Set Number of Child Boxes* (add boxes, or choose which boxes to remove
   with their arrows and sub-diagrams; one undo step), the title block, and consistency warnings with a status-bar count.
+  Decomposing no longer wires the parent's arrows to the child boxes: each one waits on the frame edge as a dashed
+  *pending arrow* (role color, ICOM code and name) until you drag it onto the side of a box that matches its role;
+  dragging it to more boxes makes a fork (a join for outputs), and the status bar counts the arrows still pending.
+  Clicking a pending arrow (or *Connect to...* on a boundary arrow) opens a table of the diagram's boxes: the checked
+  boxes are previewed on the canvas, a box with its own child diagram warns before it loses the arrow, and *Connect*
+  applies the choice in one undo step. For many arrows at once, right-click a decomposition diagram in the Model
+  Explorer (or View > Panels) for the dockable *Advanced Arrows* panel: one row per parent arrow, one column per box,
+  each checkbox applied at once, so an older file whose arrows all reach one box can be re-spread in a few clicks.
 - **Editing** – live preview while moving, resizing and drawing, animated zoom, grid and snap-to-grid, inline
   name editing and quick-edit syntax (e.g. `-total : Money [0..1] = 0`, `trigger [guard] / effect`), copy,
   paste and duplicate (pasted elements are new, independent copies with the same names), alignment commands.

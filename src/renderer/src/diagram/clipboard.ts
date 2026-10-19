@@ -69,9 +69,18 @@ function hostOf(view: View): View {
   return v
 }
 
-/** The copyable subset of `ids`: top-level views; edges only with both ends. */
+/**
+ * An IDEF0 boundary port standing for an arrow of the parent box: there is one per parent arrow,
+ * so it is never copied (a copy would be a second, duplicate stand-in for the same arrow).
+ */
+function isLinkedBoundaryPort(view: View): boolean {
+  const model = view.model as Elem | null | undefined
+  return !!model && model._type === 'IDEF0Port' && !!model['corresponds']
+}
+
+/** The copyable subset of `ids`: top-level views, except linked IDEF0 boundary ports; edges only with both ends. */
 export function copyableViews(repo: Repository, diagram: Diagram, ids: readonly string[]): View[] {
-  const views = ids.map((id) => repo.get(id)).filter((v): v is View => isKindOf(v, 'View') && v._parent === diagram)
+  const views = ids.map((id) => repo.get(id)).filter((v): v is View => isKindOf(v, 'View') && v._parent === diagram && !isLinkedBoundaryPort(v))
   const set = new Set<View>(views)
   return views.filter((v) => {
     if (!isKindOf(v, 'EdgeView')) return true

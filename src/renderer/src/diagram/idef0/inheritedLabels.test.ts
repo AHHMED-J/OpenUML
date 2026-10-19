@@ -4,10 +4,9 @@ import { effectiveArrowName, shownArrowName, trunkOf, type Diagram, type Elem, t
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { applyQuickEdit } from '../editor/quickEditApply'
 import { addChildBoxes } from './boxCount'
-import { decomposeFunction } from './decompose'
 import type { ArrowData } from './edges'
 import { createIdef0Edge } from './gestures'
-import { measurer, newKit, type IdefKit } from './testkit'
+import { decomposeWired, measurer, newKit, type IdefKit } from './testkit'
 import { validateIdef0 } from './validate'
 
 const arrowsOf = (scope: Elem): Elem[] => (scope['arrows'] as Elem[]) ?? []
@@ -67,7 +66,7 @@ describe('labels inherited by child boundary arrows (unlabeled parent branches)'
 
   it('labels the boundary arrows of the decomposition with the inherited labels (no W05/W07)', () => {
     const { k, ratesBranch, staffBranch, a5 } = userKit()
-    const child = decomposeFunction(k.engine, a5, 2) as Diagram
+    const child = decomposeWired(k, a5, 2) as Diagram
     const boundary = (parent: Elem): Elem => arrowsOf(a5).find((a) => (a['source'] as Elem)['corresponds'] === parent) as Elem
     expect(boundary(ratesBranch)['name']).toBe('Shipping rates')
     expect(boundary(staffBranch)['name']).toBe('warehouse staff')
@@ -80,7 +79,7 @@ describe('labels inherited by child boundary arrows (unlabeled parent branches)'
 
   it('shows the inherited label for files whose boundary arrows were saved unlabeled', () => {
     const { k, ratesBranch, a5 } = userKit()
-    const child = decomposeFunction(k.engine, a5, 2) as Diagram
+    const child = decomposeWired(k, a5, 2) as Diagram
     // What an older version wrote: the branch's own (empty) name.
     for (const a of arrowsOf(a5)) if (a['name'] === 'Shipping rates' || a['name'] === 'warehouse staff') a['name'] = ''
     const text = writeMdj(k.repository.project as Elem)
@@ -109,7 +108,7 @@ describe('labels inherited by child boundary arrows (unlabeled parent branches)'
 
   it('relabels the child boundary arrow when the trunk is renamed, in one undo step', () => {
     const { k, rates, ratesBranch, a5 } = userKit()
-    decomposeFunction(k.engine, a5, 2)
+    decomposeWired(k, a5, 2)
     const onChild = arrowsOf(a5).find((a) => (a['source'] as Elem)['corresponds'] === ratesBranch) as Elem
     const before = writeMdj(k.repository.project as Elem)
     const depth = k.engine.undoDepth
