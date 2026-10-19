@@ -1,10 +1,10 @@
 /** Registration of the IDEF0 editor hooks: auto-renumbering, rename sync, title blocks, gestures and deletion. */
 import { registerTransactionHook, type OperationBuilder } from '../../commands'
-import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Diagram, type Elem, type Point, type View } from '../../model'
+import { functionsOfDiagram, isContextDiagram, isIdef0Function, planRenumber, type Elem, type Point, type View } from '../../model'
 import { registerDiagramHooks, type DiagramEnv, type SegmentDrag, type ToolSpec } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { registerRenameHook } from '../editor/quickEditApply'
-import { addMissingPorts } from './assignment'
+import { addMissingPorts, spreadPendingPorts } from './assignment'
 import { AssignGhost, AssignPopover } from './assignOverlay'
 import { openAssignPopover } from './assignPopover'
 import { deleteIdef0Views } from './deletion'
@@ -30,8 +30,10 @@ function titleOf(diagram: Elem): string | null {
  * them follow the staircase. A resized sheet takes its output and mechanism ports along. Every
  * parent arrow has its pending port on the child diagram: the diagram's own (from its parent box)
  * and those of the decomposed boxes drawn on it, so an arrow added to a box shows up below it.
+ * A pending arrow never sits on another boundary arrow: it moves to the nearest free spot.
  */
-function normalizeIdef0(b: OperationBuilder, diagram: Diagram): void {
+function normalizeIdef0(b: OperationBuilder, env: DiagramEnv): void {
+  const diagram = env.diagram
   if (diagram['autoNumber'] === true) {
     for (const change of planRenumber(diagram)) b.set(change.fn, 'boxNumber', change.boxNumber)
   }
@@ -39,6 +41,7 @@ function normalizeIdef0(b: OperationBuilder, diagram: Diagram): void {
   normalizeSheet(b, diagram)
   if (!isContextDiagram(diagram) && isIdef0Function(diagram._parent)) addMissingPorts(b, diagram._parent)
   for (const fn of functionsOfDiagram(diagram)) addMissingPorts(b, fn)
+  spreadPendingPorts(b, env)
 }
 
 function syncTitles(b: OperationBuilder, diagram: Elem): void {

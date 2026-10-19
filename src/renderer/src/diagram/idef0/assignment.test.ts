@@ -3,7 +3,7 @@ import { readMdj, validateModel, writeMdj } from '../../format'
 import { functionViewsOf, type Diagram, type EdgeView, type Elem, type NodeView, type View } from '../../model'
 import { assignParentArrow, assignmentLosses, portAssignment } from './assignment'
 import { isPendingPort, pendingPorts } from './pending'
-import { deleteViews } from '../editor/actions'
+import { deleteViews, withGeometry } from '../editor/actions'
 import { removeChildBoxes } from './boxCount'
 import { addBoundaryArrow, decomposeFunction } from './decompose'
 import { IDEF0_ROLE_COLORS } from './colors'
@@ -223,6 +223,56 @@ describe('assignParentArrow', () => {
     expect(portAssignment(tail.model as Elem)).not.toBeNull()
     k.engine.transact('Unlink', (b) => b.set(tail.model as Elem, 'corresponds', null))
     expect(() => assignParentArrow(env, tail.model as Elem, [k.box(2)])).toThrow(/parent arrow/)
+  })
+})
+
+describe('pending arrows on a crowded frame edge', () => {
+  /** A child diagram with two named controls of the parent box, both pending. */
+  function twoControls(): ReturnType<typeof parentArrows> & { views: () => NodeView[]; span: (v: View) => [number, number] } {
+    const k = parentArrows()
+    const id = addBoundaryArrow(k.envOf(k.context), functionViewsOf(k.context)[0] as View, 'control') as string
+    k.engine.transact('Name', (b) => b.set((k.repository.get(id) as View).model as Elem, 'name', 'Budget Limits'))
+    const views = (): NodeView[] =>
+      (k.top['ports'] as Elem[]).filter((p) => p['role'] === 'control').map((p) => k.child.ownedViews.find((v) => v.model === p) as NodeView)
+    // What a port covers along the top edge: its square, ICOM code, stub handle and name.
+    const span = (v: View): [number, number] => {
+      const node = k.layoutOf(k.child).nodes.get(v._id)!
+      const data = node.data as PortData
+      const rects = [node.box, data.codeLine?.box, data.pending?.label?.box].filter((r) => !!r)
+      return [Math.min(...rects.map((r) => r.left)), Math.max(...rects.map((r) => r.left + r.width))]
+    }
+    return { ...k, views, span }
+  }
+  const apart = (a: [number, number], b: [number, number]): boolean => a[1] <= b[0] || b[1] <= a[0]
+
+  it('moves a pending arrow dropped on another to the nearest free spot of the edge, leaving the other in place', () => {
+    const k = twoControls()
+    const [first, second] = k.views() as [NodeView, NodeView]
+    const at = { left: first.left, top: first.top }
+    withGeometry(k.envOf(k.child), 'Move', (b) => b.setAll(second, at))
+    expect({ left: first.left, top: first.top }).toEqual(at)
+    expect(second.top).toBe(at.top)
+    expect(apart(k.span(first), k.span(second))).toBe(true)
+    expect(Math.abs(second.left - first.left)).toBeLessThan(200)
+  })
+
+  it('keeps a parent arrow that goes back to pending off the boundary arrows still connected there', () => {
+    const k = twoControls()
+    const env = k.envOf(k.child)
+    const [first, second] = k.views() as [NodeView, NodeView]
+    const [one, two] = [first.model, second.model] as [Elem, Elem]
+    assignParentArrow(env, one, [k.box(1)])
+    assignParentArrow(env, two, [k.box(1)])
+    // Two arrows drawn into the box from almost the same spot, as a modeler may leave them.
+    withGeometry(env, 'Move', (b) => b.setAll(second, { left: first.left + 4 }))
+    assignParentArrow(env, two, [])
+    expect(isPendingPort(two)).toBe(true)
+    expect(portAssignment(one)?.boxes).toEqual([k.box(1)])
+    expect(apart(k.span(first), k.span(second))).toBe(true)
+    // Nothing moves when nothing overlaps.
+    const settled = { left: second.left, top: second.top }
+    withGeometry(env, 'Touch', () => undefined)
+    expect({ left: second.left, top: second.top }).toEqual(settled)
   })
 })
 
