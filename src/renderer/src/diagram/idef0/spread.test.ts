@@ -140,6 +140,52 @@ describe('Spread Boundary Arrows', () => {
   })
 })
 
+/** Pairs of arrows of `diagram` that cross each other or run on top of each other, as "In 1×In 2". */
+function tangles(k: IdefKit, diagram: Diagram): string[] {
+  const layout = k.layoutOf(diagram)
+  type Run = { horizontal: boolean; at: number; lo: number; hi: number }
+  const arrows = diagram.ownedViews
+    .filter((v) => v._type === 'IDEF0ArrowView')
+    .map((v) => {
+      const points = layout.edges.get(v._id)!.points
+      const runs: Run[] = []
+      for (let i = 1; i < points.length; i++) {
+        const p = points[i - 1]!
+        const q = points[i]!
+        if (p.y === q.y && p.x !== q.x) runs.push({ horizontal: true, at: p.y, lo: Math.min(p.x, q.x), hi: Math.max(p.x, q.x) })
+        else if (p.x === q.x && p.y !== q.y) runs.push({ horizontal: false, at: p.x, lo: Math.min(p.y, q.y), hi: Math.max(p.y, q.y) })
+      }
+      return { name: String((v as View).model?.['name']), runs }
+    })
+  const meet = (s: Run, t: Run): boolean => {
+    if (s.horizontal === t.horizontal) return Math.abs(s.at - t.at) < 1 && Math.min(s.hi, t.hi) - Math.max(s.lo, t.lo) > 1
+    const h = s.horizontal ? s : t
+    const v = s.horizontal ? t : s
+    return v.at > h.lo + 0.5 && v.at < h.hi - 0.5 && h.at > v.lo + 0.5 && h.at < v.hi - 0.5
+  }
+  const out: string[] = []
+  arrows.forEach((a, i) => {
+    for (const b of arrows.slice(i + 1)) if (a.runs.some((s) => b.runs.some((t) => meet(s, t)))) out.push(`${a.name}×${b.name}`)
+  })
+  return out
+}
+
+describe('bends of boundary arrows', () => {
+  it('gives the bends of spread boundary arrows their own lanes, without crossings', () => {
+    const k = newKit()
+    const box = boxView(k.child, 2)
+    k.engine.transact('Old drawing', (b) => {
+      // Eight arrows on each side of one box, more than its sides have room for in a straight line.
+      for (let i = 0; i < 8; i++) applyPlan(b, planBoundaryArrow(k.child, box, 'input', `In ${i + 1}`, box.top + 8))
+      for (let i = 0; i < 8; i++) applyPlan(b, planBoundaryArrow(k.child, box, 'control', `Ctl ${i + 1}`, box.left + 8))
+      for (let i = 0; i < 8; i++) applyPlan(b, planBoundaryArrow(k.child, box, 'mechanism', `Mech ${i + 1}`, box.left + box.width - 8))
+    })
+    spreadBoundaryArrows(k.envOf(k.child))
+    expect(clashes(k, k.child)).toEqual([])
+    expect(tangles(k, k.child)).toEqual([])
+  })
+})
+
 describe('packAlong', () => {
   it('keeps ports on the grid, in order, at least their gap apart and centered on where they want to be', () => {
     const at = packAlong([100, 100, 100], [20, 20], 0, 1000)
