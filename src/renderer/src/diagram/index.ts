@@ -100,7 +100,7 @@ ensureNotations()
 
 // Editor and commands
 export { DiagramEditor, type DiagramEditorProps, type ToolSelection } from './editor/DiagramEditor'
-export { registerDiagramCommands, DiagramCommandIds, copySelection, pasteClipboard, type DiagramCommandContext } from './commands'
+export { registerDiagramCommands, DiagramCommandIds, copySelection, deleteModelElements, pasteClipboard, type DiagramCommandContext } from './commands'
 export { getActiveEditor, getContextEdgeEnd, requestReveal, type ContextEdgeEnd, type EditorHandle } from './editor/activeEditor'
 export { highlightViews } from './editor/highlight'
 export {

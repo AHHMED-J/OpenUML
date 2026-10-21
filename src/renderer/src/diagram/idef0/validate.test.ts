@@ -127,6 +127,18 @@ describe('IDEF0 validation', () => {
     expect(ids(k)).not.toContain('W08')
   })
 
+  it('W20: a boundary port left with no arrow, on the context diagram and below (not W08)', () => {
+    const k = exampleKit()
+    for (const scope of [k.model, k.top]) {
+      const port = instantiate('IDEF0Port')
+      Object.assign(port, { _id: `orphan${scope._id}`, role: 'control', _parent: scope })
+      ;(scope['ports'] as Elem[]).push(port)
+    }
+    const found = validateIdef0(k.model).filter((i) => i.id === 'W20' || i.id === 'W08')
+    expect(found.map((i) => `${i.id} ${i.elementId}`)).toEqual([`W20 orphan${k.model._id}`, `W20 orphan${k.top._id}`])
+    expect(found[0]!.message).toContain('control boundary port')
+  })
+
   it('W09: a parent arrow without a boundary arrow on the child diagram, unless tunneled', () => {
     const k = exampleKit()
     k.top['ports'] = (k.top['ports'] as Elem[]).filter((p) => p['role'] !== 'mechanism')

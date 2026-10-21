@@ -4,16 +4,17 @@
  * line style and view format toggles, nudge and quick edit. IDs that another module already
  * registered are skipped, so registration order does not matter.
  */
-import { deleteFromView, setFieldsOfAll, type CommandDefinition, type CommandRegistry } from '../commands'
-import { fieldOf, isKindOf, type Diagram, type View } from '../model'
-import { activeDiagram, projectStore, selectedViews } from '../store'
+import { CommandIds, deleteFromModel, setFieldsOfAll, type CommandDefinition, type CommandRegistry } from '../commands'
+import { fieldOf, isKindOf, type Diagram, type Elem, type View } from '../model'
+import { activeDiagram, projectStore, selectedModels, selectedViews } from '../store'
 import { LineStyle, stepZoom, ZOOM } from './core'
 import { canCopyViewsOf, copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard, type ViewClipboardPayload, type ViewHostPredicate } from './clipboard'
-import { findDropContainer, moveSelection, type DiagramEnv } from './editor/actions'
+import { deleteViews, findDropContainer, moveSelection, type DiagramEnv } from './editor/actions'
 import { getActiveEditor } from './editor/activeEditor'
 import { ALIGN_OPS, alignViews, reorderViews } from './editor/alignment'
 import { computeDiagramLayout } from './layout/layoutDiagram'
 import { getTextMeasurer } from './layout/measurer'
+import { deleteIdef0Elements } from './idef0/deletion'
 
 export interface DiagramCommandContext {
   getZoom(): number
@@ -111,6 +112,18 @@ function selection(): View[] {
 
 function selectViews(ids: readonly string[]): void {
   state().select({ views: ids })
+}
+
+/**
+ * Delete from Model with the diagram rules (an IDEF0 arrow takes its unused boundary port with it,
+ * linked arrows on other levels follow), everything else generically: one undo step.
+ */
+export function deleteModelElements(elements: readonly Elem[], name = 'Delete from Model'): void {
+  const engine = state().engine
+  engine.transact(name, () => {
+    const rest = deleteIdef0Elements(engine, elements, getTextMeasurer())
+    if (rest.length > 0) deleteFromModel(engine, rest)
+  })
 }
 
 /** Copies the selected views; returns true when something was copied. */
@@ -255,8 +268,26 @@ export function registerDiagramCommands(registry: CommandRegistry, ctx: DiagramC
     isEnabled: () => isTextFieldFocused() || (hasSelection() && canCopyViewsOf(currentDiagram() as Diagram)),
     run: () => {
       if (nativeEdit('cut')) return
-      if (copySelection()) deleteFromView(state().engine, selection(), 'Cut')
+      const diagram = currentDiagram()
+      if (diagram && copySelection()) deleteViews(envOf(diagram), state().selectedViewIds, 'Cut')
     }
+  })
+  // Delete and Delete from Model follow the diagram's rules from the menus and shortcuts too, as
+  // the Delete key on the canvas does (an IDEF0 arrow never leaves its boundary port behind).
+  add({
+    id: CommandIds.editDelete,
+    label: 'Delete',
+    isEnabled: hasSelection,
+    run: () => {
+      const diagram = currentDiagram()
+      if (diagram) deleteViews(envOf(diagram), state().selectedViewIds)
+    }
+  })
+  add({
+    id: CommandIds.editDeleteFromModel,
+    label: 'Delete from Model',
+    isEnabled: () => selectedModels(state()).length > 0,
+    run: () => deleteModelElements(selectedModels(state()))
   })
   add({
     id: DiagramCommandIds.paste,

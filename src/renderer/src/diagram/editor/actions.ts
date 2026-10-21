@@ -501,11 +501,11 @@ export function moveEdgeLabel(env: DiagramEnv, layout: DiagramLayout, edgeId: st
 }
 
 /** Delete (views only). */
-export function deleteViews(env: DiagramEnv, ids: readonly string[]): void {
+export function deleteViews(env: DiagramEnv, ids: readonly string[], name = 'Delete'): void {
   let views = viewsById(env, ids)
   const hook = hooksFor(env.diagram)?.deleteViews
   if (hook) views = hook(env, views)
-  if (views.length > 0) deleteFromView(env.engine, views)
+  if (views.length > 0) deleteFromView(env.engine, views, name)
 }
 
 // ---------------------------------------------------------------------------------------------
