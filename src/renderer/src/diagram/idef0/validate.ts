@@ -1,6 +1,6 @@
 /**
- * IDEF0 consistency warnings W01-W19 (spec 11 §4.4, plus W19: a parent arrow still pending on its
- * child diagram). Warnings only: they never block editing or saving. `validateIdef0(model)` walks
+ * IDEF0 consistency warnings W01-W20 (spec 11 §4.4, plus W19: a parent arrow still pending on its
+ * child diagram, and W20: a boundary port left with no arrow). Warnings only: they never block editing or saving. `validateIdef0(model)` walks
  * the whole model; `validateDiagram` filters to one diagram.
  */
 import {
@@ -18,7 +18,7 @@ import {
 } from '../../model'
 import { isPendingPort } from './pending'
 
-export type IdefIssueId = `W${'01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19'}`
+export type IdefIssueId = `W${'01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20'}`
 
 export interface IdefIssue {
   readonly id: IdefIssueId
@@ -179,6 +179,10 @@ function validateScope(scope: Elem, issues: IdefIssue[]): void {
     if (toPort && connectedTunnel && !isModel && !toPort['corresponds']) add('W17', a, `A tunneled end of "${descr(a)}" has no matching arrow on the parent diagram`)
   }
 
+  // W20: a boundary port with no arrow and no parent arrow (left behind by an earlier deletion).
+  const unused = (port: Elem): boolean => !port['corresponds'] && !arrows.some((a) => a['source'] === port || a['target'] === port)
+  for (const port of ports) if (unused(port)) add('W20', port, `A ${roleOf(port)} boundary port of "${descr(scope)}" has no arrow: delete it`)
+
   // W08: boundary arrows on decomposition diagrams. W19: a parent arrow no box uses yet.
   if (!isModel) {
     for (const port of ports) {
@@ -186,6 +190,7 @@ function validateScope(scope: Elem, issues: IdefIssue[]): void {
         if (isPendingPort(port)) add('W19', port, `Parent arrow "${effectiveArrowName(port['corresponds'] as Elem) || '(unnamed)'}" waits unconnected on "${descr(scope)}": connect it to a box`)
         continue
       }
+      if (unused(port)) continue
       const touching = arrows.filter((a) => a['source'] === port || a['target'] === port)
       const tunneled = touching.some((a) => (a['source'] === port ? a['tunnelSource'] : a['tunnelTarget']) === true)
       if (!tunneled) add('W08', port, `A boundary arrow of "${descr(scope)}" stands for no arrow of the parent box`)

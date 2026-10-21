@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CommandRegistry, createDiagram, createNode } from '../commands'
-import type { Diagram, Elem, View } from '../model'
+import { CommandIds, CommandRegistry, createDiagram, createNode } from '../commands'
+import { listField, type Diagram, type Elem, type NodeView, type View } from '../model'
 import { activeDiagram, projectStore } from '../store'
 import { copySelection, pasteClipboard, registerDiagramCommands } from './commands'
 import { setActiveEditor } from './editor/activeEditor'
 import { decomposeFunction } from './idef0/decompose'
+import { createIdef0Edge } from './idef0/gestures'
+import { measurer } from './idef0/testkit'
+import { computeDiagramLayout } from './layout/layoutDiagram'
+import { setTextMeasurer } from './layout/measurer'
 import { ensureNotations } from './notations'
 
 function setup(clipboard: { readText(): Promise<string>; writeText?(text: string): Promise<void> }): { diagram: Diagram; view: View } {
@@ -139,4 +143,45 @@ describe('deleting from the menu', () => {
       expect((role.model as Elem)['elements']).toHaveLength(0)
     })
   })
+})
+
+describe('delete commands on an IDEF0 diagram', () => {
+  afterEach(() => setTextMeasurer(null))
+
+  /** A new IDEF0 model whose A-0 has one control drawn from the frame edge, selected. */
+  function contextWithControl(): { registry: CommandRegistry; dispose: () => void; model: Elem; diagram: Diagram } {
+    ensureNotations()
+    setTextMeasurer(measurer)
+    projectStore.getState().newProject()
+    const store = projectStore.getState()
+    const plan = createDiagram(store.engine, 'IDEF0Diagram', store.project as Elem)
+    const diagram = plan.diagram as Diagram
+    store.openDiagram(diagram._id)
+    const box = diagram.ownedViews.find((v) => v._type === 'IDEF0FunctionView') as NodeView
+    const x = box.left + box.width / 2
+    const env = { engine: store.engine, diagram, measurer }
+    const id = createIdef0Edge(env, computeDiagramLayout(diagram, store.repository, measurer), { kind: 'IDEF0Arrow' }, null, box._id, { x, y: 70 }, { x, y: box.top + 2 })
+    projectStore.getState().select({ views: [id as string] })
+    const registry = new CommandRegistry()
+    const dispose = registerDiagramCommands(registry, { getZoom: () => 1, setZoom: () => undefined, canHostView: () => true, notify: () => undefined })
+    return { registry, dispose, model: plan.model as Elem, diagram }
+  }
+
+  for (const command of [CommandIds.editDeleteFromModel, CommandIds.editDelete]) {
+    it(`${command} removes a boundary arrow together with its port, as the Delete key does`, () => {
+      const { registry, dispose, model, diagram } = contextWithControl()
+      try {
+        expect(listField(model, 'ports')).toHaveLength(1)
+        registry.execute(command)
+        expect(listField(model, 'arrows')).toHaveLength(0)
+        expect(listField(model, 'ports')).toHaveLength(0)
+        expect(diagram.ownedViews.filter((v) => v._type === 'IDEF0PortView' || v._type === 'IDEF0ArrowView')).toHaveLength(0)
+        projectStore.getState().undo()
+        expect(listField(model, 'ports')).toHaveLength(1)
+        expect(listField(model, 'arrows')).toHaveLength(1)
+      } finally {
+        dispose()
+      }
+    })
+  }
 })
