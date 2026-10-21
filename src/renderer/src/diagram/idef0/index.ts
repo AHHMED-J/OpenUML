@@ -2,7 +2,7 @@
  * IDEF0 function modeling notation: function boxes with derived node numbers, boundary ports with
  * ICOM codes, arrows attached to box sides by role (orthogonal routes, rounded bends, fork/join,
  * call arrows, tunnels), the sheet frame with its title block, model notes, decomposition and
- * navigation commands, and the consistency warnings W01-W18.
+ * navigation commands, and the consistency warnings W01-W20.
  *
  * Editor hooks used: `derivedPosition`-free node layouts, `moveAxis` (ports slide along the area
  * edge), `hitAreas` (only the title block bands of the frame hit), the `idef0.call` quick-edit
