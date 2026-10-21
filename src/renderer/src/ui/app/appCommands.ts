@@ -4,13 +4,12 @@
  * editor, which owns select all, zoom, format and alignment) registered the same id first.
  */
 import {
-  deleteFromModel,
   reorderElement,
   setFieldsOfAll,
   type CommandDefinition,
   type CommandRegistry
 } from '../../commands'
-import { deleteIdef0Elements, getTextMeasurer, highlightViews, requestReveal } from '../../diagram'
+import { deleteModelElements, highlightViews, requestReveal } from '../../diagram'
 import { isKindOf, type DiagramKind, type Elem, type View } from '../../model'
 import { projectStore, selectedModels } from '../../store'
 import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
@@ -140,14 +139,8 @@ function selectInDiagram(): void {
 export function confirmAndDeleteFromModel(elements: readonly Elem[]): Promise<void> {
   const deletable = elements.filter((e) => !isKindOf(e, 'Project'))
   if (deletable.length === 0) return Promise.resolve()
-  const run = (): void => {
-    const engine = ps().engine
-    // IDEF0 arrows and ports follow the diagram's deletion rules (branches, linked boundary arrows).
-    engine.transact('Delete', () => {
-      const rest = deleteIdef0Elements(engine, deletable, getTextMeasurer())
-      if (rest.length > 0) deleteFromModel(engine, rest)
-    })
-  }
+  // IDEF0 arrows and ports follow the diagram's deletion rules (branches, linked boundary arrows).
+  const run = (): void => deleteModelElements(deletable, 'Delete')
   if (!bridge) {
     if (window.confirm(`Delete ${deletable.length} element(s) from the model?`)) run()
     return Promise.resolve()
