@@ -5,7 +5,8 @@ import { projectStore } from '../../store'
 import { registerDiagramHooks, type DiagramEnv, type SegmentDrag, type ToolSpec } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
 import { registerRenameHook } from '../editor/quickEditApply'
-import { addMissingPorts, dropTunneledPorts, spreadPendingPorts } from './assignment'
+import { addMissingPorts, dropTunneledPorts } from './assignment'
+import { spreadPorts } from './spread'
 import { AssignGhost, AssignPopover } from './assignOverlay'
 import { closeAssignPopover, openAssignPopover } from './assignPopover'
 import { deleteIdef0Views } from './deletion'
@@ -32,7 +33,8 @@ function titleOf(diagram: Elem): string | null {
  * parent arrow has its pending port on the child diagram: the diagram's own (from its parent box)
  * and those of the decomposed boxes drawn on it, so an arrow added to a box shows up below it
  * (and a pending one whose parent arrow got tunneled at the box goes away).
- * A pending arrow never sits on another boundary arrow: it moves to the nearest free spot.
+ * A pending arrow, or a port the operation placed, never sits on another boundary arrow: it moves
+ * to the nearest free spot (`spread.ts`).
  */
 function normalizeIdef0(b: OperationBuilder, env: DiagramEnv): void {
   const diagram = env.diagram
@@ -45,7 +47,7 @@ function normalizeIdef0(b: OperationBuilder, env: DiagramEnv): void {
     dropTunneledPorts(env.engine, fn)
     addMissingPorts(b, fn)
   }
-  spreadPendingPorts(b, env)
+  spreadPorts(b, env)
 }
 
 function syncTitles(b: OperationBuilder, diagram: Elem): void {

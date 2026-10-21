@@ -4,8 +4,8 @@
  *
  * - **Upward propagation**: a boundary arrow drawn on a child diagram whose port has no counterpart
  *   adds the matching arrow to the parent box on the parent diagram (role from the port's edge,
- *   same name), and so on level by level up to the A-0 context diagram. An arrow tunneled at its
- *   unconnected end is not propagated.
+ *   same name, its port on a free spot of the frame edge), and so on level by level up to the A-0
+ *   context diagram. An arrow tunneled at its unconnected end is not propagated.
  * - **Pass-through counterparts**: an arrow of the parent level that only carries a child boundary
  *   arrow (one end on the parent box, the other on a boundary port nothing else uses, no branches)
  *   is removed when its child boundary arrow is tunneled or deleted; the removal goes on upward.
@@ -37,6 +37,7 @@ import {
 } from '../../model'
 import type { TextMeasurer } from '../core'
 import { syncGeometry } from '../editor/actions'
+import { spreadPorts } from './spread'
 
 export interface LevelEnv {
   readonly engine: ModelEngine
@@ -116,6 +117,8 @@ export function propagateUp(b: OperationBuilder, env: LevelEnv, port: Elem): Ele
     const name = arrows.map((a) => effectiveArrowName(a)).find((n) => n !== '') ?? ''
     const plan = planBoundaryArrow(parentDiagram as Diagram, box, role as BoundaryRole, name, alongParentBox(current, role as BoundaryRole, box))
     applyPlan(b, plan)
+    // The new port takes the nearest free spot of its edge, so propagated arrows never stack.
+    spreadPorts(b, { engine: env.engine, diagram: parentDiagram as Diagram, measurer: env.measurer })
     const parentArrow = plan.model as Elem
     b.set(current, 'corresponds', parentArrow)
     added.push(parentArrow)
