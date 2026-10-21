@@ -38,12 +38,14 @@ function forkedModel(controls: number): Model {
   const model = plan.model as Elem
   const context = plan.diagram as Diagram
   const box = functionViewsOf(context)[0] as View
-  const add = (role: 'input' | 'control' | 'output' | 'mechanism', name: string): void => {
-    const p = planBoundaryArrow(context, box, role, name)
+  const add = (role: 'input' | 'control' | 'output' | 'mechanism', name: string, at?: number): void => {
+    const p = planBoundaryArrow(context, box, role, name, at)
     withGeometry({ engine, diagram: context, measurer }, 'Add', (b) => applyPlan(b, p))
   }
   add('input', 'Order')
-  for (let i = 0; i < controls; i++) add('control', `Control ${i + 1}`)
+  // Controls left to right from the middle of the box, in their numbering order.
+  const middle = (box as NodeView).left + (box as NodeView).width / 2
+  for (let i = 0; i < controls; i++) add('control', `Control ${i + 1}`, middle + i * 24)
   add('output', 'Result')
   add('mechanism', 'Staff')
   const a0 = decomposeFunction(engine, model['topFunction'] as Elem, 6)
