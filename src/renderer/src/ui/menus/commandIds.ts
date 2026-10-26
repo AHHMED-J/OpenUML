@@ -10,6 +10,7 @@ export const Cmd = {
   fileOpenRecent: 'file.open-recent',
   fileOpenExample: 'file.open-example',
   fileClearRecent: 'file.clear-recent',
+  fileShowInFolder: 'file.show-in-folder',
   fileExportPng: 'file.export-diagram-as.png',
   fileExportSvg: 'file.export-diagram-as.svg',
   fileExportAllPng: 'file.export-diagram-as.all-to-pngs',

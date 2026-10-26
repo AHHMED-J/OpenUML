@@ -10,6 +10,7 @@ import { addDiagramItemsFor, addItemsFor } from '../modelActions'
 import { baseName } from '../recentFiles'
 import { EXAMPLES } from '../examples'
 import { uiStore } from '../uiStore'
+import { showInFolderLabel } from '../app/bridge'
 import { Cmd } from './commandIds'
 import { endMultiplicityMenu } from '../app/associationEnds'
 import { idef0FormatMenu, idef0Menu } from './idef0Menu'
@@ -182,6 +183,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       examplesMenu(),
       { id: 'file.save', label: 'Save', command: Cmd.fileSave },
       { id: 'file.save-as', label: 'Save As...', command: Cmd.fileSaveAs },
+      { id: 'file.show-in-folder', label: showInFolderLabel, command: Cmd.fileShowInFolder },
       { id: 'file.close', label: 'Close', command: Cmd.fileClose },
       SEP,
       {

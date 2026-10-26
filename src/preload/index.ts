@@ -23,6 +23,7 @@ const bridge: OpenUmlBridge = {
   nativeEdit: (action) => ipcRenderer.send(IpcChannels.nativeEdit, action),
   chooseFolder: (title) => ipcRenderer.invoke(IpcChannels.chooseFolder, title),
   openExternal: (url) => ipcRenderer.send(IpcChannels.openExternal, url),
+  showItemInFolder: (path) => ipcRenderer.send(IpcChannels.showItemInFolder, path),
   addRecentDocument: (path) => ipcRenderer.send(IpcChannels.addRecentDocument, path),
   takeStartupFile: () => ipcRenderer.invoke(IpcChannels.takeStartupFile),
   onOpenFile: (listener) => subscribe<[string]>(IpcChannels.openFile, listener),
