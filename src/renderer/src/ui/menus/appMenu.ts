@@ -301,6 +301,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
     id: 'help',
     label: 'Help',
     submenu: [
+      { id: 'help.whats-new', label: "What's New...", command: Cmd.helpWhatsNew },
       { id: 'help.documentation', label: 'Documentation...', command: Cmd.helpDocumentation },
       { id: 'help.report-issue', label: 'Report an Issue...', command: Cmd.helpReportIssue },
       ...(mac
