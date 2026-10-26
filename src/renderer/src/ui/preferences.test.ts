@@ -42,4 +42,21 @@ describe('preferences', () => {
     stubStorage({ 'openuml.preferences': JSON.stringify({ autoSaveSeconds: 7, checkForUpdates: 'no' }) })
     expect(createUiStore().getState().prefs).toMatchObject({ autoSaveSeconds: 60, checkForUpdates: true })
   })
+
+  it('keeps the What\'s New opt-out and last seen version, and replaces unusable values', () => {
+    stubStorage({ 'openuml.preferences': JSON.stringify({ showWhatsNew: false, lastSeenVersion: '0.1.6' }) })
+    expect(createUiStore().getState().prefs).toMatchObject({ showWhatsNew: false, lastSeenVersion: '0.1.6' })
+    stubStorage({ 'openuml.preferences': JSON.stringify({ showWhatsNew: 'no', lastSeenVersion: 'latest' }) })
+    expect(createUiStore().getState().prefs).toMatchObject({ showWhatsNew: true, lastSeenVersion: null })
+  })
+
+  it('persists the last seen version, and a reset keeps it', () => {
+    const data = stubStorage()
+    const store = createUiStore()
+    store.getState().setPrefs({ lastSeenVersion: '0.1.6', showWhatsNew: false })
+    expect(JSON.parse(data.get('openuml.preferences') ?? '{}')).toMatchObject({ lastSeenVersion: '0.1.6', showWhatsNew: false })
+    store.getState().resetPrefs()
+    expect(store.getState().prefs).toMatchObject({ lastSeenVersion: '0.1.6', showWhatsNew: true })
+    expect(createUiStore().getState().prefs.lastSeenVersion).toBe('0.1.6')
+  })
 })

@@ -7,6 +7,7 @@ import { ElementPickerDialog, PromptDialog, ReferenceListDialog } from './dialog
 import { PreferencesDialog } from './dialogs/PreferencesDialog'
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog'
 import { WebsiteDialog } from './dialogs/WebsiteDialog'
+import { WhatsNewDialog } from './dialogs/WhatsNewDialog'
 import { Modal } from './components/Modal'
 import { PanelBoundary, PanelErrorMessage } from './components/PanelBoundary'
 import { UiIcon } from './icons'
@@ -59,6 +60,8 @@ function ModalContent({ modal }: { modal: ModalState }): React.JSX.Element {
       return <PreferencesDialog key={modalKey} />
     case 'shortcuts':
       return <ShortcutsDialog key={modalKey} />
+    case 'whatsNew':
+      return <WhatsNewDialog key={modalKey} releases={modal.releases} />
     case 'website':
       return <WebsiteDialog key={modalKey} initialTitle={modal.title} diagrams={modal.diagrams} resolve={modal.resolve} />
     case 'checklist':
