@@ -64,6 +64,8 @@ for which file to pick.
 - **Commands** – native application menu, context menus, keyboard shortcuts (`Cmd` on macOS, `Ctrl` elsewhere)
   that you can change in *Keyboard Shortcuts* (any command, conflicts asked about, reset per command or all),
   a command palette (`Cmd/Ctrl+Shift+P`) and `Cmd/Ctrl+F` to search the Model Explorer.
+- **Show in Finder** – the button next to *Save* (and *File > Show in Finder / Explorer*) reveals the open project's
+  file in its folder.
 - **Updates** – the window title shows the version you run. At startup and once a day OpenUML asks GitHub for the
   latest release (only that request, no personal data) and, when a newer one exists, offers it in the status bar;
   *Download* opens its release page. Turn it off in *Preferences > Updates*, or check by hand with
