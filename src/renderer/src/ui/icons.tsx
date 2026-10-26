@@ -850,6 +850,7 @@ export type UiIconName =
   | 'ellipsis'
   | 'search'
   | 'export'
+  | 'reveal'
 
 function uiGlyph(name: UiIconName): React.ReactNode {
   switch (name) {
@@ -919,6 +920,8 @@ function uiGlyph(name: UiIconName): React.ReactNode {
       )
     case 'search':
       return <path d="M7 2.5a4.5 4.5 0 110 9 4.5 4.5 0 010-9zM10.3 10.3L14 14" />
+    case 'reveal':
+      return <path d="M2 4h4l1.2 1.5H14v7.5H2zM6.5 11.5l3.5-3.5M7.5 8H10v2.5" />
     case 'export':
       return <path d="M8 10V2.5M5 5.5l3-3 3 3M3 9v4.5h10V9" />
   }

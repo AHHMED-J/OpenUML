@@ -371,6 +371,10 @@ function registerIpc(): void {
     if (allowed) void shell.openExternal(allowed)
   })
 
+  on(IpcChannels.showItemInFolder, (_event, path) => {
+    if (isProjectPath(path)) shell.showItemInFolder(path)
+  })
+
   on(IpcChannels.addRecentDocument, (_event, path) => {
     if (isProjectPath(path)) app.addRecentDocument(path)
   })

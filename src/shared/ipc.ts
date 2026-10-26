@@ -90,6 +90,8 @@ export interface OpenUmlBridge {
   chooseFolder(title: string): Promise<string | null>
   /** Opens an https URL in the OS browser. Other schemes are ignored. */
   openExternal(url: string): void
+  /** Shows a `.mdj` file in the OS file manager (Finder, Explorer), selected in its folder. */
+  showItemInFolder(path: string): void
   /** Adds a path to the OS recent-documents list. */
   addRecentDocument(path: string): void
   /** The `.mdj` file passed on the command line or by the OS at launch (once), else null. */
@@ -125,6 +127,7 @@ export const IpcChannels = {
   nativeEdit: 'openuml:native-edit',
   chooseFolder: 'openuml:choose-folder',
   openExternal: 'openuml:open-external',
+  showItemInFolder: 'openuml:show-item-in-folder',
   addRecentDocument: 'openuml:add-recent-document',
   takeStartupFile: 'openuml:take-startup-file',
   openFile: 'openuml:open-file',

@@ -18,6 +18,9 @@ function guessPlatform(): Platform {
 export const platform: Platform = bridge?.platform ?? guessPlatform()
 export const isMac = platform === 'darwin'
 
+/** Name of the system file manager, as the menu and toolbar call it. */
+export const showInFolderLabel = isMac ? 'Show in Finder' : platform === 'win32' ? 'Show in Explorer' : 'Show in File Manager'
+
 /** True when keyboard focus is in an editable text control. */
 export function isTextInputFocused(): boolean {
   if (typeof document === 'undefined') return false

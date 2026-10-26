@@ -1,7 +1,7 @@
 /** Main toolbar: file, undo/redo, zoom, grid and panel toggles. */
 import type React from 'react'
 import { useProjectStore } from '../store'
-import { platform } from './app/bridge'
+import { platform, showInFolderLabel } from './app/bridge'
 import { keystrokeFor, registry, runCommand } from './app/commands'
 import { UiIcon, type UiIconName } from './icons'
 import { displayKeystroke } from './keymap'
@@ -11,6 +11,7 @@ import { useUiStore } from './uiStore'
 function useCommandStateTick(): void {
   // Re-render on any state that command predicates read.
   useProjectStore((s) => s.version)
+  useProjectStore((s) => s.filePath)
   useProjectStore((s) => s.activeDiagramId)
   useProjectStore((s) => s.selectedViewIds)
   useProjectStore((s) => s.selectedElementIds)
@@ -50,6 +51,7 @@ export function Toolbar(): React.JSX.Element {
       <ToolButton command={Cmd.fileNew} icon="new" label="New" />
       <ToolButton command={Cmd.fileOpen} icon="open" label="Open" />
       <ToolButton command={Cmd.fileSave} icon="save" label="Save" />
+      <ToolButton command={Cmd.fileShowInFolder} icon="reveal" label={showInFolderLabel} />
       <span className="toolbar-sep" />
       <ToolButton command={Cmd.editUndo} icon="undo" label={undoName ? `Undo ${undoName}` : 'Undo'} />
       <ToolButton command={Cmd.editRedo} icon="redo" label={redoName ? `Redo ${redoName}` : 'Redo'} />

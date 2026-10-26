@@ -17,7 +17,7 @@ import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
 import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
-import { bridge } from './bridge'
+import { bridge, showInFolderLabel } from './bridge'
 import { EXAMPLES } from '../examples'
 import { promptBoxCount } from './boxCount'
 import { checkForUpdates, offerUpdate } from './updates'
@@ -214,6 +214,15 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({ id: Cmd.fileClearRecent, label: 'Clear Recent', run: () => ui().clearRecent(), isEnabled: () => ui().recentFiles.length > 0 })
   add({ id: Cmd.fileSave, label: 'Save', run: () => saveProject(), isEnabled: () => bridge !== null })
   add({ id: Cmd.fileSaveAs, label: 'Save As...', run: () => saveProjectAs(), isEnabled: () => bridge !== null })
+  add({
+    id: Cmd.fileShowInFolder,
+    label: showInFolderLabel,
+    run: () => {
+      const path = projectStore.getState().filePath
+      if (path) bridge?.showItemInFolder(path)
+    },
+    isEnabled: () => bridge !== null && projectStore.getState().filePath !== null
+  })
   add({ id: Cmd.fileClose, label: 'Close', run: () => closeWindow() })
   add({ id: Cmd.fileExportPng, label: 'Export Diagram as PNG...', run: () => exportDiagram('png'), isEnabled: () => hasDiagram() && bridge !== null })
   add({ id: Cmd.fileExportSvg, label: 'Export Diagram as SVG...', run: () => exportDiagram('svg'), isEnabled: () => hasDiagram() && bridge !== null })
