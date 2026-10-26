@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSlides, compareVersions, decideWhatsNew, parseVersion, releasesToShow, slideControls } from './logic'
+import { buildSlides, compareVersions, decideWhatsNew, effectiveLastSeen, parseVersion, releasesToShow, slideControls } from './logic'
 import type { Release } from './releases'
 
 const feature = (title: string) => ({ title, description: `${title} text`, illustration: 'website' as const })
@@ -92,4 +92,10 @@ describe('slideControls', () => {
   it('ends a features-only window with Done', () => {
     expect(slideControls(buildSlides([release('0.1.4', ['F4'])]), 0)).toEqual({ primary: 'done', canBack: false, canSkip: false })
   })
+})
+
+describe('effectiveLastSeen', () => {
+  it('keeps a recorded version', () => expect(effectiveLastSeen('0.1.9', true)).toBe('0.1.9'))
+  it('treats a profile with stored data but no version as coming from before the window', () => expect(effectiveLastSeen(null, true)).toBe('0.1.7'))
+  it('leaves a fresh install without a version', () => expect(effectiveLastSeen(null, false)).toBeNull())
 })
