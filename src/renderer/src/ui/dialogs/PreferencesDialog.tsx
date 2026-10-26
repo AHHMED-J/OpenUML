@@ -113,6 +113,12 @@ export function PreferencesDialog(): React.JSX.Element {
           </label>
           <input id="pref-updates" type="checkbox" checked={prefs.checkForUpdates} onChange={(e) => set({ checkForUpdates: e.target.checked })} />
         </div>
+        <div className="pref-row">
+          <label htmlFor="pref-whats-new" title="Opens the What's New window the first time you start a newer version. Help > What's New always works.">
+            Show What's New after updates
+          </label>
+          <input id="pref-whats-new" type="checkbox" checked={prefs.showWhatsNew} onChange={(e) => set({ showWhatsNew: e.target.checked })} />
+        </div>
       </fieldset>
     </Modal>
   )

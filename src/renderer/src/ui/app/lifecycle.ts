@@ -17,6 +17,7 @@ import { handleCloseRequest, openProjectPath, windowTitle } from './fileOps'
 import { decodeMenuCommand } from '../menus/menuModel'
 import { discardRecovery, offerRecovery, startAutosave } from './autosave'
 import { startUpdates } from './updates'
+import { showWhatsNewAfterUpdate } from './whatsNew'
 
 export function menuContext(): MenuContext {
   return {
@@ -151,6 +152,9 @@ export function startShell(): () => void {
     void offerRecovery()
       .then(() => b.takeStartupFile())
       .then((path) => (path ? openProjectPath(path) : undefined))
+      .catch(reportError)
+      // After recovery and the startup file, so it never competes with opening work.
+      .then(showWhatsNewAfterUpdate)
       .catch(reportError)
   }
 

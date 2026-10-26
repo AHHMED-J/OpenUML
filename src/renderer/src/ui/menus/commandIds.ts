@@ -21,6 +21,7 @@ export const Cmd = {
   appPreferences: 'app.preferences',
   appKeyboardShortcuts: 'app.keyboard-shortcuts',
   helpAbout: 'help.about',
+  helpWhatsNew: 'help.whats-new',
   helpDocumentation: 'help.documentation',
   helpReportIssue: 'help.report-issue',
   helpCheckForUpdates: 'help.check-for-updates',

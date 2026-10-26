@@ -21,6 +21,7 @@ import { bridge, showInFolderLabel } from './bridge'
 import { EXAMPLES } from '../examples'
 import { promptBoxCount } from './boxCount'
 import { checkForUpdates, offerUpdate } from './updates'
+import { openLatestWhatsNew } from './whatsNew'
 import {
   closeWindow,
   exportAllDiagrams,
@@ -425,6 +426,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
 
   // Help
   add({ id: Cmd.helpAbout, label: 'About OpenUML', run: about })
+  add({ id: Cmd.helpWhatsNew, label: "What's New...", run: openLatestWhatsNew })
   add({
     id: Cmd.helpCheckForUpdates,
     label: 'Check for Updates...',
