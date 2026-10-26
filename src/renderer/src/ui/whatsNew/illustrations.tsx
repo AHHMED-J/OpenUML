@@ -164,12 +164,54 @@ function RadLines(): React.JSX.Element {
   )
 }
 
+function ShowInFolder(): React.JSX.Element {
+  return (
+    <>
+      <rect x={90} y={30} width={340} height={44} rx={6} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <rect x={110} y={44} width={16} height={16} rx={2} fill="none" stroke={INK} strokeWidth={1.5} />
+      <rect x={146} y={44} width={16} height={16} rx={2} fill="none" stroke={INK} strokeWidth={1.5} />
+      <rect x={176} y={38} width={28} height={28} rx={5} fill="var(--selection)" stroke={ACCENT} strokeWidth={1.5} />
+      <path d="M183 55h5l1.5 -2h8v9h-14.5zM187 59l5 -5M189 54h3.5v3.5" fill="none" stroke={ACCENT} strokeWidth={1.5} />
+      <path d="M190 74 V104" stroke={ACCENT} strokeWidth={1.5} strokeDasharray="4 3" />
+      <rect x={130} y={104} width={260} height={84} rx={6} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <rect x={146} y={118} width={228} height={22} rx={4} fill="var(--selection)" />
+      <rect x={156} y={124} width={10} height={10} rx={2} fill={ACCENT} />
+      <text x={174} y={134} fontSize={12} fontWeight={600} fill="var(--text)">
+        model.mdj
+      </text>
+      <rect x={146} y={150} width={140} height={8} rx={4} fill="var(--border-strong)" />
+      <rect x={146} y={166} width={100} height={8} rx={4} fill="var(--border-strong)" />
+    </>
+  )
+}
+
+function WhatsNewScene(): React.JSX.Element {
+  return (
+    <>
+      <rect x={140} y={24} width={240} height={162} rx={8} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <Chip x={156} y={40} label="NEW IN 0.1.8" w={92} />
+      <rect x={156} y={76} width={150} height={12} rx={6} fill="var(--text)" opacity={0.8} />
+      <rect x={156} y={102} width={200} height={8} rx={4} fill="var(--border-strong)" />
+      <rect x={156} y={118} width={180} height={8} rx={4} fill="var(--border-strong)" />
+      <circle cx={162} cy={166} r={4} fill={ACCENT} />
+      <circle cx={176} cy={166} r={4} fill="var(--border-strong)" />
+      <circle cx={190} cy={166} r={4} fill="var(--border-strong)" />
+      <rect x={300} y={154} width={64} height={22} rx={4} fill={ACCENT} />
+      <text x={332} y={169} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--accent-text)">
+        Next →
+      </text>
+    </>
+  )
+}
+
 const SCENES: Readonly<Record<IllustrationId, () => React.JSX.Element>> = {
   'pending-arrows': PendingArrows,
   'box-table': BoxTable,
   'advanced-arrows': AdvancedArrows,
   website: Website,
-  'rad-lines': RadLines
+  'rad-lines': RadLines,
+  'show-in-folder': ShowInFolder,
+  'whats-new': WhatsNewScene
 }
 
 export function Illustration({ id }: { id: IllustrationId }): React.JSX.Element {

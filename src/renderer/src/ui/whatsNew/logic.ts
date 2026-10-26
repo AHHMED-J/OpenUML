@@ -34,6 +34,18 @@ export function releasesToShow(releases: readonly Release[], lastSeen: string, c
     .sort((a, b) => compareVersions(b.version, a.version))
 }
 
+/** Last version without the What's New window: where profiles that predate it start from. */
+const LAST_VERSION_WITHOUT_WHATS_NEW = '0.1.7'
+
+/**
+ * The version to compare against. A profile with no recorded version but with stored data is an
+ * existing user who updated from before the window existed (not a fresh install), so it counts
+ * as coming from the last version without it.
+ */
+export function effectiveLastSeen(lastSeen: string | null, hasStoredData: boolean): string | null {
+  return lastSeen ?? (hasStoredData ? LAST_VERSION_WITHOUT_WHATS_NEW : null)
+}
+
 export interface WhatsNewDecision {
   /** The version to store as seen, or null when nothing changes. */
   readonly record: string | null

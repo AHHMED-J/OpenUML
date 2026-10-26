@@ -6,7 +6,7 @@
  */
 
 /** Hero drawings available to feature slides (see `illustrations.tsx`). */
-export type IllustrationId = 'pending-arrows' | 'box-table' | 'advanced-arrows' | 'website' | 'rad-lines'
+export type IllustrationId = 'pending-arrows' | 'box-table' | 'advanced-arrows' | 'website' | 'rad-lines' | 'show-in-folder' | 'whats-new'
 
 export interface ReleaseFeature {
   readonly title: string
@@ -34,6 +34,32 @@ export function releaseUrl(version: string): string {
 }
 
 export const RELEASES: readonly Release[] = [
+  {
+    version: '0.1.8',
+    date: '2026-10-26',
+    features: [
+      {
+        title: 'What’s New after every update',
+        description:
+          'The first time you start a newer version, OpenUML now shows its big new features and one last slide with the smaller improvements and fixes. Open it again from Help > What’s New, or turn it off in Preferences > Updates.',
+        illustration: 'whats-new'
+      }
+    ],
+    minor: []
+  },
+  {
+    version: '0.1.7',
+    date: '2026-10-26',
+    features: [
+      {
+        title: 'Show the project file in its folder',
+        description:
+          'A new button next to Save (also File > Show in Finder or Explorer) opens the folder of the project you are working on with its file selected. It stays disabled until the project has a file.',
+        illustration: 'show-in-folder'
+      }
+    ],
+    minor: []
+  },
   {
     version: '0.1.6',
     date: '2026-10-19',
