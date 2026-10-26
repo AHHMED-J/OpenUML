@@ -25,6 +25,8 @@ import { platform } from './app/bridge'
 import { sanitizeOverrides, type KeybindingOverrides } from './keybindings'
 import { loadJson, saveJson } from './persist'
 import { addRecentFile, removeRecentFile, sanitizeRecentFiles } from './recentFiles'
+import { parseVersion } from './whatsNew/logic'
+import type { Release } from './whatsNew/releases'
 
 /** A toolbox tool: `kind` is a key of `NODE_KINDS` / `EDGE_KINDS`; extra fields refine it. */
 export interface PaletteTool {
@@ -67,6 +69,10 @@ export interface Preferences {
   readonly autoSaveSeconds: number
   /** Ask GitHub for a newer release at startup (and once a day while running). */
   readonly checkForUpdates: boolean
+  /** Open the What's New window on the first launch after an update. */
+  readonly showWhatsNew: boolean
+  /** Newest version whose What's New notes were handled (null on a fresh install). */
+  readonly lastSeenVersion: string | null
 }
 
 /** Auto-save intervals offered in Preferences (seconds; 0 = off). */
@@ -80,7 +86,9 @@ const DEFAULT_PREFERENCES: Preferences = {
   defaultFontSize: 13,
   radAutoThread: true,
   autoSaveSeconds: 60,
-  checkForUpdates: true
+  checkForUpdates: true,
+  showWhatsNew: true,
+  lastSeenVersion: null
 }
 
 const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
@@ -128,6 +136,7 @@ export type ModalState =
   | { readonly kind: 'list'; readonly title: string; readonly items: readonly ListRow[] }
   | { readonly kind: 'preferences' }
   | { readonly kind: 'shortcuts' }
+  | { readonly kind: 'whatsNew'; readonly releases: readonly Release[] }
   | {
       readonly kind: 'website'
       readonly title: string
@@ -313,7 +322,9 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
     radAutoThread: typeof v.radAutoThread === 'boolean' ? v.radAutoThread : DEFAULT_PREFERENCES.radAutoThread,
     autoSaveSeconds:
       typeof v.autoSaveSeconds === 'number' && AUTO_SAVE_INTERVALS.includes(v.autoSaveSeconds) ? v.autoSaveSeconds : DEFAULT_PREFERENCES.autoSaveSeconds,
-    checkForUpdates: typeof v.checkForUpdates === 'boolean' ? v.checkForUpdates : DEFAULT_PREFERENCES.checkForUpdates
+    checkForUpdates: typeof v.checkForUpdates === 'boolean' ? v.checkForUpdates : DEFAULT_PREFERENCES.checkForUpdates,
+    showWhatsNew: typeof v.showWhatsNew === 'boolean' ? v.showWhatsNew : DEFAULT_PREFERENCES.showWhatsNew,
+    lastSeenVersion: typeof v.lastSeenVersion === 'string' && parseVersion(v.lastSeenVersion) !== null ? v.lastSeenVersion : null
   }
 }
 
@@ -500,8 +511,10 @@ export function createUiStore() {
         saveJson('preferences', prefs)
       },
       resetPrefs() {
-        set({ prefs: DEFAULT_PREFERENCES })
-        saveJson('preferences', DEFAULT_PREFERENCES)
+        // The seen version is bookkeeping, not a setting: resetting must not replay old notes.
+        const prefs = { ...DEFAULT_PREFERENCES, lastSeenVersion: get().prefs.lastSeenVersion }
+        set({ prefs })
+        saveJson('preferences', prefs)
       },
       setSortBy(sortBy) {
         set({ sortBy })
