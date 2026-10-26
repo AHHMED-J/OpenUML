@@ -70,6 +70,9 @@ for which file to pick.
   latest release (only that request, no personal data) and, when a newer one exists, offers it in the status bar;
   *Download* opens its release page. Turn it off in *Preferences > Updates*, or check by hand with
   *Check for Updates…*.
+- **What's New** – the first time you start a newer version, a short carousel shows its big features and one last
+  slide with the smaller improvements and fixes. Reopen it from *Help > What's New…*; turn the automatic window off in
+  *Preferences > Updates*.
 - **Themes** – light and dark, following the system setting by default; preferences for grid, snap and default
   font size.
 
