@@ -1969,8 +1969,9 @@ body.dock-dragging * {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 24px 4px;
-  min-height: 330px;
+  padding: 0 24px 18px;
+  /* The same height on every slide, so the window does not jump while paging. */
+  min-height: 440px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2069,9 +2070,9 @@ body.dock-dragging * {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 250px;
+  max-height: 370px;
   overflow: auto;
-  padding: 10px 0;
+  padding: 10px 0 14px;
 }
 
 .wn-group-title {
