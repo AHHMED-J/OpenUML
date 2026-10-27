@@ -22,15 +22,15 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "5.2.0",
     "electron": "44.9.3",
-    "electron-builder": "26.15.3",
+    "electron-builder": "26.18.0",
     "electron-vite": "5.0.0",
     "happy-dom": "20.14.6",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "typescript": "5.9.3",
     "vite": "7.3.7",
-    "vitest": "5.0.3",
-    "zustand": "5.0.15"
+    "vitest": "5.0.5",
+    "zustand": "5.0.16"
   },
   "overrides": {
     "global-agent": "4.1.3"
