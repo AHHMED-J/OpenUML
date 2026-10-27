@@ -24,6 +24,14 @@ describe('explorer arrow folders state', () => {
     expect(createUiStore().getState().groupArrows).toBe(false)
   })
 
+  it('shows the full tree by default and remembers Diagrams Only per viewer', () => {
+    stubStorage()
+    const store = createUiStore()
+    expect(store.getState().diagramsOnly).toBe(false)
+    store.getState().setDiagramsOnly(true)
+    expect(createUiStore().getState().diagramsOnly).toBe(true)
+  })
+
   it('keeps folders open by default and persists the collapsed ones', () => {
     const data = stubStorage()
     const store = createUiStore()
