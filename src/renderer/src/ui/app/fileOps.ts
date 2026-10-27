@@ -113,6 +113,8 @@ function loadProject(text: string, path: string | null, label = path ? baseName(
   } catch (err) {
     throw new Error(`Failed to open ${label}: ${err instanceof Error ? err.message : String(err)}`)
   }
+  // Working Diagrams lists the diagrams in the order the Model Explorer shows them.
+  ps().orderDiagramTabs(diagramsInTreeOrder(ps().repository).map((d) => d._id))
   ui().setTool(null)
   if (path) {
     ui().addRecent(path)

@@ -73,6 +73,21 @@ describe('project store', () => {
     expect(s.activeDiagramId).toBe(main._id)
   })
 
+  it('reorders diagram tabs: the listed ones first, in that order, the rest after', () => {
+    const store = createProjectStore()
+    const { engine, project } = store.getState()
+    const model = project.ownedElements[0] as Elem
+    const main = activeDiagram(store.getState()) as Diagram
+    const seq = createDiagram(engine, 'SequenceDiagram', model, 'Login').diagram
+    const states = createDiagram(engine, 'StatechartDiagram', project, 'Order').diagram
+    store.getState().openDiagram(seq._id)
+    store.getState().openDiagram(states._id)
+
+    store.getState().orderDiagramTabs([states._id, 'missing', main._id])
+    expect(store.getState().openDiagramIds).toEqual([states._id, main._id, seq._id])
+    expect(store.getState().activeDiagramId).toBe(states._id)
+  })
+
   it('manages diagram tabs and prunes deleted ids from tabs and selection', () => {
     const store = createProjectStore()
     const { engine, project } = store.getState()

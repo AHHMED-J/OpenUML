@@ -48,6 +48,8 @@ export interface ProjectState {
   /** Opens (or focuses) a diagram tab and makes it active. */
   openDiagram(id: string): void
   closeDiagram(id: string): void
+  /** Reorders the diagram tabs: those in `ids` first, in that order, then the rest as they were. */
+  orderDiagramTabs(ids: readonly string[]): void
   setActiveDiagram(id: string | null): void
   /** Sets the selection; omitted parts are cleared. */
   select(selection: { views?: readonly string[]; elements?: readonly string[] }): void
@@ -147,6 +149,12 @@ export function createProjectStore(): ProjectStore {
           activeDiagramId: id,
           selectedViewIds: s.activeDiagramId === id ? s.selectedViewIds : []
         })
+      },
+
+      orderDiagramTabs(ids) {
+        const open = get().openDiagramIds
+        const first = ids.filter((id) => open.includes(id))
+        set({ openDiagramIds: [...first, ...open.filter((id) => !first.includes(id))] })
       },
 
       closeDiagram(id) {
