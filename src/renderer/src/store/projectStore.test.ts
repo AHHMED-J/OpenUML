@@ -49,12 +49,28 @@ describe('project store', () => {
     const s = store.getState()
     expect(s.project.name).toBe('Example')
     expect(s.activeDiagramId).toBe('ex-diagram')
+    expect(s.openDiagramIds).toEqual(s.repository.diagrams().map((d) => d._id))
     expect(s.dirty).toBe(false)
     expect(s.loadWarnings).toEqual([])
     expect(JSON.parse(s.serializeProject())).toEqual(JSON.parse(exampleText))
 
     expect(() => s.openProject('nope', 'bad.mdj')).toThrow(FormatError)
     expect(store.getState().project.name).toBe('Example')
+  })
+
+  it('opens every diagram of a loaded project as a tab, in model order, with the default diagram active', () => {
+    const source = createProjectStore()
+    const { engine, project } = source.getState()
+    const model = project.ownedElements[0] as Elem
+    const seq = createDiagram(engine, 'SequenceDiagram', model, 'Login').diagram
+    const states = createDiagram(engine, 'StatechartDiagram', project, 'Order').diagram
+    const main = activeDiagram(source.getState()) as Diagram
+
+    const store = createProjectStore()
+    store.getState().openProject(source.getState().serializeProject(), 'three.mdj')
+    const s = store.getState()
+    expect(s.openDiagramIds).toEqual([main._id, seq._id, states._id])
+    expect(s.activeDiagramId).toBe(main._id)
   })
 
   it('manages diagram tabs and prunes deleted ids from tabs and selection', () => {

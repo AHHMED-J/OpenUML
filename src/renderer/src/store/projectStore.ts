@@ -21,7 +21,7 @@ export interface ProjectState {
   readonly undoName: string | null
   readonly redoName: string | null
   readonly activeDiagramId: string | null
-  /** Diagram tabs, in tab order. */
+  /** Diagram tabs, in tab order. A new or opened project starts with all its diagrams, in model order. */
   readonly openDiagramIds: readonly string[]
   /** Selected views on the active diagram. */
   readonly selectedViewIds: readonly string[]
@@ -86,6 +86,7 @@ export function createProjectStore(): ProjectStore {
           selectedElementIds: s.selectedElementIds.filter(alive)
         })
       })
+      // Every diagram of the project starts in Working Diagrams (model order), the default one active.
       const diagram = repository.defaultDiagram()
       return {
         engine,
@@ -95,7 +96,7 @@ export function createProjectStore(): ProjectStore {
         filePath,
         ...derived(engine),
         activeDiagramId: diagram?._id ?? null,
-        openDiagramIds: diagram ? [diagram._id] : [],
+        openDiagramIds: repository.diagrams().map((d) => d._id),
         selectedViewIds: [],
         selectedElementIds: [],
         loadWarnings
