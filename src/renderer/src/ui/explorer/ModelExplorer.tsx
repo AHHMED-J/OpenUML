@@ -19,7 +19,7 @@ import { confirmAndDeleteFromModel, openDiagram, revealInDiagram, selectInExplor
 import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { dropField, explorerLabel, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
+import { dropField, explorerLabel, flattenDiagramTree, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
 import { rowSlots, scrollToReveal, visibleRows } from './virtualRows'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
@@ -58,6 +58,7 @@ export function ModelExplorer(): React.JSX.Element {
   const expanded = useUiStore((s) => s.expanded)
   const collapsedFolders = useUiStore((s) => s.collapsedFolders)
   const groupArrows = useUiStore((s) => s.groupArrows)
+  const diagramsOnly = useUiStore((s) => s.diagramsOnly)
   const sortBy = useUiStore((s) => s.sortBy)
   const showStereotype = useUiStore((s) => s.showStereotype)
   const renamingId = useUiStore((s) => s.renamingId)
@@ -114,10 +115,11 @@ export function ModelExplorer(): React.JSX.Element {
   const rows = useMemo(
     () => {
       const options: TreeOptions = { sortBy, groupArrows }
-      return query.trim() ? searchTree(project, query.trim(), options) : flattenTree(project, { expanded, collapsedFolders }, options)
+      if (query.trim()) return searchTree(project, query.trim(), options)
+      return diagramsOnly ? flattenDiagramTree(project, options) : flattenTree(project, { expanded, collapsedFolders }, options)
     },
     // `version` invalidates the tree after model changes.
-    [project, version, expanded, collapsedFolders, groupArrows, sortBy, query]
+    [project, version, expanded, collapsedFolders, groupArrows, sortBy, query, diagramsOnly]
   )
   const rowsRef = useRef(rows)
   rowsRef.current = rows

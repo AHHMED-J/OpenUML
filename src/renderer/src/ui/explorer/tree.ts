@@ -506,6 +506,31 @@ function rowOf(node: TreeNode, trail: readonly Trail[], parentKey: string | null
   return { node, guides: guidesOf(trail), el: node.kind === 'folder' ? null : node.el, depth: trail.length, parentKey, expandable, expanded }
 }
 
+/**
+ * The Diagrams Only view: every diagram under `root` with the containers that lead to it, all
+ * open (containers get no twisty, so the view never hides a diagram). Other elements and IDEF0
+ * arrows are left out.
+ */
+export function flattenDiagramTree(root: Elem, options: TreeOptions = {}): TreeRow[] {
+  const leads = new Map<Elem, boolean>()
+  const leadsToDiagram = (el: Elem): boolean => {
+    let result = leads.get(el)
+    if (result === undefined) {
+      result = isKindOf(el, 'Diagram') || explorerChildren(el, options.sortBy ?? 'added').some(leadsToDiagram)
+      leads.set(el, result)
+    }
+    return result
+  }
+  const rows: TreeRow[] = []
+  const visit = (el: Elem, trail: readonly Trail[], parentKey: string | null): void => {
+    rows.push(rowOf(elementNode(el), trail, parentKey, false, false))
+    const children = explorerChildren(el, options.sortBy ?? 'added').filter(leadsToDiagram)
+    children.forEach((child, i) => visit(child, [...trail, { more: i < children.length - 1, role: null }], el._id))
+  }
+  visit(root, [], null)
+  return rows
+}
+
 /** The visible rows of the tree under `root` (pre-order), with their indent guides. */
 export function flattenTree(root: Elem, state: OpenState, options: TreeOptions = {}): TreeRow[] {
   const rows: TreeRow[] = []
