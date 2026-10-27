@@ -102,6 +102,7 @@ export const Cmd = {
   explorerSortByAdded: 'explorer.sort-by-added',
   explorerSortByName: 'explorer.sort-by-name',
   explorerShowStereotype: 'explorer.show-stereotype-text',
+  explorerDiagramsOnly: 'explorer.diagrams-only',
   explorerExpandAll: 'explorer.expand-all',
   explorerCollapseAll: 'explorer.collapse-all',
   explorerFind: 'explorer.find',

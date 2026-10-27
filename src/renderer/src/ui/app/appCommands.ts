@@ -47,8 +47,9 @@ function selectedParent(): Elem {
   return selectedModels(ps())[0] ?? ps().project
 }
 
-/** Selects an element in the explorer and reveals it (expanding its ancestors). */
+/** Selects an element in the explorer and reveals it (expanding its ancestors; leaving Diagrams Only for other elements). */
 export function selectInExplorer(el: Elem): void {
+  if (ui().diagramsOnly && !isKindOf(el, 'Diagram')) ui().setDiagramsOnly(false)
   const path = revealPath(el, { groupArrows: ui().groupArrows })
   ui().expandMany(path.expand)
   if (path.folder) ui().setFoldersCollapsed([path.folder], false)
@@ -383,6 +384,12 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({ id: Cmd.explorerSortByAdded, label: 'Sort by Added', isChecked: () => ui().sortBy === 'added', run: () => ui().setSortBy('added') })
   add({ id: Cmd.explorerSortByName, label: 'Sort by Name', isChecked: () => ui().sortBy === 'name', run: () => ui().setSortBy('name') })
   add({
+    id: Cmd.explorerDiagramsOnly,
+    label: 'Show Diagrams Only',
+    isChecked: () => ui().diagramsOnly,
+    run: () => ui().setDiagramsOnly(!ui().diagramsOnly)
+  })
+  add({
     id: Cmd.explorerShowStereotype,
     label: 'Show Stereotype Text',
     isChecked: () => ui().showStereotype,
@@ -391,12 +398,13 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.explorerExpandAll,
     label: 'Expand All',
+    isEnabled: () => !ui().diagramsOnly,
     run: () => {
       ui().expandMany(expandableIds(ps().project))
       ui().setFoldersCollapsed(arrowFolderKeys(ps().project), false)
     }
   })
-  add({ id: Cmd.explorerCollapseAll, label: 'Collapse All', run: () => ui().collapseAll() })
+  add({ id: Cmd.explorerCollapseAll, label: 'Collapse All', isEnabled: () => !ui().diagramsOnly, run: () => ui().collapseAll() })
   add({ id: Cmd.explorerFind, label: 'Find in Model Explorer', run: findInExplorer })
   add({
     id: Cmd.explorerGroupArrows,
@@ -407,13 +415,13 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.explorerExpandArrowFolders,
     label: 'Expand All Arrow Folders',
-    isEnabled: () => ui().groupArrows,
+    isEnabled: () => ui().groupArrows && !ui().diagramsOnly,
     run: () => ui().setFoldersCollapsed(arrowFolderKeys(ps().project), false)
   })
   add({
     id: Cmd.explorerCollapseArrowFolders,
     label: 'Collapse All Arrow Folders',
-    isEnabled: () => ui().groupArrows,
+    isEnabled: () => ui().groupArrows && !ui().diagramsOnly,
     run: () => ui().setFoldersCollapsed(arrowFolderKeys(ps().project), true)
   })
 
