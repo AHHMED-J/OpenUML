@@ -201,6 +201,8 @@ export interface UiState {
   readonly expanded: Readonly<Record<string, true>>
   /** IDEF0 arrows of a box shown in role folders (true) or as a flat list. */
   readonly groupArrows: boolean
+  /** Model Explorer shows only diagrams and the containers that lead to them. */
+  readonly diagramsOnly: boolean
   /** Collapsed IDEF0 role folders (folder keys); folders are open by default. Persisted per viewer. */
   readonly collapsedFolders: Readonly<Record<string, true>>
   /** Explorer node whose inline rename should start. */
@@ -252,6 +254,7 @@ export interface UiState {
   expandMany(ids: readonly string[]): void
   collapseAll(): void
   setGroupArrows(group: boolean): void
+  setDiagramsOnly(diagramsOnly: boolean): void
   /** Collapses or opens IDEF0 role folders (keys from `folderKey`). */
   setFoldersCollapsed(keys: readonly string[], collapsed: boolean): void
   startRename(id: string | null): void
@@ -285,6 +288,7 @@ interface PersistedLayout {
   showStereotype?: boolean
   showAdvancedProperties?: boolean
   groupArrows?: boolean
+  diagramsOnly?: boolean
 }
 
 /** Most collapsed role folders remembered (oldest forgotten first). */
@@ -360,7 +364,8 @@ export function createUiStore() {
         sortBy: s.sortBy,
         showStereotype: s.showStereotype,
         showAdvancedProperties: s.showAdvancedProperties,
-        groupArrows: s.groupArrows
+        groupArrows: s.groupArrows,
+        diagramsOnly: s.diagramsOnly
       } satisfies PersistedLayout)
     }
     const setRecent = (recentFiles: string[]): void => {
@@ -397,6 +402,7 @@ export function createUiStore() {
       showStereotype: layout.showStereotype !== false,
       expanded: {},
       groupArrows: layout.groupArrows !== false,
+      diagramsOnly: layout.diagramsOnly === true,
       collapsedFolders: loadCollapsedFolders(),
       renamingId: null,
       revealTick: 0,
@@ -540,6 +546,10 @@ export function createUiStore() {
       },
       setGroupArrows(groupArrows) {
         set({ groupArrows })
+        persistLayout()
+      },
+      setDiagramsOnly(diagramsOnly) {
+        set({ diagramsOnly })
         persistLayout()
       },
       setFoldersCollapsed(keys, collapsed) {

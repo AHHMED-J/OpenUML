@@ -351,6 +351,7 @@ export function explorerSettingsMenu(): MenuNode[] {
     { label: 'Sort by Added', command: Cmd.explorerSortByAdded, checkbox: true },
     { label: 'Sort by Name', command: Cmd.explorerSortByName, checkbox: true },
     SEP,
+    { label: 'Show Diagrams Only', command: Cmd.explorerDiagramsOnly, checkbox: true },
     { label: 'Show Stereotype Text', command: Cmd.explorerShowStereotype, checkbox: true },
     { label: 'Group Arrows by Role', command: Cmd.explorerGroupArrows, checkbox: true },
     SEP,
