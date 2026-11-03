@@ -288,10 +288,13 @@ export async function exportDiagram(format: 'png' | 'svg' | 'pdf'): Promise<void
   ui().toast(`Exported ${baseName(path)}`)
 }
 
-/** Every diagram of the project in one PDF, one page per diagram (model order). */
+/**
+ * Every diagram of the project in one PDF, one page per diagram, in Model Explorer order (an
+ * IDEF0 model reads A-0, A0, A1…, not the order the file stores its diagrams in).
+ */
 export async function exportAllDiagramsPdf(): Promise<void> {
   const b = requireBridge()
-  const diagrams = ps().repository.diagrams()
+  const diagrams = diagramsInTreeOrder(ps().repository)
   if (diagrams.length === 0) throw new Error('No diagram to export.')
   const name = ps().filePath ? baseName(ps().filePath as string).replace(/\.mdj$/i, '') : ps().project.name
   let path = await b.chooseSavePath(`${exportFileName(name ?? '')}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }])
