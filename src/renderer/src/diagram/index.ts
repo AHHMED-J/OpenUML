@@ -179,3 +179,4 @@ export {
 
 // Class diagram notation (strings, layouts) for reuse
 export * as classNotation from './uml/class'
+export { isActorLifeline, setLifelineActor } from './uml/sequence/lifelineActor'
