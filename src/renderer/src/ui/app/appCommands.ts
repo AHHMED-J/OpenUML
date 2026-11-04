@@ -12,10 +12,10 @@ import {
 } from '../../commands'
 import { deleteIdef0Elements, getTextMeasurer, highlightViews, requestReveal } from '../../diagram'
 import { isKindOf, type DiagramKind, type Elem, type View } from '../../model'
-import { projectStore, selectedModels } from '../../store'
-import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
+import { activeDiagram, projectStore, selectedModels, selectionOrActiveDiagram } from '../../store'
+import { arrowFolderKeys, expandableIds, moveStep, revealPath } from '../explorer/tree'
 import { Cmd } from '../menus/commandIds'
-import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
+import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement, diagramPlacement } from '../modelActions'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge, showInFolderLabel } from './bridge'
 import { EXAMPLES } from '../examples'
@@ -91,20 +91,13 @@ function panelToggle(id: string, label: string, panel: ToggleablePanel): Command
 
 function moveSelected(step: number): void {
   const el = singleSelectedModel()
-  const c = el ? ps().repository.containmentOf(el) : null
-  if (!el || !c || c.index < 0) return
-  const list = c.owner[c.field] as Elem[]
-  const index = c.index + step
-  if (index < 0 || index >= list.length) return
-  reorderElement(ps().engine, el, index)
+  const move = el ? moveStep(el, step) : null
+  if (move) reorderElement(ps().engine, move.element, move.index)
 }
 
 function canMove(step: number): boolean {
   const el = singleSelectedModel()
-  const c = el ? ps().repository.containmentOf(el) : null
-  if (!el || !c || c.index < 0) return false
-  const index = c.index + step
-  return index >= 0 && index < (c.owner[c.field] as Elem[]).length
+  return el !== null && moveStep(el, step) !== null
 }
 
 /**
@@ -288,8 +281,11 @@ export function registerAppCommands(registry: CommandRegistry): void {
     label: 'Add Diagram',
     run: async (arg) => {
       const kind = (arg as { kind?: DiagramKind } | undefined)?.kind ?? 'ClassDiagram'
-      if (!ADD_DIAGRAM_ITEMS.some((i) => i.kind === kind)) return
-      const parent = selectedParent()
+      const item = ADD_DIAGRAM_ITEMS.find((i) => i.kind === kind)
+      if (!item) return
+      const place = diagramPlacement(item, selectionOrActiveDiagram(ps()), activeDiagram(ps()))
+      if (!place) throw new Error(`${item.label} cannot be placed here.`)
+      const { parent, after } = place
       // Decomposing a function asks for the number of child boxes first, like Decompose; cancel changes nothing.
       let boxCount: number | undefined
       if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) {
@@ -297,7 +293,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
         if (count === null) return
         boxCount = count
       }
-      const diagram = addDiagram(ps().engine, parent, kind, boxCount)
+      const diagram = addDiagram(ps().engine, parent, kind, boxCount, after)
       openDiagram(diagram)
     }
   })
