@@ -448,6 +448,15 @@ textarea:focus {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
+/* A line between two rows: the dragged row lands there. */
+.tree-row.drop-before {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+.tree-row.drop-after {
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
 /* Indent guides: absolutely positioned 1px lines on the indentation grid (see IndentGuides). */
 .tree-guides {
   position: absolute;

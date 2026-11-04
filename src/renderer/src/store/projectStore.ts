@@ -203,6 +203,12 @@ export function selectedModels(state: ProjectState): Elem[] {
   return [...new Set(models)]
 }
 
+/** What Add Diagram works from: the selected model element, else the UML diagram on screen, else the project. */
+export function selectionOrActiveDiagram(state: ProjectState): Elem {
+  const active = activeDiagram(state)
+  return selectedModels(state)[0] ?? (active && isKindOf(active, 'UMLDiagram') ? active : state.project)
+}
+
 // ---------------------------------------------------------------------------------------------
 // Core commands
 

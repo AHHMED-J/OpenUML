@@ -19,7 +19,7 @@ import { confirmAndDeleteFromModel, openDiagram, revealInDiagram, selectInExplor
 import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { dropField, explorerLabel, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
+import { dropField, dropPlaceAt, explorerLabel, flattenTree, movedElement, searchTree, siblingDrop, treeLabel, treeTooltip, type DropPlace, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
 import { rowSlots, scrollToReveal, visibleRows } from './virtualRows'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
@@ -64,7 +64,7 @@ export function ModelExplorer(): React.JSX.Element {
   const revealTick = useUiStore((s) => s.revealTick)
   const [query, setQuery] = useState('')
   const [focusId, setFocusId] = useState<string | null>(null)
-  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ key: string; place: DropPlace } | null>(null)
   const treeRef = useRef<HTMLDivElement>(null)
   // Virtualization (see virtualRows.ts): only rows near the viewport are rendered. Rows have a
   // fixed height (--row-height), measured from a rendered row; `pad` is the tree's top padding.
@@ -262,17 +262,34 @@ export function ModelExplorer(): React.JSX.Element {
     e.stopPropagation()
   }
 
+  /** Where a drag at the pointer lands on the row of `target`, or null when it cannot. */
+  const placeAt = (e: React.DragEvent, target: Elem, source: Elem): DropPlace | null => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return dropPlaceAt(
+      (e.clientY - rect.top) / rect.height,
+      { before: siblingDrop(target, source, 'before', sortBy) !== null, after: siblingDrop(target, source, 'after', sortBy) !== null },
+      dropField(target, movedElement(source)) !== null
+    )
+  }
+
   const onDrop = (e: React.DragEvent, target: Elem): void => {
     e.preventDefault()
     setDropTarget(null)
     const source = draggedId ? projectStore.getState().repository.get(draggedId) : undefined
-    draggedId = null
     if (!source) return
-    const field = dropField(target, source)
-    if (!field) return
+    const place = placeAt(e, target, source)
+    draggedId = null
+    if (!place) return
     try {
-      moveElement(projectStore.getState().engine, source, target, field)
-      uiStore.getState().setExpanded(target._id, true)
+      const { engine } = projectStore.getState()
+      if (place === 'into') {
+        const element = movedElement(source)
+        moveElement(engine, element, target, dropField(target, element) ?? undefined)
+        uiStore.getState().setExpanded(target._id, true)
+      } else {
+        const drop = siblingDrop(target, source, place, sortBy)
+        if (drop) moveElement(engine, drop.element, drop.owner, drop.field, drop.index)
+      }
       selectInExplorer(source)
     } catch (err) {
       reportError(err)
@@ -333,7 +350,7 @@ export function ModelExplorer(): React.JSX.Element {
             <div
               key={key}
               id={rowDomId(key)}
-              className={`tree-row${isSelected ? ' selected' : ''}${current === key ? ' focused' : ''}${dropTarget === key ? ' drop-target' : ''}${node.kind === 'folder' ? ' tree-folder' : ''}`}
+              className={`tree-row${isSelected ? ' selected' : ''}${current === key ? ' focused' : ''}${dropTarget?.key === key ? (dropTarget.place === 'into' ? ' drop-target' : ` drop-${dropTarget.place}`) : ''}${node.kind === 'folder' ? ' tree-folder' : ''}`}
               role="treeitem"
               aria-level={row.depth + 1}
               aria-selected={isSelected}
@@ -359,17 +376,18 @@ export function ModelExplorer(): React.JSX.Element {
               onDragOver={(e) => {
                 const source = draggedId ? projectStore.getState().repository.get(draggedId) : undefined
                 if (!source) return
-                if (!el || node.kind !== 'element' || !dropField(el, source)) {
+                const place = el && node.kind === 'element' ? placeAt(e, el, source) : null
+                if (!place) {
                   // Invalid target: not-allowed cursor and no highlight.
                   e.dataTransfer.dropEffect = 'none'
-                  if (dropTarget === key) setDropTarget(null)
+                  if (dropTarget?.key === key) setDropTarget(null)
                   return
                 }
                 e.preventDefault()
                 e.dataTransfer.dropEffect = 'move'
-                if (dropTarget !== key) setDropTarget(key)
+                if (dropTarget?.key !== key || dropTarget.place !== place) setDropTarget({ key, place })
               }}
-              onDragLeave={() => dropTarget === key && setDropTarget(null)}
+              onDragLeave={() => dropTarget?.key === key && setDropTarget(null)}
               onDrop={(e) => {
                 if (el && node.kind === 'element') onDrop(e, el)
               }}
