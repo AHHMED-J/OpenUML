@@ -16,7 +16,6 @@ import { activeDiagram, projectStore, selectedModels, selectionOrActiveDiagram }
 import { arrowFolderKeys, expandableIds, moveStep, revealPath } from '../explorer/tree'
 import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement, diagramPlacement } from '../modelActions'
-import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
 import { currentCanvasMode } from '../canvasMode'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge, showInFolderLabel } from './bridge'
