@@ -47,6 +47,8 @@ export interface ProjectState {
   redo(): void
   /** Opens (or focuses) a diagram tab and makes it active. */
   openDiagram(id: string): void
+  /** Replaces the diagram tabs with `ids`, showing `active` when it is one of them. */
+  showDiagrams(ids: readonly string[], active?: string | null): void
   closeDiagram(id: string): void
   setActiveDiagram(id: string | null): void
   /** Sets the selection; omitted parts are cleared. */
@@ -146,6 +148,13 @@ export function createProjectStore(): ProjectStore {
           activeDiagramId: id,
           selectedViewIds: s.activeDiagramId === id ? s.selectedViewIds : []
         })
+      },
+
+      showDiagrams(ids, active) {
+        const s = get()
+        const open = ids.filter((id) => isKindOf(s.repository.get(id), 'Diagram'))
+        const shown = [active, s.activeDiagramId].find((id) => id && open.includes(id))
+        set({ openDiagramIds: open, activeDiagramId: shown ?? open[0] ?? null, selectedViewIds: [] })
       },
 
       closeDiagram(id) {
