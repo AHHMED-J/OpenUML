@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createNode, moveElement, ModelEngine, reorderElement } from '../../commands'
 import { createDefaultProject, createElement, Repository, type Diagram, type Elem } from '../../model'
 import { ADD_DIAGRAM_ITEMS, addDiagram, addDiagramItemsFor, diagramPlacement } from '../modelActions'
-import { dropField, dropPlaceAt, explorerChildren, movedElement, moveStep, siblingDrop } from './tree'
+import { dropField, dropPlaceAt, explorerChildren, flattenTree, movedElement, moveStep, pathToRow, siblingDrop } from './tree'
 
 const sequence = ADD_DIAGRAM_ITEMS.find((i) => i.kind === 'SequenceDiagram')!
 const classDiagram = ADD_DIAGRAM_ITEMS.find((i) => i.kind === 'ClassDiagram')!
@@ -140,5 +140,45 @@ describe('moving diagrams in the explorer', () => {
     reorderElement(engine, up!.element, up!.index)
     expect(explorerChildren(project).filter((c) => c._type === 'UMLCollaboration')).toEqual([collaborationOf(b), collaborationOf(a)])
     expect(moveStep(b, -1)).toBeNull()
+  })
+})
+
+describe('what a row is inside of', () => {
+  const key = (el: Elem): string => el._id
+  function tree() {
+    const t = setup()
+    const diagram = t.seq()
+    const interaction = diagram._parent as Elem
+    const collaboration = interaction._parent as Elem
+    const lifelines = [1, 2].map((left) => createNode(t.engine, { kind: 'Lifeline', diagram, left: left * 150, top: 40, width: 100, height: 200 }).view?.model as Elem)
+    const expanded = Object.fromEntries([t.project, collaboration, interaction].map((e) => [e._id, true as const]))
+    const rows = flattenTree(t.project, { expanded, collapsedFolders: {} })
+    return { ...t, diagram, interaction, collaboration, lifelines, rows }
+  }
+
+  it('lists the containers of the row, up to the project', () => {
+    const t = tree()
+    const lifeline = t.lifelines[1] as Elem
+    expect([...pathToRow(t.rows, key(lifeline)).containers]).toEqual([key(t.interaction), key(t.collaboration), key(t.project)])
+  })
+
+  it('draws the line from each container to the next, on the rows between them', () => {
+    const t = tree()
+    const [first, second] = t.lifelines as [Elem, Elem]
+    const path = pathToRow(t.rows, key(second))
+    // The line turns into the row at its parent's level, and into the parent at the level above.
+    expect(path.turns.get(key(second))).toBe(2)
+    expect(path.turns.get(key(t.interaction))).toBe(1)
+    expect(path.turns.get(key(t.collaboration))).toBe(0)
+    // A sibling above is only crossed by the line, at that same level.
+    expect([...(path.passes.get(key(first)) ?? [])]).toEqual([2])
+    expect([...(path.passes.get(key(t.diagram)) ?? [])]).toEqual([2])
+  })
+
+  it('shows nothing for the root, an unknown row or no row', () => {
+    const t = tree()
+    expect(pathToRow(t.rows, key(t.project)).containers.size).toBe(0)
+    expect(pathToRow(t.rows, 'missing').containers.size).toBe(0)
+    expect(pathToRow(t.rows, null).containers.size).toBe(0)
   })
 })

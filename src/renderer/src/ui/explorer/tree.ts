@@ -601,6 +601,44 @@ export function flattenTree(root: Elem, state: OpenState, options: TreeOptions =
   return rows
 }
 
+export interface TreePath {
+  /** The rows that contain the row, up to the root. */
+  readonly containers: ReadonlySet<string>
+  /** Guide levels on the line down to the row, per row key. */
+  readonly passes: ReadonlyMap<string, ReadonlySet<number>>
+  /** Rows where the line reaches a child on the way: its guide level, where the line turns. */
+  readonly turns: ReadonlyMap<string, number>
+}
+
+const NO_PATH: TreePath = { containers: new Set(), passes: new Map(), turns: new Map() }
+
+/** What contains the row `key`: its containers and the guide line that runs from each down to it. */
+export function pathToRow(rows: readonly TreeRow[], key: string | null): TreePath {
+  const indexOf = new Map(rows.map((row, i) => [row.node.key, i]))
+  const start = key === null ? undefined : indexOf.get(key)
+  if (start === undefined) return NO_PATH
+  const containers = new Set<string>()
+  const passes = new Map<string, Set<number>>()
+  const turns = new Map<string, number>()
+  let child = rows[start] as TreeRow
+  let childIndex = start
+  while (child.parentKey !== null) {
+    const parentIndex = indexOf.get(child.parentKey)
+    if (parentIndex === undefined) break
+    const parent = rows[parentIndex] as TreeRow
+    containers.add(parent.node.key)
+    turns.set(child.node.key, parent.depth)
+    for (let i = parentIndex + 1; i < childIndex; i++) {
+      const rowKey = (rows[i] as TreeRow).node.key
+      const levels = passes.get(rowKey) ?? new Set<number>()
+      passes.set(rowKey, levels.add(parent.depth))
+    }
+    child = parent
+    childIndex = parentIndex
+  }
+  return { containers, passes, turns }
+}
+
 /** Elements whose name contains `query` (each once, at most 200), as flat rows. */
 export function searchTree(root: Elem, query: string, options: TreeOptions = {}): TreeRow[] {
   const q = query.toLowerCase()
