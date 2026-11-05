@@ -66,6 +66,7 @@ export function Toolbar(): React.JSX.Element {
       <ToolButton command={Cmd.viewShowGrid} icon="grid" label="Show Grid" />
       <ToolButton command={Cmd.viewSnapToGrid} icon="snap" label="Snap to Grid" />
       <ToolButton command={Cmd.fileExportPng} icon="export" label="Export Diagram as PNG" />
+      <ToolButton command={Cmd.fileExportPdf} icon="export-pdf" label="Export Diagram as PDF" />
       <span className="spacer" />
       <ToolButton command={Cmd.viewSidebar} icon="sidebar" label="Toggle Sidebar" />
       <ToolButton command={Cmd.viewNavigator} icon="navigator" label="Toggle Navigator" />
