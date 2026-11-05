@@ -4,7 +4,7 @@
  * on the canvas, and the light drawing does not pass through here at all. Painted copies are kept
  * per layout object, so memoized renderers skip views that did not change.
  */
-import { DARK_CANVAS, readableOn, toCanvasColor, type CanvasColorRole, type CanvasMode, type Point, type Rect } from '../core'
+import { DARK_CANVAS, readableOn, segmentIntersectsRect, toCanvasColor, type CanvasColorRole, type CanvasMode, type Point, type Rect } from '../core'
 import type { EdgeLayout, NodeLayout } from '../layout/types'
 
 const COLOR_FIELDS: Readonly<Record<string, CanvasColorRole | 'surface'>> = {
@@ -56,27 +56,6 @@ export function paintNode<T extends NodeLayout>(layout: T, mode: CanvasMode): T 
   return copy
 }
 
-/** Whether a line segment passes through a rectangle (Liang-Barsky clipping). */
-function crosses(r: Rect, a: Point, b: Point): boolean {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  let from = 0
-  let to = 1
-  const sides: readonly (readonly [number, number])[] = [
-    [-dx, a.x - r.left],
-    [dx, r.left + r.width - a.x],
-    [-dy, a.y - r.top],
-    [dy, r.top + r.height - a.y]
-  ]
-  for (const [p, q] of sides) {
-    if (p === 0) {
-      if (q < 0) return false
-    } else if (p < 0) from = Math.max(from, q / p)
-    else to = Math.min(to, q / p)
-  }
-  return from <= to
-}
-
 /**
  * A label box exists to hide the edge's line behind the text. Its white matches any white surface
  * on the light canvas, but the canvas color would show as a patch inside a box on the dark one, so
@@ -84,7 +63,7 @@ function crosses(r: Rect, a: Point, b: Point): boolean {
  */
 function dropUnneededBoxes(layout: EdgeLayout): EdgeLayout {
   const line = layout.points
-  const clear = (box: Rect): boolean => !line.some((p, i) => i > 0 && crosses(box, line[i - 1] as Point, p))
+  const clear = (box: Rect): boolean => !line.some((p, i) => i > 0 && segmentIntersectsRect(line[i - 1] as Point, p, box))
   const labels = layout.labels.map((l) => (l.fillColor === DARK_CANVAS.background && clear(l.box) ? { ...l, fillColor: 'none' } : l))
   return labels.some((l, i) => l !== layout.labels[i]) ? { ...layout, labels } : layout
 }
