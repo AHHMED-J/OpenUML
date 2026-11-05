@@ -39,7 +39,7 @@
   --icon-note: #e6d36a;
 
   /* Model Explorer indent guides. */
-  --tree-guide: #c9ccd3;
+  --tree-guide: #a9aeb9;
 
   /* IDEF0 arrow roles (explorer folders, arrow icons and their guide lines). */
   --role-input: #1f5fbf;
@@ -80,7 +80,7 @@
   --icon-usecase: #4fbad2;
   --icon-note: #e6d36a;
 
-  --tree-guide: #4a4e57;
+  --tree-guide: #686e7a;
 
   --role-input: #6ea8fe;
   --role-control: #e3b341;
@@ -478,6 +478,16 @@ textarea:focus {
 
 .tree-guides .guide-v.guide-end {
   bottom: 50%;
+}
+
+/* The line from each container down to the current row. */
+.tree-guides .on-path {
+  border-color: var(--accent);
+  border-width: 2px;
+}
+
+.tree-row.contains-current .tree-label {
+  font-weight: 600;
 }
 
 .tree-guides .guide-h {
