@@ -4,7 +4,7 @@
  * on the canvas, and the light drawing does not pass through here at all. Painted copies are kept
  * per layout object, so memoized renderers skip views that did not change.
  */
-import { readableOn, toCanvasColor, type CanvasColorRole, type CanvasMode } from '../core'
+import { DARK_CANVAS, readableOn, toCanvasColor, type CanvasColorRole, type CanvasMode, type Point, type Rect } from '../core'
 import type { EdgeLayout, NodeLayout } from '../layout/types'
 
 const COLOR_FIELDS: Readonly<Record<string, CanvasColorRole | 'surface'>> = {
@@ -46,20 +46,55 @@ function paint<T>(value: T, surface: CanvasColorRole): T {
 
 const painted = new WeakMap<object, object>()
 
-function paintOnce<T extends object>(layout: T, surface: CanvasColorRole): T {
+/** A node's layout for `mode`; the same object on the light canvas. */
+export function paintNode<T extends NodeLayout>(layout: T, mode: CanvasMode): T {
+  if (mode === 'light') return layout
   const known = painted.get(layout)
   if (known) return known as T
-  const copy = paint(layout, surface)
+  const copy = paint(layout, 'fill')
   painted.set(layout, copy)
   return copy
 }
 
-/** A node's layout for `mode`; the same object on the light canvas. */
-export function paintNode<T extends NodeLayout>(layout: T, mode: CanvasMode): T {
-  return mode === 'light' ? layout : paintOnce(layout, 'fill')
+/** Whether a line segment passes through a rectangle (Liang-Barsky clipping). */
+function crosses(r: Rect, a: Point, b: Point): boolean {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  let from = 0
+  let to = 1
+  const sides: readonly (readonly [number, number])[] = [
+    [-dx, a.x - r.left],
+    [dx, r.left + r.width - a.x],
+    [-dy, a.y - r.top],
+    [dy, r.top + r.height - a.y]
+  ]
+  for (const [p, q] of sides) {
+    if (p === 0) {
+      if (q < 0) return false
+    } else if (p < 0) from = Math.max(from, q / p)
+    else to = Math.min(to, q / p)
+  }
+  return from <= to
 }
 
-/** An edge's layout for `mode`: its opaque label boxes sit on the canvas, not on a box. */
+/**
+ * A label box exists to hide the edge's line behind the text. Its white matches any white surface
+ * on the light canvas, but the canvas color would show as a patch inside a box on the dark one, so
+ * a label clear of its line goes without a box. A box the user painted stays.
+ */
+function dropUnneededBoxes(layout: EdgeLayout): EdgeLayout {
+  const line = layout.points
+  const clear = (box: Rect): boolean => !line.some((p, i) => i > 0 && crosses(box, line[i - 1] as Point, p))
+  const labels = layout.labels.map((l) => (l.fillColor === DARK_CANVAS.background && clear(l.box) ? { ...l, fillColor: 'none' } : l))
+  return labels.some((l, i) => l !== layout.labels[i]) ? { ...layout, labels } : layout
+}
+
+/** An edge's layout for `mode`; its label boxes sit on the canvas, not on a box. */
 export function paintEdge<T extends EdgeLayout>(layout: T, mode: CanvasMode): T {
-  return mode === 'light' ? layout : paintOnce(layout, 'background')
+  if (mode === 'light') return layout
+  const known = painted.get(layout)
+  if (known) return known as T
+  const copy = dropUnneededBoxes(paint(layout, 'background')) as T
+  painted.set(layout, copy)
+  return copy
 }

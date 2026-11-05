@@ -4,8 +4,9 @@ import { readMdj, writeMdj } from '../../format'
 import { renderDiagramSvg } from '../../export'
 import type { Diagram, Project } from '../../model'
 import { createNode, setFields } from '../../commands'
-import { FixedWidthTextMeasurer } from '../core'
+import { FixedWidthTextMeasurer, type Rect } from '../core'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
+import type { EdgeLayout } from '../layout/types'
 import { ensureNotations } from '../notations'
 import { testDiagram } from '../testUtils'
 import { paintEdge, paintNode } from './paintLayout'
@@ -47,6 +48,21 @@ describe('painting a layout', () => {
     if (!layout) throw new Error('no layout')
     const { style } = paintNode(layout, 'dark')
     expect(style.fontColor).not.toBe('#e8e8e8')
+  })
+})
+
+describe('edge labels on the dark canvas', () => {
+  const edge = (box: Rect, fillColor = '#ffffff'): EdgeLayout =>
+    ({ style: { lineColor: '#000000', fillColor: '#ffffff', fontColor: '#000000' }, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], labels: [{ box, text: 'a', fillColor, fontColor: '#000000' }] }) as unknown as EdgeLayout
+  const box = (top: number): Rect => ({ left: 40, top, width: 20, height: 10 })
+
+  it('goes without a box when the line does not run behind the text', () => {
+    expect(paintEdge(edge(box(10)), 'dark').labels[0]?.fillColor).toBe('none')
+  })
+
+  it('keeps the box where it hides the line, or when the user painted it', () => {
+    expect(paintEdge(edge(box(-5)), 'dark').labels[0]?.fillColor).toBe('#0f1115')
+    expect(paintEdge(edge(box(10), '#ffcc00'), 'dark').labels[0]?.fillColor).not.toBe('none')
   })
 })
 
