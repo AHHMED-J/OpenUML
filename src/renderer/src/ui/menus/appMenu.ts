@@ -372,6 +372,14 @@ export function workingDiagramsContextMenu(targetId: string | undefined): MenuNo
   ]
 }
 
+/** The toolbar's Export button. */
+export function exportMenu(): MenuNode[] {
+  return [
+    { label: 'PNG...', command: Cmd.fileExportPng },
+    { label: 'PDF...', command: Cmd.fileExportPdf }
+  ]
+}
+
 export function canvasContextMenu(): MenuNode[] {
   const ends = endMultiplicityMenu()
   return [
