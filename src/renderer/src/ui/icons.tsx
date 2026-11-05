@@ -850,7 +850,6 @@ export type UiIconName =
   | 'ellipsis'
   | 'search'
   | 'export'
-  | 'export-pdf'
   | 'reveal'
   | 'check'
 
@@ -926,15 +925,6 @@ function uiGlyph(name: UiIconName): React.ReactNode {
       return <path d="M2 4h4l1.2 1.5H14v7.5H2zM6.5 11.5l3.5-3.5M7.5 8H10v2.5" />
     case 'export':
       return <path d="M8 10V2.5M5 5.5l3-3 3 3M3 9v4.5h10V9" />
-    case 'export-pdf':
-      return (
-        <>
-          <path d="M3.5 7V1.5h6l3 3V7M9.5 1.5v3h3M3.5 13v1.5h9V13" />
-          <text x={8} y={12} textAnchor="middle" fontSize={5.6} fontWeight={700} fontFamily="Arial, sans-serif" fill="currentColor" stroke="none">
-            PDF
-          </text>
-        </>
-      )
     case 'check':
       return <path d="M3.5 8.5l3 3 6-7" />
   }
