@@ -4,7 +4,7 @@
  * the command registry when the tree is resolved.
  */
 import { Idef0CommandIds, hasParentArrows } from '../../diagram'
-import { projectStore, selectedModels } from '../../store'
+import { projectStore, selectedModels, selectionOrActiveDiagram } from '../../store'
 import type { Platform } from '../keymap'
 import { addDiagramItemsFor, addItemsFor } from '../modelActions'
 import { baseName } from '../recentFiles'
@@ -29,7 +29,7 @@ function addDiagramMenu(): MenuNode {
     label: 'Add Diagram',
     placeholder: '(nothing to add here)',
     submenu: () =>
-      addDiagramItemsFor(parent()).map((item) => ({
+      addDiagramItemsFor(selectionOrActiveDiagram(ps())).map((item) => ({
         id: `uml.${item.kind}`,
         label: item.label,
         command: Cmd.modelAddDiagram,

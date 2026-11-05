@@ -46,6 +46,7 @@ export function readMdj(text: string): ReadResult {
   }
   repairModel(root, reader.missingParent, warnings)
   migrateDocument(root, warnings)
+  showActorLifelinesAsIcons(root)
   return { repository: new Repository(root), project: root, warnings }
 }
 
@@ -161,6 +162,19 @@ export function repairModel(root: Elem, missingParent: Set<string>, warnings: st
     live = new Set(walk(root))
     if (clearDanglingRefs(live) > 0) changed = true
     if (!changed) break
+  }
+}
+
+/**
+ * A lifeline typed by an actor is a stick figure here whatever its view says, but other tools
+ * need the `icon` stereotype display for it and keep a box with the default `label`. Files from
+ * before the two were kept together get it here, so saving them draws the same everywhere.
+ */
+function showActorLifelinesAsIcons(project: Project): void {
+  for (const el of walk(project)) {
+    if (!isKindOf(el, 'UMLSeqLifelineView') || el.stereotypeDisplay !== 'label') continue
+    const role = el.model?.['represent'] as Elem | null | undefined
+    if (isKindOf(role?.['type'] as Elem, 'UMLActor')) el.stereotypeDisplay = 'icon'
   }
 }
 

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { addFeature, deleteFromModel, reorderElement, setFieldsOfAll } from '../../commands'
-import { renameElements, setBoxNumber } from '../../diagram'
+import { renameElements, setBoxNumber, setLifelineActor } from '../../diagram'
 import { ModelRuleError, isElem, isIdef0Function, typeDisplayName, type Elem } from '../../model'
 import { projectStore } from '../../store'
 import { selectInExplorer } from '../app/appCommands'
@@ -13,7 +13,7 @@ import { reportError } from '../app/commands'
 import { explorerLabel, variantText } from '../explorer/tree'
 import { TypeIcon, UiIcon } from '../icons'
 import { editReferenceList, pickElement, uiStore, useUiStore } from '../uiStore'
-import { parseInput, propertyRows, resolveVariant, type PropertyRow } from './propertyRows'
+import { LIFELINE_ACTOR_ROW, parseInput, propertyRows, resolveVariant, type PropertyRow } from './propertyRows'
 import { useSelectedModels } from './useSelection'
 
 const MIXED = '—'
@@ -28,6 +28,7 @@ function commit(row: PropertyRow, value: unknown): void {
       if (row.targets.length !== 1) throw new ModelRuleError('Select a single box to change its number')
       setBoxNumber(engine, row.targets[0] as Elem, value as number)
     }
+    else if (row.key === LIFELINE_ACTOR_ROW) setLifelineActor(engine, row.targets, value === true)
     else setFieldsOfAll(engine, row.targets, { [row.field]: value }, `Change ${row.label}`)
   } catch (err) {
     reportError(err)
