@@ -1,24 +1,28 @@
 /**
  * Application version and update notices: the version shown in the window title and About, and
  * the check for a newer GitHub release (at startup and once a day when enabled in Preferences,
- * or from Help > Check for Updates). A newer release is announced with a toast and stays offered
- * in the status bar; Download opens its release page. Nothing is downloaded or installed here.
+ * or from Help > Check for Updates). While a newer release exists it is offered on every start,
+ * and after Later it stays in the window title, next to the document name, and in the status bar.
+ * Download opens its release page. Nothing is downloaded or installed here.
  */
 import { uiStore } from '../uiStore'
 import { bridge } from './bridge'
 
 const DAY_MS = 24 * 60 * 60 * 1000
-/** Delay of the automatic check after startup, so it never competes with opening a file. */
-const STARTUP_CHECK_DELAY_MS = 5000
+
+/** Who asked: Help > Check for Updates, the app starting, or the daily check of a running app. */
+type UpdateCheck = 'manual' | 'startup' | 'daily'
 
 const ui = () => uiStore.getState()
 
 /**
- * Asks for the latest release and records a newer one. `manual` (Help > Check for Updates) also
- * reports "up to date" and failures; the automatic check stays silent unless there is news.
+ * Asks for the latest release and records a newer one. `manual` also reports "up to date" and
+ * failures. An update is offered every time, except that the daily check only interrupts a running
+ * app for a release it has not offered yet.
  */
-export async function checkForUpdates(manual: boolean): Promise<void> {
+export async function checkForUpdates(check: UpdateCheck): Promise<void> {
   if (!bridge) return
+  const manual = check === 'manual'
   let result: Awaited<ReturnType<typeof bridge.checkForUpdates>>
   try {
     result = await bridge.checkForUpdates()
@@ -40,8 +44,12 @@ export async function checkForUpdates(manual: boolean): Promise<void> {
   }
   const news = ui().update?.version !== result.latest
   ui().setUpdate({ version: result.latest, url: result.url })
-  if (manual) await offerUpdate()
-  else if (news) ui().toast(`OpenUML ${result.latest} is available. Click "Update" in the status bar to download it.`)
+  if (check !== 'daily' || news) await offerUpdate()
+}
+
+/** The startup check, unless Preferences turned it off. */
+export async function checkForUpdatesAtStartup(): Promise<void> {
+  if (ui().prefs.checkForUpdates) await checkForUpdates('startup')
 }
 
 /** Shows the available update; Download opens its release page in the browser. */
@@ -58,20 +66,15 @@ export async function offerUpdate(): Promise<void> {
   if (choice === 0) bridge.openExternal(update.url)
 }
 
-/** Loads the app version, then runs the automatic update check. Returns a cleanup function. */
+/** Loads the app version and schedules the daily update check. Returns a cleanup function. */
 export function startUpdates(): () => void {
   const b = bridge
   if (!b) return () => undefined
   b.getAppInfo()
     .then((info) => ui().setAppVersion(info.version))
     .catch(() => undefined)
-  const auto = (): void => {
-    if (ui().prefs.checkForUpdates) void checkForUpdates(false)
-  }
-  const first = setTimeout(auto, STARTUP_CHECK_DELAY_MS)
-  const daily = setInterval(auto, DAY_MS)
-  return () => {
-    clearTimeout(first)
-    clearInterval(daily)
-  }
+  const daily = setInterval(() => {
+    if (ui().prefs.checkForUpdates) void checkForUpdates('daily')
+  }, DAY_MS)
+  return () => clearInterval(daily)
 }

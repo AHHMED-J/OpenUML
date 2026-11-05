@@ -16,7 +16,7 @@ import { applyKeybindings, initCommands, keymap, registry, reportError, runComma
 import { handleCloseRequest, openProjectPath, windowTitle } from './fileOps'
 import { decodeMenuCommand } from '../menus/menuModel'
 import { discardRecovery, offerRecovery, startAutosave } from './autosave'
-import { startUpdates } from './updates'
+import { checkForUpdatesAtStartup, startUpdates } from './updates'
 import { showWhatsNewAfterUpdate } from './whatsNew'
 
 export function menuContext(): MenuContext {
@@ -30,7 +30,8 @@ export function menuContext(): MenuContext {
 
 function syncTitle(): void {
   const s = projectStore.getState()
-  const title = windowTitle(s.filePath, s.project.name, s.dirty, uiStore.getState().appVersion)
+  const { appVersion, update } = uiStore.getState()
+  const title = windowTitle(s.filePath, s.project.name, s.dirty, appVersion, update?.version ?? null)
   if (bridge) bridge.setDirty(s.dirty, title)
   else document.title = title
 }
@@ -90,7 +91,7 @@ export function startShell(): () => void {
   cleanups.push(
     uiStore.subscribe((s, prev) => {
       if (s.prefs.radAutoThread !== prev.prefs.radAutoThread) setRadAutoThread(s.prefs.radAutoThread)
-      if (s.appVersion !== prev.appVersion) syncTitle()
+      if (s.appVersion !== prev.appVersion || s.update !== prev.update) syncTitle()
       if (s.keybindings !== prev.keybindings) {
         applyKeybindings(s.keybindings)
         scheduleMenu()
@@ -155,6 +156,8 @@ export function startShell(): () => void {
       .catch(reportError)
       // After recovery and the startup file, so it never competes with opening work.
       .then(showWhatsNewAfterUpdate)
+      .catch(reportError)
+      .then(checkForUpdatesAtStartup)
       .catch(reportError)
   }
 
