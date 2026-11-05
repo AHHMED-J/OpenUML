@@ -12,11 +12,11 @@ import { addAttribute, addEnumerationLiteral, addExtensionPoint, addOperation } 
 import { isKindOf, type Diagram, type Elem, type Point, type View } from '../../model'
 import { useProjectStore } from '../../store'
 import {
-  COLORS,
   GRID,
   CANVAS_FIT_PADDING,
   boundsOfPoints,
   canvasExtent,
+  canvasPalette,
   clampZoom,
   edgeAnchor,
   edgeHitCursor,
@@ -31,6 +31,7 @@ import {
   snapWithDeadZone,
   stepZoom,
   EdgePosition,
+  type CanvasMode,
   type HandlePosition,
   type Rect,
   type RubberBandMode,
@@ -40,6 +41,7 @@ import { nameEditText } from '../layout/helpers'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { getTextMeasurer } from '../layout/measurer'
 import type { DiagramLayout, EditRegion, EditTarget, NodeDivider } from '../layout/types'
+import { CanvasContext } from '../render/canvasContext'
 import { DiagramContent } from '../render/DiagramContent'
 import { nodeNotationFor } from '../render/registry'
 import { copySelection, pasteClipboard } from '../commands'
@@ -93,6 +95,8 @@ export interface DiagramEditorProps {
   readonly gridSize?: number
   /** Font size given to new views that would take the default font (13); default 13. */
   readonly defaultFontSize?: number
+  /** The canvas to draw on (default light); never changes the model. */
+  readonly canvas?: CanvasMode
   /**
    * Shows a brief, non-blocking message to the user: why a gesture was refused (a connection the
    * rules do not allow, an element that cannot be placed there). Called at most once per gesture.
@@ -1203,57 +1207,62 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const lineSpacing = gridLineSpacing(grid)
   const effectiveCursor = gesture.current?.type === 'pan' ? 'grabbing' : tool ? 'crosshair' : cursor
 
+  const palette = canvasPalette(props.canvas ?? 'light')
+
   return (
-    <div
-      ref={scrollRef}
-      className="ou-diagram-editor"
-      tabIndex={0}
-      onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
-      onFocus={() => setActiveEditor(handle)}
-      // The Space key-up is lost when the focus leaves (another app, a panel): stop panning then.
-      onBlur={releaseSpace}
-      style={{ position: 'relative', overflow: 'auto', width: '100%', height: '100%', outline: 'none', background: COLORS.background }}
-    >
-      <div style={{ position: 'relative', width, height }}>
-        <svg
-          ref={svgRef}
-          width={width}
-          height={height}
-          style={{ display: 'block', cursor: effectiveCursor, userSelect: 'none' }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={(e) => finishGesture(e, false)}
-          onPointerCancel={(e) => finishGesture(e, true)}
-          onDoubleClick={onDoubleClick}
-        >
-          <g transform={`scale(${zoom})`}>
-            {showGrid && (
-              <>
-                <defs>
-                  <pattern id={gridId} width={lineSpacing} height={lineSpacing} patternUnits="userSpaceOnUse">
-                    <path
-                      d={`M${lineSpacing} 0 L0 0 L0 ${lineSpacing}`}
-                      fill="none"
-                      stroke={GRID.color}
-                      strokeWidth={1 / zoom}
-                    />
-                  </pattern>
-                </defs>
-                <rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={`url(#${gridId})`} pointerEvents="none" />
-              </>
-            )}
-            <DiagramContent layout={liveLayout ?? layout} />
-            <SelectionOverlay layout={liveLayout ?? layout} selected={selected} zoom={zoom} />
-            <HighlightOverlay layout={liveLayout ?? layout} zoom={zoom} />
-            <DragOverlay preview={preview} zoom={zoom} />
-            {SvgOverlay && env && <SvgOverlay env={env} layout={liveLayout ?? layout} zoom={zoom} notify={notify} />}
-          </g>
-        </svg>
-        {editing && <QuickEditor key={`${editing.viewId}:${JSON.stringify(editing.target)}`} state={editing} zoom={zoom} onCommit={commitEdit} onCancel={cancelEdit} />}
-        {HtmlOverlay && env && <HtmlOverlay env={env} layout={layout} zoom={zoom} notify={notify} />}
+    <CanvasContext.Provider value={palette}>
+      <div
+        ref={scrollRef}
+        className="ou-diagram-editor"
+        data-canvas={palette.mode}
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
+        onFocus={() => setActiveEditor(handle)}
+        // The Space key-up is lost when the focus leaves (another app, a panel): stop panning then.
+        onBlur={releaseSpace}
+        style={{ position: 'relative', overflow: 'auto', width: '100%', height: '100%', outline: 'none', background: palette.background }}
+      >
+        <div style={{ position: 'relative', width, height }}>
+          <svg
+            ref={svgRef}
+            width={width}
+            height={height}
+            style={{ display: 'block', cursor: effectiveCursor, userSelect: 'none' }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={(e) => finishGesture(e, false)}
+            onPointerCancel={(e) => finishGesture(e, true)}
+            onDoubleClick={onDoubleClick}
+          >
+            <g transform={`scale(${zoom})`}>
+              {showGrid && (
+                <>
+                  <defs>
+                    <pattern id={gridId} width={lineSpacing} height={lineSpacing} patternUnits="userSpaceOnUse">
+                      <path
+                        d={`M${lineSpacing} 0 L0 0 L0 ${lineSpacing}`}
+                        fill="none"
+                        stroke={palette.grid}
+                        strokeWidth={1 / zoom}
+                      />
+                    </pattern>
+                  </defs>
+                  <rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={`url(#${gridId})`} pointerEvents="none" />
+                </>
+              )}
+              <DiagramContent layout={liveLayout ?? layout} />
+              <SelectionOverlay layout={liveLayout ?? layout} selected={selected} zoom={zoom} />
+              <HighlightOverlay layout={liveLayout ?? layout} zoom={zoom} />
+              <DragOverlay preview={preview} zoom={zoom} />
+              {SvgOverlay && env && <SvgOverlay env={env} layout={liveLayout ?? layout} zoom={zoom} notify={notify} />}
+            </g>
+          </svg>
+          {editing && <QuickEditor key={`${editing.viewId}:${JSON.stringify(editing.target)}`} state={editing} zoom={zoom} onCommit={commitEdit} onCancel={cancelEdit} />}
+          {HtmlOverlay && env && <HtmlOverlay env={env} layout={layout} zoom={zoom} notify={notify} />}
+        </div>
       </div>
-    </div>
+    </CanvasContext.Provider>
   )
 }
 

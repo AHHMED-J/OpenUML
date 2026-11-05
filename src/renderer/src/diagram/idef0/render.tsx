@@ -2,6 +2,7 @@
 import type React from 'react'
 import { edgeEndShapes, fmt, polylinePath, roundedPolylinePath } from '../core'
 import type { EdgeLayout, NodeLayout } from '../layout/types'
+import { useCanvasPalette } from '../render/canvasContext'
 import { EdgeLabel, EndDecorations, SvgLines, SvgText } from '../render/primitives'
 import type { ArrowData } from './edges'
 import { PENDING_HANDLE, type FrameData, type FunctionData, type NoteData, type PortData } from './layout'
@@ -34,13 +35,14 @@ export function PortNode({ layout }: { layout: NodeLayout<PortData> }): React.JS
   const { style, data } = layout
   const color = data.unlinked ? UNLINKED_COLOR : style.lineColor
   const stub = data.pending
+  const { stubHandle } = useCanvasPalette()
   return (
     <g>
       {stub && (
         // A pending arrow: dashed stub from the frame edge, round handle at its free end, parent arrow name beside it.
         <g className="idef0-pending">
           <line x1={fmt(data.anchor.x)} y1={fmt(data.anchor.y)} x2={fmt(stub.handle.x)} y2={fmt(stub.handle.y)} stroke={stub.color} strokeWidth={IDEF0_STYLE.arrowLine} strokeDasharray="5 3" />
-          <circle cx={fmt(stub.handle.x)} cy={fmt(stub.handle.y)} r={PENDING_HANDLE} fill="#ffffff" stroke={stub.color} strokeWidth={1.5} />
+          <circle cx={fmt(stub.handle.x)} cy={fmt(stub.handle.y)} r={PENDING_HANDLE} fill={stubHandle} stroke={stub.color} strokeWidth={1.5} />
           {stub.label && <SvgText line={stub.label} color={stub.color} />}
         </g>
       )}

@@ -256,6 +256,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       SEP,
       { id: 'view.show-grid', label: 'Show Grid', command: Cmd.viewShowGrid, checkbox: true },
       { id: 'view.snap-to-grid', label: 'Snap to Grid', command: Cmd.viewSnapToGrid, checkbox: true },
+      { id: 'view.dark-canvas', label: 'Dark Canvas', command: Cmd.viewDarkCanvas, checkbox: true },
       SEP,
       { id: 'view.sidebar', label: 'Sidebar', command: Cmd.viewSidebar, checkbox: true },
       { id: 'view.navigator', label: 'Navigator', command: Cmd.viewNavigator, checkbox: true },

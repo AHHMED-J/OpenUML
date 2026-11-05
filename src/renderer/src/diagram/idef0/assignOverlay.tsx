@@ -6,9 +6,10 @@
 import type React from 'react'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 import type { Elem, View } from '../../model'
-import type { Point, Rect } from '../core'
+import { toCanvasColor, type Point, type Rect } from '../core'
 import type { OverlayProps } from '../editor/actions'
 import type { DiagramLayout } from '../layout/types'
+import { useCanvasPalette } from '../render/canvasContext'
 import { arrowToBox, assignParentArrow, portAssignment } from './assignment'
 import {
   arrowHeader,
@@ -84,13 +85,14 @@ function head(points: readonly Point[], size: number): string {
 /** Ghost of the open popover's choice: the arrows it would add (dashed, role color) and remove (red). */
 export function AssignGhost(props: OverlayProps): React.JSX.Element | null {
   const state = useAssignPopover()
+  const { mode } = useCanvasPalette()
   const open = openPort(props, state)
   if (!open || !state) return null
   const { port, data } = open
   const assignment = portAssignment(port)
   if (!assignment) return null
   const views = props.env.diagram.ownedViews
-  const color = IDEF0_ROLE_COLORS[assignment.role] ?? IDEF0_ROLE_COLORS.input
+  const color = toCanvasColor(IDEF0_ROLE_COLORS[assignment.role] ?? IDEF0_ROLE_COLORS.input, 'line', mode)
   const width = 2 / props.zoom
   const added: Point[][] = []
   for (const id of state.checked) {
