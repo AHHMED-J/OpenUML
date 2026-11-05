@@ -4,14 +4,17 @@
  */
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Diagram, Repository } from '../model'
-import { EXPORT, exportBounds, fmt, type Rect, type TextMeasurer } from '../diagram/core'
+import { EXPORT, canvasPalette, exportBounds, fmt, type CanvasMode, type Rect, type TextMeasurer } from '../diagram/core'
 import { computeDiagramLayout } from '../diagram/layout/layoutDiagram'
+import { CanvasContext } from '../diagram/render/canvasContext'
 import { DiagramContent } from '../diagram/render/DiagramContent'
 import { ensureNotations } from '../diagram/notations'
 
 export interface SvgExportOptions {
-  /** Background fill; null/undefined = transparent (SVG default). */
+  /** Background fill; null = transparent. Default: transparent on the light canvas, the canvas color on the dark one. */
   readonly background?: string | null
+  /** The canvas to draw on (default light; the model's colors stay as they are). */
+  readonly canvas?: CanvasMode
   /** Margin around the content bounds (default 10). */
   readonly margin?: number
 }
@@ -27,6 +30,8 @@ export function renderDiagramSvg(diagram: Diagram, repository: Repository, measu
   ensureNotations()
   const layout = computeDiagramLayout(diagram, repository, measurer)
   const margin = options.margin ?? EXPORT.margin
+  const palette = canvasPalette(options.canvas ?? 'light')
+  const background = options.background === undefined && palette.mode === 'dark' ? palette.background : options.background
   const raw = layout.bounds ? exportBounds([layout.bounds], margin) : null
   const b = raw
     ? { left: Math.floor(raw.left), top: Math.floor(raw.top), width: Math.ceil(raw.width), height: Math.ceil(raw.height) }
@@ -40,8 +45,10 @@ export function renderDiagramSvg(diagram: Diagram, repository: Repository, measu
       viewBox={`${fmt(b.left)} ${fmt(b.top)} ${fmt(b.width)} ${fmt(b.height)}`}
       fontFamily="Arial, sans-serif"
     >
-      {options.background ? <rect x={b.left} y={b.top} width={b.width} height={b.height} fill={options.background} /> : null}
-      <DiagramContent layout={layout} />
+      {background ? <rect x={b.left} y={b.top} width={b.width} height={b.height} fill={background} /> : null}
+      <CanvasContext.Provider value={palette}>
+        <DiagramContent layout={layout} />
+      </CanvasContext.Provider>
     </svg>
   )
   // Soft validation marks (RAD warnings) and other editor marks (a locked role's padlock) belong

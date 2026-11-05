@@ -40,6 +40,8 @@ export interface PaletteTool {
 }
 
 export type ThemePreference = 'system' | 'dark' | 'light'
+/** The diagram canvas: fixed, or following the app theme. */
+export type CanvasPreference = 'light' | 'dark' | 'follow'
 export type SortMode = 'added' | 'name'
 
 export interface PanelState {
@@ -57,6 +59,9 @@ const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', rig
 
 export interface Preferences {
   readonly theme: ThemePreference
+  readonly canvasMode: CanvasPreference
+  /** Export PNG, SVG and PDF on the dark canvas instead of the light one. */
+  readonly exportDarkCanvas: boolean
   readonly showGrid: boolean
   readonly snapToGrid: boolean
   /** Grid step of the diagram editor in diagram units (drawing, snapping, Shift+arrow nudge). */
@@ -80,6 +85,8 @@ export const AUTO_SAVE_INTERVALS: readonly number[] = [0, 30, 60, 120, 300, 600]
 
 const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
+  canvasMode: 'light',
+  exportDarkCanvas: false,
   showGrid: true,
   snapToGrid: true,
   gridSize: GRID.size,
@@ -312,6 +319,8 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
   const v = value ?? {}
   return {
     theme: v.theme === 'dark' || v.theme === 'light' || v.theme === 'system' ? v.theme : DEFAULT_PREFERENCES.theme,
+    canvasMode: v.canvasMode === 'dark' || v.canvasMode === 'light' || v.canvasMode === 'follow' ? v.canvasMode : DEFAULT_PREFERENCES.canvasMode,
+    exportDarkCanvas: typeof v.exportDarkCanvas === 'boolean' ? v.exportDarkCanvas : DEFAULT_PREFERENCES.exportDarkCanvas,
     showGrid: typeof v.showGrid === 'boolean' ? v.showGrid : DEFAULT_PREFERENCES.showGrid,
     snapToGrid: typeof v.snapToGrid === 'boolean' ? v.snapToGrid : DEFAULT_PREFERENCES.snapToGrid,
     gridSize: sanitizeGridSize(v.gridSize),

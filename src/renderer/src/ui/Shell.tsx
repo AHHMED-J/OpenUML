@@ -22,19 +22,15 @@ import { ModalHost, Toasts } from './Overlays'
 import { TooltipLayer } from './components/Tooltip'
 import { StatusBar } from './StatusBar'
 import { Toolbar } from './Toolbar'
-import { uiStore, useUiStore, type ThemePreference } from './uiStore'
-
-function effectiveTheme(pref: ThemePreference): 'dark' | 'light' {
-  if (pref !== 'system') return pref
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
+import { appTheme } from './canvasMode'
+import { uiStore, useUiStore } from './uiStore'
 
 /** Applies the theme preference to `<html data-theme>`, following the OS when set to "system". */
 function useTheme(): void {
   const pref = useUiStore((s) => s.prefs.theme)
   useEffect(() => {
     const apply = (): void => {
-      document.documentElement.dataset['theme'] = effectiveTheme(pref)
+      document.documentElement.dataset['theme'] = appTheme(pref)
     }
     apply()
     if (pref !== 'system' || !window.matchMedia) return

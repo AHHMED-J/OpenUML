@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { canvasModeFor } from './canvasMode'
 import { createUiStore } from './uiStore'
 
 function stubStorage(initial: Record<string, string> = {}): Map<string, string> {
@@ -16,6 +17,22 @@ afterEach(() => {
 })
 
 describe('preferences', () => {
+  it('keeps the canvas light and exports light unless asked, refusing unknown values', () => {
+    stubStorage({ 'openuml.preferences': JSON.stringify({ canvasMode: 'sepia', exportDarkCanvas: 'yes' }) })
+    expect(createUiStore().getState().prefs).toMatchObject({ canvasMode: 'light', exportDarkCanvas: false })
+    stubStorage({ 'openuml.preferences': JSON.stringify({ canvasMode: 'follow', exportDarkCanvas: true }) })
+    expect(createUiStore().getState().prefs).toMatchObject({ canvasMode: 'follow', exportDarkCanvas: true })
+  })
+
+  it('follows the app theme only when told to', () => {
+    expect(canvasModeFor('dark', 'light', false)).toBe('dark')
+    expect(canvasModeFor('light', 'dark', true)).toBe('light')
+    expect(canvasModeFor('follow', 'dark', false)).toBe('dark')
+    expect(canvasModeFor('follow', 'light', true)).toBe('light')
+    expect(canvasModeFor('follow', 'system', true)).toBe('dark')
+    expect(canvasModeFor('follow', 'system', false)).toBe('light')
+  })
+
   it('keeps grid sizes from 2 to 64 and replaces others with the default', () => {
     stubStorage({ 'openuml.preferences': JSON.stringify({ gridSize: 64, defaultFontSize: 16 }) })
     const store = createUiStore()

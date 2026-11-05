@@ -6,6 +6,7 @@
 import type React from 'react'
 import { edgeEndShapes, edgePath, fmt, roundedRectPath, type Point, type Rect } from '../core'
 import type { EdgeLayout, NodeLayout, TextLine, ViewStyle } from '../layout/types'
+import { useCanvasPalette } from '../render/canvasContext'
 import { EndDecorations, fontAttrs } from '../render/primitives'
 import type {
   ActivityData,
@@ -104,14 +105,15 @@ export function RoleNode({ layout }: { layout: NodeLayout<RoleData> }): React.JS
 
 /** Padlock beside a locked role's title; an editor mark, left out of exports. */
 function LockMark({ r }: { r: Rect }): React.JSX.Element {
+  const { lock, lockHole } = useCanvasPalette()
   const body = { left: r.left, top: r.top + r.height * 0.45, width: r.width, height: r.height * 0.55 }
   const cx = r.left + r.width / 2
   const shackle = `M${fmt(r.left + 2)} ${fmt(body.top)} V${fmt(r.top + 3)} A${fmt(r.width / 2 - 2)} ${fmt(r.width / 2 - 2)} 0 0 1 ${fmt(r.left + r.width - 2)} ${fmt(r.top + 3)} V${fmt(body.top)}`
   return (
     <g className="editor-only" aria-label="Locked">
-      <path d={shackle} fill="none" stroke="#6e7781" strokeWidth={1.4} />
-      <rect x={fmt(body.left)} y={fmt(body.top)} width={fmt(body.width)} height={fmt(body.height)} rx={1.5} fill="#6e7781" />
-      <circle cx={fmt(cx)} cy={fmt(body.top + body.height / 2)} r={1} fill="#ffffff" />
+      <path d={shackle} fill="none" stroke={lock} strokeWidth={1.4} />
+      <rect x={fmt(body.left)} y={fmt(body.top)} width={fmt(body.width)} height={fmt(body.height)} rx={1.5} fill={lock} />
+      <circle cx={fmt(cx)} cy={fmt(body.top + body.height / 2)} r={1} fill={lockHole} />
     </g>
   )
 }
