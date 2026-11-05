@@ -20,10 +20,13 @@ const MDJ_FILTERS = [{ name: 'Models', extensions: ['mdj'] }]
 const ps = () => projectStore.getState()
 const ui = () => uiStore.getState()
 
-/** Window title: `OpenUML 0.1.4 — name.mdj •` (bullet when there are unsaved changes). */
-export function windowTitle(filePath: string | null, projectName: string, dirty: boolean, version: string | null = null): string {
+/**
+ * Window title: `OpenUML 0.1.4 — name.mdj •` (bullet when there are unsaved changes), followed by
+ * the newer version when there is one.
+ */
+export function windowTitle(filePath: string | null, projectName: string, dirty: boolean, version: string | null = null, update: string | null = null): string {
   const name = filePath ? baseName(filePath) : projectName || 'Untitled'
-  return `OpenUML${version ? ` ${version}` : ''} — ${name}${dirty ? ' •' : ''}`
+  return `OpenUML${version ? ` ${version}` : ''} — ${name}${dirty ? ' •' : ''}${update ? ` — New version ${update} available` : ''}`
 }
 
 function requireBridge(): NonNullable<typeof bridge> {
