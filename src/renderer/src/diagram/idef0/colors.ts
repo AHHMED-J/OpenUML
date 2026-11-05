@@ -13,7 +13,8 @@ import { COLORS } from '../core'
 
 /**
  * Role colors: the hues of the explorer's role tokens (`--role-*` in the light theme), as plain hex
- * so they work in SVG attributes and exported files; the canvas is white in both themes.
+ * so they work in SVG attributes and exported files. They are colors for the light canvas, like the
+ * model's; the dark canvas converts them when drawing (`toCanvasColor`).
  */
 export const IDEF0_ROLE_COLORS: Readonly<Record<Idef0Role, string>> = {
   input: '#1f5fbf',

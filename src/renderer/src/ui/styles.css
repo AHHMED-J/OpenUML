@@ -619,6 +619,10 @@ textarea:focus {
   fill: #e8f1ff;
 }
 
+.ou-diagram-editor[data-canvas='dark'] .idef0-arrow-label:hover rect {
+  fill: #22344f;
+}
+
 .canvas-message {
   display: flex;
   flex-direction: column;

@@ -13,6 +13,7 @@
  */
 import { isKindOf, type Diagram } from '../model'
 import { projectStore } from '../store'
+import { canvasPalette, type CanvasMode } from '../diagram/core'
 import { getTextMeasurer } from '../diagram/layout/measurer'
 import type { PdfPage } from '../../../shared/ipc'
 import { pdfPageOf } from './pdf'
@@ -34,22 +35,26 @@ export function diagramToSvg(diagramId: string, options: SvgExportOptions = {}):
 }
 
 /** One PDF page of a diagram of the open project (see `pdfPageOf`). */
-export function diagramToPdfPage(diagramId: string): PdfPage {
-  return pdfPageOf(diagramById(diagramId), projectStore.getState().repository, getTextMeasurer())
+export function diagramToPdfPage(diagramId: string, canvas: CanvasMode = 'light'): PdfPage {
+  return pdfPageOf(diagramById(diagramId), projectStore.getState().repository, getTextMeasurer(), canvas)
 }
 
 export interface PngExportOptions {
-  /** Background color; default white. `null` = transparent. */
+  /** Background color; default the canvas color. `null` = transparent. */
   readonly background?: string | null
+  /** The canvas to draw on (default light). */
+  readonly canvas?: CanvasMode
   readonly margin?: number
 }
 
 /** Base64 PNG (without the `data:` prefix) of a diagram, rasterized at `scale` (default 2×). */
 export async function diagramToPngBase64(diagramId: string, scale = 2, options: PngExportOptions = {}): Promise<string> {
   const { repository } = projectStore.getState()
-  const background = options.background === undefined ? '#ffffff' : options.background
+  const mode = options.canvas ?? 'light'
+  const background = options.background === undefined ? canvasPalette(mode).background : options.background
   const { svg, bounds } = renderDiagramSvg(diagramById(diagramId), repository, getTextMeasurer(), {
     background,
+    canvas: mode,
     ...(options.margin !== undefined ? { margin: options.margin } : {})
   })
   const width = Math.max(1, Math.round(bounds.width * scale))
