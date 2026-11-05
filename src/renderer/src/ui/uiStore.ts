@@ -172,7 +172,7 @@ export interface ContextMenuState {
   readonly x: number
   readonly y: number
   /** Which menu to show (resolved by the context-menu host). */
-  readonly menu: 'explorer' | 'explorer-settings' | 'working-diagrams' | 'canvas' | 'zoom'
+  readonly menu: 'explorer' | 'explorer-settings' | 'working-diagrams' | 'canvas' | 'zoom' | 'export'
   /** Element the menu was opened on (e.g. a diagram in the working-diagrams list). */
   readonly targetId?: string
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { CommandRegistry } from '../../commands'
 import { Keymap } from '../keymap'
+import { exportMenu } from './appMenu'
+import { Cmd } from './commandIds'
 import {
   decodeMenuCommand,
   encodeMenuCommand,
@@ -96,6 +98,15 @@ describe('resolveMenu', () => {
     const { ctx } = setup()
     const items = resolveMenu([{ label: 'Class', command: 'model.add', args: { id: 'class' } }], ctx)
     expect(item(items, 'Class')).not.toHaveProperty('keystroke')
+  })
+})
+
+describe('toolbar export menu', () => {
+  it('offers PNG and PDF', () => {
+    expect(exportMenu()).toEqual([
+      { label: 'PNG...', command: Cmd.fileExportPng },
+      { label: 'PDF...', command: Cmd.fileExportPdf }
+    ])
   })
 })
 
