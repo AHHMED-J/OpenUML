@@ -1,4 +1,5 @@
 /** Working Diagrams: the list of open diagrams (bound to the same state as the tab strip). */
+import { useEffect, useRef, type RefObject } from 'react'
 import type React from 'react'
 import { idef0DiagramLabel, isKindOf, type Diagram } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
@@ -20,6 +21,15 @@ export function useOpenDiagrams(): { diagrams: Diagram[]; activeId: string | nul
   return { diagrams, activeId }
 }
 
+/** Keeps the active diagram's row visible in a scrolling list; attach the ref to the list. */
+export function useActiveRowInView<E extends HTMLElement>(row: string, activeId: string | null): RefObject<E | null> {
+  const list = useRef<E>(null)
+  useEffect(() => {
+    list.current?.querySelector(row)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [row, activeId])
+  return list
+}
+
 export function diagramLabel(d: Diagram): string {
   const name = d.name || `(${d._type.replace(/^UML/, '')})`
   return isKindOf(d, 'IDEF0Diagram') ? idef0DiagramLabel(d, name) : name
@@ -28,9 +38,10 @@ export function diagramLabel(d: Diagram): string {
 /** Working Diagrams body (the panel chrome and header come from the dock). */
 export function WorkingDiagrams(): React.JSX.Element {
   const { diagrams, activeId } = useOpenDiagrams()
+  const list = useActiveRowInView<HTMLDivElement>('.list-row.selected', activeId)
   return (
     <div className="panel working-diagrams">
-      <div className="list" role="listbox" aria-label="Working diagrams">
+      <div className="list" ref={list} role="listbox" aria-label="Working diagrams">
         {diagrams.length === 0 ? <div className="empty-note">No open diagrams</div> : null}
         {diagrams.map((d) => (
           <div
