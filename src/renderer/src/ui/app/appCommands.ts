@@ -434,7 +434,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.helpCheckForUpdates,
     label: 'Check for Updates...',
-    run: () => checkForUpdates(true),
+    run: () => checkForUpdates('manual'),
     isEnabled: () => bridge !== null
   })
   add({
