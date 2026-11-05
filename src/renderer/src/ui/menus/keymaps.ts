@@ -64,6 +64,7 @@ export const DEFAULT_KEYMAP: readonly KeyBinding[] = [
   { key: 'cmdctrl-9', command: Cmd.viewFitToWindow },
   { key: 'cmdctrl-g', command: Cmd.viewShowGrid },
   { key: 'cmdctrl-shift-g', command: Cmd.viewSnapToGrid },
+  { key: 'cmdctrl-shift-d', command: Cmd.viewDarkCanvas },
   { key: 'cmdctrl-1', command: Cmd.viewSidebar },
   { key: 'cmdctrl-2', command: Cmd.viewNavigator },
   { key: 'cmdctrl-3', command: Cmd.viewToolbar },

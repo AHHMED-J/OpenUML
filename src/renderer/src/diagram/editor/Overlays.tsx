@@ -6,6 +6,7 @@ import { memo } from 'react'
 import type React from 'react'
 import { SELECTION, fmt, polylinePath, resizeHandles, type Point, type Rect, type RubberBandMode } from '../core'
 import type { DiagramLayout, EdgeLabelSlot } from '../layout/types'
+import { useCanvasPalette } from '../render/canvasContext'
 import { SvgText } from '../render/primitives'
 
 const ACCENT = SELECTION.color
@@ -13,7 +14,7 @@ const ACCENT = SELECTION.color
 const WINDOW_BAND_FILL = 'rgba(79,153,255,0.08)'
 /**
  * Crossing (right-to-left) rubber band: dashed green outline over a light green tint, so the two
- * modes read apart at a glance (the diagram canvas is white in both themes).
+ * modes read apart at a glance on either canvas.
  */
 const CROSSING_BAND = { stroke: '#1f9d55', fill: 'rgba(31,157,85,0.10)' } as const
 
@@ -33,16 +34,17 @@ function Box({ r, zoom, dashed, fill, stroke }: { r: Rect; zoom: number; dashed?
 }
 
 function Handle({ center, zoom }: { center: Point; zoom: number }): React.JSX.Element {
+  const { handleFill } = useCanvasPalette()
   const s = SELECTION.handleSize / zoom
-  return <rect x={fmt(center.x - s / 2)} y={fmt(center.y - s / 2)} width={fmt(s)} height={fmt(s)} fill={SELECTION.handleFill} stroke={ACCENT} strokeWidth={1 / zoom} />
+  return <rect x={fmt(center.x - s / 2)} y={fmt(center.y - s / 2)} width={fmt(s)} height={fmt(s)} fill={handleFill} stroke={ACCENT} strokeWidth={1 / zoom} />
 }
 
 /**
  * Muted hint for an empty editable edge label (e.g. an association end's multiplicity): a faint
- * dashed box with the hint text, shown only while the edge is selected (the diagram canvas is
- * white in both themes; overlays are never exported).
+ * dashed box with the hint text, shown only while the edge is selected (overlays are never exported).
  */
 function SlotHint({ slot, zoom }: { slot: EdgeLabelSlot; zoom: number }): React.JSX.Element {
+  const { slotHint } = useCanvasPalette()
   const b = slot.hintBox
   const pad = 2
   return (
@@ -53,17 +55,15 @@ function SlotHint({ slot, zoom }: { slot: EdgeLabelSlot; zoom: number }): React.
         width={fmt(b.width + 2 * pad)}
         height={fmt(b.height + pad)}
         rx={2}
-        fill={SLOT_HINT.fill}
-        stroke={SLOT_HINT.stroke}
+        fill={slotHint.fill}
+        stroke={slotHint.stroke}
         strokeWidth={1 / zoom}
         strokeDasharray={`${2 / zoom} ${2 / zoom}`}
       />
-      <SvgText line={{ text: slot.hint, box: b, font: slot.hintFont, align: 'center' }} color={SLOT_HINT.text} />
+      <SvgText line={{ text: slot.hint, box: b, font: slot.hintFont, align: 'center' }} color={slotHint.text} />
     </g>
   )
 }
-
-const SLOT_HINT = { fill: 'rgba(255,255,255,0.6)', stroke: 'rgba(110,118,129,0.55)', text: 'rgba(110,118,129,0.85)' } as const
 
 /** Edges highlighted because a selected edge is drawn as one with them (`EdgeLayout.highlightGroup`). */
 function highlightedEdges(layout: DiagramLayout, selected: readonly string[]): string[] {
@@ -97,6 +97,7 @@ export const SelectionOverlay = memo(function SelectionOverlay({
   selected: readonly string[]
   zoom: number
 }): React.JSX.Element {
+  const { handleFill } = useCanvasPalette()
   const px = 1 / zoom
   const band = SELECTION.bandWidth / zoom
   return (
@@ -143,7 +144,7 @@ export const SelectionOverlay = memo(function SelectionOverlay({
                   y={fmt(h.rect.top)}
                   width={fmt(h.rect.width)}
                   height={fmt(h.rect.height)}
-                  fill={SELECTION.handleFill}
+                  fill={handleFill}
                   stroke={ACCENT}
                   strokeWidth={px}
                 />

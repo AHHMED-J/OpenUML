@@ -16,6 +16,8 @@ import { activeDiagram, projectStore, selectedModels, selectionOrActiveDiagram }
 import { arrowFolderKeys, expandableIds, moveStep, revealPath } from '../explorer/tree'
 import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement, diagramPlacement } from '../modelActions'
+import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
+import { currentCanvasMode } from '../canvasMode'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge, showInFolderLabel } from './bridge'
 import { EXAMPLES } from '../examples'
@@ -357,6 +359,12 @@ export function registerAppCommands(registry: CommandRegistry): void {
     label: 'Snap to Grid',
     isChecked: () => ui().prefs.snapToGrid,
     run: () => ui().setPrefs({ snapToGrid: !ui().prefs.snapToGrid })
+  })
+  add({
+    id: Cmd.viewDarkCanvas,
+    label: 'Dark Canvas',
+    isChecked: () => currentCanvasMode(ui().prefs) === 'dark',
+    run: () => ui().setPrefs({ canvasMode: currentCanvasMode(ui().prefs) === 'dark' ? 'light' : 'dark' })
   })
   add(panelToggle(Cmd.viewSidebar, 'Sidebar', 'sidebar'))
   add(panelToggle(Cmd.viewNavigator, 'Navigator', 'navigator'))

@@ -3,6 +3,7 @@ import { Component } from 'react'
 import type React from 'react'
 import { DiagramEditor } from '../../diagram'
 import { projectStore } from '../../store'
+import { useCanvasMode } from '../canvasMode'
 import { PanelBoundary } from '../components/PanelBoundary'
 import { TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
@@ -98,6 +99,7 @@ export function DiagramArea(): React.JSX.Element {
   const snapToGrid = useUiStore((s) => s.prefs.snapToGrid)
   const gridSize = useUiStore((s) => s.prefs.gridSize)
   const defaultFontSize = useUiStore((s) => s.prefs.defaultFontSize)
+  const canvas = useCanvasMode()
 
   return (
     <main className="diagram-area" aria-label="Diagram">
@@ -126,6 +128,7 @@ export function DiagramArea(): React.JSX.Element {
               snapToGrid={snapToGrid}
               gridSize={gridSize}
               defaultFontSize={defaultFontSize}
+              canvas={canvas}
               onNotify={(message) => uiStore.getState().toast(message)}
             />
           </EditorBoundary>

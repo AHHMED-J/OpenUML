@@ -4,7 +4,7 @@
  */
 import runtime from 'virtual:openuml-viewer'
 import { diagramToPdfPage, diagramToPngBase64, diagramToSvg } from '../../export'
-import { getTextMeasurer } from '../../diagram'
+import { getTextMeasurer, type CanvasMode } from '../../diagram'
 import { buildWebsiteDigest, diagramsInTreeOrder, websiteHtml } from '../../website'
 import { explorerLabel } from '../explorer/tree'
 import type { WebsiteChoice } from '../uiStore'
@@ -272,6 +272,11 @@ function activeDiagramOrThrow(): Diagram {
   return d
 }
 
+/** The canvas of exported pictures: light unless Preferences changes the default. */
+function exportCanvas(): CanvasMode {
+  return ui().prefs.exportDarkCanvas ? 'dark' : 'light'
+}
+
 export async function exportDiagram(format: 'png' | 'svg' | 'pdf'): Promise<void> {
   const b = requireBridge()
   const diagram = activeDiagramOrThrow()
@@ -280,9 +285,10 @@ export async function exportDiagram(format: 'png' | 'svg' | 'pdf'): Promise<void
   let path = await b.chooseSavePath(name, filters)
   if (!path) return
   if (!path.toLowerCase().endsWith(`.${format}`)) path += `.${format}`
-  if (format === 'svg') await b.writeTextFile(path, diagramToSvg(diagram._id))
-  else if (format === 'pdf') await b.writePdf(path, [diagramToPdfPage(diagram._id)])
-  else await b.writeBinaryFile(path, await diagramToPngBase64(diagram._id, 2))
+  const canvas = exportCanvas()
+  if (format === 'svg') await b.writeTextFile(path, diagramToSvg(diagram._id, { canvas }))
+  else if (format === 'pdf') await b.writePdf(path, [diagramToPdfPage(diagram._id, canvas)])
+  else await b.writeBinaryFile(path, await diagramToPngBase64(diagram._id, 2, { canvas }))
   ui().toast(`Exported ${baseName(path)}`)
 }
 
@@ -298,7 +304,8 @@ export async function exportAllDiagramsPdf(): Promise<void> {
   let path = await b.chooseSavePath(`${exportFileName(name ?? '')}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }])
   if (!path) return
   if (!path.toLowerCase().endsWith('.pdf')) path += '.pdf'
-  await b.writePdf(path, diagrams.map((d) => diagramToPdfPage(d._id)))
+  const canvas = exportCanvas()
+  await b.writePdf(path, diagrams.map((d) => diagramToPdfPage(d._id, canvas)))
   ui().toast(`Exported ${diagrams.length} diagram${diagrams.length === 1 ? '' : 's'} to ${baseName(path)}`)
 }
 
@@ -317,13 +324,14 @@ export async function exportAllDiagrams(format: 'png' | 'svg'): Promise<void> {
   if (diagrams.length === 0) throw new Error('No diagram to export.')
   const folder = await b.chooseFolder(`Select a folder where all diagrams will be exported as ${format.toUpperCase()}s`)
   if (!folder) return
+  const canvas = exportCanvas()
   const sep = platform === 'win32' ? '\\' : '/'
   const target = `${folder.replace(/[\\/]+$/, '')}${sep}${format}`
   let count = 0
   for (const [index, diagram] of diagrams.entries()) {
     const file = `${target}${sep}${exportFileName(pathName(diagram))}_${index}.${format}`
-    if (format === 'svg') await b.writeTextFile(file, diagramToSvg(diagram._id))
-    else await b.writeBinaryFile(file, await diagramToPngBase64(diagram._id, 2))
+    if (format === 'svg') await b.writeTextFile(file, diagramToSvg(diagram._id, { canvas }))
+    else await b.writeBinaryFile(file, await diagramToPngBase64(diagram._id, 2, { canvas }))
     count++
   }
   ui().toast(`Exported ${count} diagram${count === 1 ? '' : 's'} to ${target}`)

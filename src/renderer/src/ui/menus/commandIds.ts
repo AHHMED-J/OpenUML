@@ -83,6 +83,7 @@ export const Cmd = {
   viewActualSize: 'view.actual-size',
   viewFitToWindow: 'view.fit-to-window',
   viewShowGrid: 'view.show-grid',
+  viewDarkCanvas: 'view.dark-canvas',
   viewSnapToGrid: 'view.snap-to-grid',
   viewSidebar: 'view.sidebar',
   viewNavigator: 'view.navigator',

@@ -2,7 +2,7 @@
 import type React from 'react'
 import { FONT_SIZES } from '../../diagram'
 import { Modal } from '../components/Modal'
-import { AUTO_SAVE_INTERVALS, uiStore, useUiStore, type ThemePreference } from '../uiStore'
+import { AUTO_SAVE_INTERVALS, uiStore, useUiStore, type CanvasPreference, type ThemePreference } from '../uiStore'
 
 const GRID_SIZES = [2, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 48, 64]
 
@@ -49,6 +49,22 @@ export function PreferencesDialog(): React.JSX.Element {
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+        </div>
+        <div className="pref-row">
+          <label htmlFor="pref-canvas" title="Only how diagrams are drawn here; files keep their colors">
+            Diagram canvas
+          </label>
+          <select id="pref-canvas" value={prefs.canvasMode} onChange={(e) => set({ canvasMode: e.target.value as CanvasPreference })}>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="follow">Follow App</option>
+          </select>
+        </div>
+        <div className="pref-row">
+          <label htmlFor="pref-export-canvas" title="PNG, SVG and PDF exports use the dark canvas instead of the light one">
+            Change default export color to dark
+          </label>
+          <input id="pref-export-canvas" type="checkbox" checked={prefs.exportDarkCanvas} onChange={(e) => set({ exportDarkCanvas: e.target.checked })} />
         </div>
         <div className="pref-row">
           <label htmlFor="pref-font-size" title="Font size of elements created from now on; existing diagrams keep theirs">
