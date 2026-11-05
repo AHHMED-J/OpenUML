@@ -9,6 +9,7 @@ import {
   type ModelEngine
 } from '../commands'
 import { decomposeFunction } from '../diagram'
+import { movedElement } from './explorer/tree'
 import {
   createElement,
   defaultName,
@@ -267,7 +268,39 @@ export function addItemsFor(parent: Elem | null): AddItem[] {
 }
 
 export function addDiagramItemsFor(parent: Elem | null): AddDiagramItem[] {
-  return parent ? ADD_DIAGRAM_ITEMS.filter((i) => i.accepts(parent)) : []
+  return parent ? ADD_DIAGRAM_ITEMS.filter((i) => diagramPlacement(i, parent) !== null) : []
+}
+
+export interface DiagramPlacement {
+  /** The element the new diagram is created under. */
+  readonly parent: Elem
+  /** The child of `parent` the new diagram follows; null to go last. */
+  readonly after: Elem | null
+}
+
+/** A UML diagram, or an element of the behavior a diagram draws: none of them owns diagrams of their own. */
+function drawnOnDiagram(el: Elem): boolean {
+  if (isKindOf(el, 'UMLDiagram')) return true
+  for (let p: Elem | null = el; p; p = p._parent) if (isKindOf(p, 'UMLBehavior')) return true
+  return false
+}
+
+function packageAround(el: Elem): Elem | null {
+  for (let p = el._parent; p; p = p._parent) if (projectOrPackage(p)) return p
+  return null
+}
+
+/**
+ * Where Add Diagram puts a diagram for `selection`: under it when it can own the diagram, else
+ * (a diagram, a lifeline, a message...) in the package around it, so the new diagram is not buried
+ * inside the one being worked on. Either way it follows that diagram (`active`, or the selected
+ * one) when they end up side by side, instead of going to the bottom of the tree.
+ */
+export function diagramPlacement(item: AddDiagramItem, selection: Elem, active: Elem | null = null): DiagramPlacement | null {
+  const parent = item.accepts(selection) ? selection : drawnOnDiagram(selection) ? packageAround(selection) : null
+  if (!parent || !item.accepts(parent)) return null
+  const next = [selection, active].filter((el): el is Elem => isKindOf(el, 'Diagram')).map(movedElement)
+  return { parent, after: next.find((el) => el._parent === parent) ?? null }
 }
 
 /** Creates an element of `item` under `parent` as one operation; returns it. */
@@ -281,10 +314,15 @@ export function addModelElement(engine: ModelEngine, parent: Elem, item: AddItem
   return createModelElement(engine, target.owner, element, target.field)
 }
 
-/** Creates a diagram under `parent`; returns the new diagram. `boxCount` is the number of child boxes of an IDEF0 decomposition (the UI asks for it first). */
-export function addDiagram(engine: ModelEngine, parent: Elem, kind: DiagramKind, boxCount = 3): Elem {
+/**
+ * Creates a diagram under `parent`, right after its child `after` when given; returns the new
+ * diagram. `boxCount` is the number of child boxes of an IDEF0 decomposition (the UI asks for it first).
+ */
+export function addDiagram(engine: ModelEngine, parent: Elem, kind: DiagramKind, boxCount = 3, after: Elem | null = null): Elem {
   const item = ADD_DIAGRAM_ITEMS.find((i) => i.kind === kind)
   if (item && !item.accepts(parent)) throw new Error(`${item.label} cannot be placed here.`)
   if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) return decomposeFunction(engine, parent, boxCount)
-  return createDiagram(engine, kind, parent).diagram
+  const siblings = parent['ownedElements'] as Elem[] | undefined
+  const index = after && siblings?.includes(after) ? siblings.indexOf(after) + 1 : undefined
+  return createDiagram(engine, kind, parent, undefined, index).diagram
 }
