@@ -92,9 +92,32 @@ function clearReference(b: OperationBuilder, ref: Reference, target: Elem, delet
   else b.set(ref.source, ref.field, null)
 }
 
+/** Nothing is left in `el` once `set` is gone, nothing else points at it and the user wrote nothing on it. */
+function leftEmpty(el: Elem, set: ReadonlySet<Elem>, reverse: ReadonlyMap<string, readonly Reference[]>): boolean {
+  if (el['documentation'] || (el['tags'] as unknown[] | undefined)?.length) return false
+  return childrenOf(el).every((child) => set.has(child)) && (reverse.get(el._id) ?? []).every((ref) => set.has(ref.source))
+}
+
+/**
+ * Adds to `set` the interaction and collaboration that Add Diagram created around a deleted
+ * diagram, when the diagram was all they held; otherwise they would stay behind as empty rows.
+ */
+function addEmptiedOwners(repo: Repository, set: Set<Elem>): void {
+  const reverse = repo.buildReverseIndex()
+  for (const el of [...set]) {
+    if (!isKindOf(el, 'Diagram')) continue
+    let owner = el._parent
+    while (owner && (isKindOf(owner, 'UMLInteraction') || isKindOf(owner, 'UMLCollaboration')) && !set.has(owner) && leftEmpty(owner, set, reverse)) {
+      set.add(owner)
+      owner = owner._parent
+    }
+  }
+}
+
 /** Delete from Model: removes the elements, their dependents and all their views (one undo step). */
 export function deleteFromModel(engine: ModelEngine, elements: readonly Elem[], name = 'Delete from Model'): Set<Elem> {
   const set = collectDeletion(engine.repository, elements, 'model')
+  addEmptiedOwners(engine.repository, set)
   deleteSet(engine, set, name)
   return set
 }

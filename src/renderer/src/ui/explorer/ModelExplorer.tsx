@@ -19,7 +19,7 @@ import { confirmAndDeleteFromModel, openDiagram, revealInDiagram, selectInExplor
 import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { dropField, dropPlaceAt, explorerLabel, flattenTree, movedElement, searchTree, siblingDrop, treeLabel, treeTooltip, type DropPlace, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
+import { dropField, dropPlaceAt, explorerLabel, flattenTree, movedElement, pathToRow, searchTree, siblingDrop, treeLabel, treeTooltip, type DropPlace, type Guide, type TreeNode, type TreePath, type TreeOptions, type TreeRow } from './tree'
 import { rowSlots, scrollToReveal, visibleRows } from './virtualRows'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
@@ -32,7 +32,7 @@ function rowDomId(key: string): string {
 let draggedId: string | null = null
 
 /** Indentation per tree level (px); the guide lines are drawn on the same grid. */
-const INDENT = 14
+const INDENT = 18
 
 /** Model Explorer header action: the explorer options menu. */
 export function ExplorerActions(): React.JSX.Element {
@@ -129,6 +129,7 @@ export function ModelExplorer(): React.JSX.Element {
       ? focusId
       : ((selectedIds[0] ? rows.find((r) => r.el?._id === selectedIds[0])?.node.key : undefined) ?? rows[0]?.node.key ?? null)
   const currentIndex = current ? rows.findIndex((r) => r.node.key === current) : -1
+  const path = useMemo(() => pathToRow(rows, current), [rows, current])
   const currentRow = currentIndex >= 0 ? rows[currentIndex] : undefined
   // The row that shows the inline rename of `renamingId`: the focused one when it is that element.
   const renameKey = renamingId
@@ -350,7 +351,7 @@ export function ModelExplorer(): React.JSX.Element {
             <div
               key={key}
               id={rowDomId(key)}
-              className={`tree-row${isSelected ? ' selected' : ''}${current === key ? ' focused' : ''}${dropTarget?.key === key ? (dropTarget.place === 'into' ? ' drop-target' : ` drop-${dropTarget.place}`) : ''}${node.kind === 'folder' ? ' tree-folder' : ''}`}
+              className={`tree-row${isSelected ? ' selected' : ''}${current === key ? ' focused' : ''}${dropTarget?.key === key ? (dropTarget.place === 'into' ? ' drop-target' : ` drop-${dropTarget.place}`) : ''}${path.containers.has(key) ? ' contains-current' : ''}${node.kind === 'folder' ? ' tree-folder' : ''}`}
               role="treeitem"
               aria-level={row.depth + 1}
               aria-selected={isSelected}
@@ -392,7 +393,7 @@ export function ModelExplorer(): React.JSX.Element {
                 if (el && node.kind === 'element') onDrop(e, el)
               }}
             >
-              <IndentGuides guides={row.guides} leaf={!row.expandable} />
+              <IndentGuides guides={row.guides} leaf={!row.expandable} rowKey={key} path={path} />
               <span
                 className={`twisty${row.expandable ? '' : ' empty'}`}
                 onClick={(e) => {
@@ -444,9 +445,11 @@ function guideX(level: number): number {
  * The tree guide lines of a row: one vertical line per ancestor level that continues below, and
  * a tick from the parent's line to the row (reaching the icon for leaves, the chevron otherwise).
  */
-function IndentGuides({ guides, leaf }: { guides: readonly Guide[]; leaf: boolean }): React.JSX.Element | null {
+function IndentGuides({ guides, leaf, rowKey, path }: { guides: readonly Guide[]; leaf: boolean; rowKey: string; path: TreePath }): React.JSX.Element | null {
   if (guides.length === 0) return null
   const tick = INDENT / 2 + (leaf ? INDENT - 3 : 1)
+  const passes = path.passes.get(rowKey)
+  const turn = path.turns.get(rowKey)
   return (
     <span className="tree-guides" aria-hidden="true">
       {guides.map((g, level) => {
@@ -457,6 +460,13 @@ function IndentGuides({ guides, leaf }: { guides: readonly Guide[]; leaf: boolea
           <span key={level}>
             <span className={`guide-v${g.kind === 'elbow' ? ' guide-end' : ''}${roleClass}`} style={{ left }} />
             {g.kind === 'pass' ? null : <span className={`guide-h${roleClass}`} style={{ left, width: tick }} />}
+            {passes?.has(level) ? <span className="guide-v on-path" style={{ left }} /> : null}
+            {turn === level ? (
+              <>
+                <span className="guide-v guide-end on-path" style={{ left }} />
+                <span className="guide-h on-path" style={{ left, width: tick }} />
+              </>
+            ) : null}
           </span>
         )
       })}
