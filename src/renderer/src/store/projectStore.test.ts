@@ -80,6 +80,23 @@ describe('project store', () => {
     expect(store.getState().activeDiagramId).toBeNull()
   })
 
+  it('showDiagrams replaces the tabs, ignoring ids that are not diagrams', () => {
+    const store = createProjectStore()
+    const { engine, project } = store.getState()
+    const main = activeDiagram(store.getState()) as Diagram
+    const seq = createDiagram(engine, 'SequenceDiagram', project.ownedElements[0] as Elem).diagram
+    store.getState().showDiagrams([seq._id, project._id, main._id], seq._id)
+    expect(store.getState().openDiagramIds).toEqual([seq._id, main._id])
+    expect(store.getState().activeDiagramId).toBe(seq._id)
+
+    store.getState().showDiagrams([seq._id, main._id], 'gone')
+    expect(store.getState().activeDiagramId).toBe(seq._id)
+    store.getState().showDiagrams([main._id])
+    expect(store.getState().activeDiagramId).toBe(main._id)
+    store.getState().showDiagrams([])
+    expect(store.getState().activeDiagramId).toBeNull()
+  })
+
   it('newProject replaces the project and resets history', () => {
     const store = createProjectStore()
     setFields(store.getState().engine, store.getState().project, { name: 'Changed' })

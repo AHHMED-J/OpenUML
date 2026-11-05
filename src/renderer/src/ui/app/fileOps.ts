@@ -41,11 +41,10 @@ function commitPendingEdits(): void {
 // Working diagrams per file
 
 interface WorkingDiagrams {
-  readonly open: readonly string[]
   readonly active: string | null
 }
 
-/** The working diagrams remembered per file path (empty when the stored value is unusable). */
+/** The diagram last on screen per file path (empty when the stored value is unusable). */
 function loadWorkingDiagrams(): Record<string, WorkingDiagrams> {
   const all = loadJson<unknown>('workingDiagrams', {})
   return all && typeof all === 'object' && !Array.isArray(all) ? (all as Record<string, WorkingDiagrams>) : {}
@@ -57,18 +56,17 @@ function rememberWorkingDiagrams(): void {
   const all = loadWorkingDiagrams()
   // Re-insert so the entry moves to the end (most recent) of the key order.
   delete all[s.filePath]
-  all[s.filePath] = { open: s.openDiagramIds, active: s.activeDiagramId }
+  all[s.filePath] = { active: s.activeDiagramId }
   // Keep the map small: most recent 30 files.
   const entries = Object.entries(all).slice(-30)
   saveJson('workingDiagrams', Object.fromEntries(entries))
 }
 
-function restoreWorkingDiagrams(path: string): void {
-  const saved = loadWorkingDiagrams()[path]
-  if (!saved || typeof saved !== 'object' || !Array.isArray(saved.open)) return
-  const s = ps()
-  for (const id of saved.open) if (typeof id === 'string' && isKindOf(s.repository.get(id), 'Diagram')) ps().openDiagram(id)
-  if (saved.active && isKindOf(ps().repository.get(saved.active), 'Diagram')) ps().openDiagram(saved.active)
+/** Lists every diagram of the opened project, in Model Explorer order, on the one last on screen. */
+function showAllDiagrams(path: string | null): void {
+  const saved = path ? loadWorkingDiagrams()[path] : undefined
+  const active = saved && typeof saved === 'object' ? saved.active : null
+  ps().showDiagrams(diagramsInTreeOrder(ps().repository).map((d) => d._id), typeof active === 'string' ? active : null)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -117,8 +115,8 @@ function loadProject(text: string, path: string | null, label = path ? baseName(
   if (path) {
     ui().addRecent(path)
     bridge?.addRecentDocument(path)
-    restoreWorkingDiagrams(path)
   }
+  showAllDiagrams(path)
   const project = ps().project
   ui().expandMany([project._id, ...((project.ownedElements ?? []) as Array<{ _id: string }>).map((e) => e._id)])
   const warnings = ps().loadWarnings
