@@ -19,7 +19,7 @@ import { confirmAndDeleteFromModel, openDiagram, revealInDiagram, selectInExplor
 import { reportError } from '../app/commands'
 import { RoleIcon, TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { dropField, explorerLabel, flattenTree, searchTree, treeLabel, treeTooltip, type Guide, type TreeNode, type TreeOptions, type TreeRow } from './tree'
+import { dropField, dropPlaceAt, explorerLabel, flattenDiagramTree, flattenTree, movedElement, pathToRow, searchTree, siblingDrop, treeLabel, treeTooltip, type DropPlace, type Guide, type TreeNode, type TreePath, type TreeOptions, type TreeRow } from './tree'
 import { rowSlots, scrollToReveal, visibleRows } from './virtualRows'
 
 /** MIME type used when dragging elements (also understood by the diagram canvas). */
@@ -32,7 +32,7 @@ function rowDomId(key: string): string {
 let draggedId: string | null = null
 
 /** Indentation per tree level (px); the guide lines are drawn on the same grid. */
-const INDENT = 14
+const INDENT = 18
 
 /** Model Explorer header action: the explorer options menu. */
 export function ExplorerActions(): React.JSX.Element {
@@ -58,13 +58,14 @@ export function ModelExplorer(): React.JSX.Element {
   const expanded = useUiStore((s) => s.expanded)
   const collapsedFolders = useUiStore((s) => s.collapsedFolders)
   const groupArrows = useUiStore((s) => s.groupArrows)
+  const diagramsOnly = useUiStore((s) => s.diagramsOnly)
   const sortBy = useUiStore((s) => s.sortBy)
   const showStereotype = useUiStore((s) => s.showStereotype)
   const renamingId = useUiStore((s) => s.renamingId)
   const revealTick = useUiStore((s) => s.revealTick)
   const [query, setQuery] = useState('')
   const [focusId, setFocusId] = useState<string | null>(null)
-  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ key: string; place: DropPlace } | null>(null)
   const treeRef = useRef<HTMLDivElement>(null)
   // Virtualization (see virtualRows.ts): only rows near the viewport are rendered. Rows have a
   // fixed height (--row-height), measured from a rendered row; `pad` is the tree's top padding.
@@ -114,10 +115,11 @@ export function ModelExplorer(): React.JSX.Element {
   const rows = useMemo(
     () => {
       const options: TreeOptions = { sortBy, groupArrows }
-      return query.trim() ? searchTree(project, query.trim(), options) : flattenTree(project, { expanded, collapsedFolders }, options)
+      if (query.trim()) return searchTree(project, query.trim(), options)
+      return diagramsOnly ? flattenDiagramTree(project, options) : flattenTree(project, { expanded, collapsedFolders }, options)
     },
     // `version` invalidates the tree after model changes.
-    [project, version, expanded, collapsedFolders, groupArrows, sortBy, query]
+    [project, version, expanded, collapsedFolders, groupArrows, sortBy, query, diagramsOnly]
   )
   const rowsRef = useRef(rows)
   rowsRef.current = rows
@@ -129,6 +131,7 @@ export function ModelExplorer(): React.JSX.Element {
       ? focusId
       : ((selectedIds[0] ? rows.find((r) => r.el?._id === selectedIds[0])?.node.key : undefined) ?? rows[0]?.node.key ?? null)
   const currentIndex = current ? rows.findIndex((r) => r.node.key === current) : -1
+  const path = useMemo(() => pathToRow(rows, current), [rows, current])
   const currentRow = currentIndex >= 0 ? rows[currentIndex] : undefined
   // The row that shows the inline rename of `renamingId`: the focused one when it is that element.
   const renameKey = renamingId
@@ -262,17 +265,34 @@ export function ModelExplorer(): React.JSX.Element {
     e.stopPropagation()
   }
 
+  /** Where a drag at the pointer lands on the row of `target`, or null when it cannot. */
+  const placeAt = (e: React.DragEvent, target: Elem, source: Elem): DropPlace | null => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return dropPlaceAt(
+      (e.clientY - rect.top) / rect.height,
+      { before: siblingDrop(target, source, 'before', sortBy) !== null, after: siblingDrop(target, source, 'after', sortBy) !== null },
+      dropField(target, movedElement(source)) !== null
+    )
+  }
+
   const onDrop = (e: React.DragEvent, target: Elem): void => {
     e.preventDefault()
     setDropTarget(null)
     const source = draggedId ? projectStore.getState().repository.get(draggedId) : undefined
-    draggedId = null
     if (!source) return
-    const field = dropField(target, source)
-    if (!field) return
+    const place = placeAt(e, target, source)
+    draggedId = null
+    if (!place) return
     try {
-      moveElement(projectStore.getState().engine, source, target, field)
-      uiStore.getState().setExpanded(target._id, true)
+      const { engine } = projectStore.getState()
+      if (place === 'into') {
+        const element = movedElement(source)
+        moveElement(engine, element, target, dropField(target, element) ?? undefined)
+        uiStore.getState().setExpanded(target._id, true)
+      } else {
+        const drop = siblingDrop(target, source, place, sortBy)
+        if (drop) moveElement(engine, drop.element, drop.owner, drop.field, drop.index)
+      }
       selectInExplorer(source)
     } catch (err) {
       reportError(err)
@@ -333,7 +353,7 @@ export function ModelExplorer(): React.JSX.Element {
             <div
               key={key}
               id={rowDomId(key)}
-              className={`tree-row${isSelected ? ' selected' : ''}${current === key ? ' focused' : ''}${dropTarget === key ? ' drop-target' : ''}${node.kind === 'folder' ? ' tree-folder' : ''}`}
+              className={`tree-row${isSelected ? ' selected' : ''}${current === key ? ' focused' : ''}${dropTarget?.key === key ? (dropTarget.place === 'into' ? ' drop-target' : ` drop-${dropTarget.place}`) : ''}${path.containers.has(key) ? ' contains-current' : ''}${node.kind === 'folder' ? ' tree-folder' : ''}`}
               role="treeitem"
               aria-level={row.depth + 1}
               aria-selected={isSelected}
@@ -359,22 +379,23 @@ export function ModelExplorer(): React.JSX.Element {
               onDragOver={(e) => {
                 const source = draggedId ? projectStore.getState().repository.get(draggedId) : undefined
                 if (!source) return
-                if (!el || node.kind !== 'element' || !dropField(el, source)) {
+                const place = el && node.kind === 'element' ? placeAt(e, el, source) : null
+                if (!place) {
                   // Invalid target: not-allowed cursor and no highlight.
                   e.dataTransfer.dropEffect = 'none'
-                  if (dropTarget === key) setDropTarget(null)
+                  if (dropTarget?.key === key) setDropTarget(null)
                   return
                 }
                 e.preventDefault()
                 e.dataTransfer.dropEffect = 'move'
-                if (dropTarget !== key) setDropTarget(key)
+                if (dropTarget?.key !== key || dropTarget.place !== place) setDropTarget({ key, place })
               }}
-              onDragLeave={() => dropTarget === key && setDropTarget(null)}
+              onDragLeave={() => dropTarget?.key === key && setDropTarget(null)}
               onDrop={(e) => {
                 if (el && node.kind === 'element') onDrop(e, el)
               }}
             >
-              <IndentGuides guides={row.guides} leaf={!row.expandable} />
+              <IndentGuides guides={row.guides} leaf={!row.expandable} rowKey={key} path={path} />
               <span
                 className={`twisty${row.expandable ? '' : ' empty'}`}
                 onClick={(e) => {
@@ -426,9 +447,11 @@ function guideX(level: number): number {
  * The tree guide lines of a row: one vertical line per ancestor level that continues below, and
  * a tick from the parent's line to the row (reaching the icon for leaves, the chevron otherwise).
  */
-function IndentGuides({ guides, leaf }: { guides: readonly Guide[]; leaf: boolean }): React.JSX.Element | null {
+function IndentGuides({ guides, leaf, rowKey, path }: { guides: readonly Guide[]; leaf: boolean; rowKey: string; path: TreePath }): React.JSX.Element | null {
   if (guides.length === 0) return null
   const tick = INDENT / 2 + (leaf ? INDENT - 3 : 1)
+  const passes = path.passes.get(rowKey)
+  const turn = path.turns.get(rowKey)
   return (
     <span className="tree-guides" aria-hidden="true">
       {guides.map((g, level) => {
@@ -439,6 +462,13 @@ function IndentGuides({ guides, leaf }: { guides: readonly Guide[]; leaf: boolea
           <span key={level}>
             <span className={`guide-v${g.kind === 'elbow' ? ' guide-end' : ''}${roleClass}`} style={{ left }} />
             {g.kind === 'pass' ? null : <span className={`guide-h${roleClass}`} style={{ left, width: tick }} />}
+            {passes?.has(level) ? <span className="guide-v on-path" style={{ left }} /> : null}
+            {turn === level ? (
+              <>
+                <span className="guide-v guide-end on-path" style={{ left }} />
+                <span className="guide-h on-path" style={{ left, width: tick }} />
+              </>
+            ) : null}
           </span>
         )
       })}

@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CommandRegistry, createDiagram, createNode } from '../commands'
-import type { Diagram, Elem, View } from '../model'
+import { CommandIds, CommandRegistry, createDiagram, createNode } from '../commands'
+import { listField, type Diagram, type Elem, type NodeView, type View } from '../model'
 import { activeDiagram, projectStore } from '../store'
 import { copySelection, pasteClipboard, registerDiagramCommands } from './commands'
 import { setActiveEditor } from './editor/activeEditor'
+import { decomposeFunction } from './idef0/decompose'
+import { createIdef0Edge } from './idef0/gestures'
+import { measurer } from './idef0/testkit'
+import { computeDiagramLayout } from './layout/layoutDiagram'
+import { setTextMeasurer } from './layout/measurer'
 import { ensureNotations } from './notations'
 
 function setup(clipboard: { readText(): Promise<string>; writeText?(text: string): Promise<void> }): { diagram: Diagram; view: View } {
@@ -83,4 +88,100 @@ describe('paste command', () => {
       setActiveEditor(null)
     }
   })
+})
+
+describe('deleting from the menu', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  /** The app's order: diagram commands first; `edit.delete` must not be left to the core one. */
+  function withCommands(run: (registry: CommandRegistry) => void): void {
+    vi.stubGlobal('navigator', { clipboard: { readText: async () => '', writeText: async () => undefined } })
+    const registry = new CommandRegistry()
+    const dispose = registerDiagramCommands(registry, { getZoom: () => 1, setZoom: () => undefined, canHostView: () => true, notify: () => undefined })
+    try {
+      run(registry)
+    } finally {
+      dispose()
+    }
+  }
+
+  function idef0(): { top: Elem; child: Diagram; boxView: (n: number) => View } {
+    ensureNotations()
+    projectStore.getState().newProject()
+    const store = projectStore.getState()
+    const model = createDiagram(store.engine, 'IDEF0Diagram', store.project as Elem).model as Elem
+    const top = model['topFunction'] as Elem
+    const child = decomposeFunction(store.engine, top, 3)
+    store.openDiagram(child._id)
+    const boxView = (n: number): View => child.ownedViews.find((v) => (v.model as Elem | null)?.['boxNumber'] === n) as View
+    return { top, child, boxView }
+  }
+
+  const numbers = (top: Elem): number[] => (top['functions'] as Elem[]).map((f) => f['boxNumber'] as number).sort()
+
+  it.each(['edit.delete', 'edit.cut'])('%s applies the IDEF0 rules: the box leaves the model and the numbers close up', (id) => {
+    withCommands((registry) => {
+      const { top, boxView } = idef0()
+      projectStore.getState().select({ views: [boxView(2)._id] })
+      registry.execute(id)
+      expect(numbers(top)).toEqual([1, 2])
+    })
+  })
+
+  it.each(['edit.delete', 'edit.cut'])('%s applies the RAD rules: the activity leaves the model', (id) => {
+    withCommands((registry) => {
+      ensureNotations()
+      projectStore.getState().newProject()
+      const store = projectStore.getState()
+      const diagram = createDiagram(store.engine, 'RADDiagram', store.project as Elem).diagram
+      store.openDiagram(diagram._id)
+      const engine = projectStore.getState().engine
+      const role = createNode(engine, { kind: 'RADRole', diagram, left: 20, top: 40, width: 220, height: 360 }).view as View
+      const activity = createNode(engine, { kind: 'RADActivity', diagram, left: 60, top: 100, container: role }).view as View
+      projectStore.getState().select({ views: [activity._id] })
+      registry.execute(id)
+      expect((role.model as Elem)['elements']).toHaveLength(0)
+    })
+  })
+})
+
+describe('delete commands on an IDEF0 diagram', () => {
+  afterEach(() => setTextMeasurer(null))
+
+  /** A new IDEF0 model whose A-0 has one control drawn from the frame edge, selected. */
+  function contextWithControl(): { registry: CommandRegistry; dispose: () => void; model: Elem; diagram: Diagram } {
+    ensureNotations()
+    setTextMeasurer(measurer)
+    projectStore.getState().newProject()
+    const store = projectStore.getState()
+    const plan = createDiagram(store.engine, 'IDEF0Diagram', store.project as Elem)
+    const diagram = plan.diagram as Diagram
+    store.openDiagram(diagram._id)
+    const box = diagram.ownedViews.find((v) => v._type === 'IDEF0FunctionView') as NodeView
+    const x = box.left + box.width / 2
+    const env = { engine: store.engine, diagram, measurer }
+    const id = createIdef0Edge(env, computeDiagramLayout(diagram, store.repository, measurer), { kind: 'IDEF0Arrow' }, null, box._id, { x, y: 70 }, { x, y: box.top + 2 })
+    projectStore.getState().select({ views: [id as string] })
+    const registry = new CommandRegistry()
+    const dispose = registerDiagramCommands(registry, { getZoom: () => 1, setZoom: () => undefined, canHostView: () => true, notify: () => undefined })
+    return { registry, dispose, model: plan.model as Elem, diagram }
+  }
+
+  for (const command of [CommandIds.editDeleteFromModel, CommandIds.editDelete]) {
+    it(`${command} removes a boundary arrow together with its port, as the Delete key does`, () => {
+      const { registry, dispose, model, diagram } = contextWithControl()
+      try {
+        expect(listField(model, 'ports')).toHaveLength(1)
+        registry.execute(command)
+        expect(listField(model, 'arrows')).toHaveLength(0)
+        expect(listField(model, 'ports')).toHaveLength(0)
+        expect(diagram.ownedViews.filter((v) => v._type === 'IDEF0PortView' || v._type === 'IDEF0ArrowView')).toHaveLength(0)
+        projectStore.getState().undo()
+        expect(listField(model, 'ports')).toHaveLength(1)
+        expect(listField(model, 'arrows')).toHaveLength(1)
+      } finally {
+        dispose()
+      }
+    })
+  }
 })

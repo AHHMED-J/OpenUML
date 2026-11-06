@@ -6,7 +6,7 @@ import { projectStore } from '../../store'
 import { Modal } from '../components/Modal'
 import { explorerChildren, explorerLabel, pathTo } from '../explorer/tree'
 import { TypeIcon, UiIcon } from '../icons'
-import { pickElement, uiStore } from '../uiStore'
+import { uiStore } from '../uiStore'
 
 export function PromptDialog({ title, initial, resolve }: { title: string; initial: string; resolve: (v: string | null) => void }): React.JSX.Element {
   const [value, setValue] = useState(initial)
@@ -69,10 +69,13 @@ function candidates(types: readonly string[]): Array<{ el: Elem; path: string }>
 export function ElementPickerDialog({
   title,
   types,
+  nested = false,
   resolve
 }: {
   title: string
   types: readonly string[]
+  /** Shown inside another dialog, which stays open when this one answers. */
+  nested?: boolean
   resolve: (id: string | null) => void
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
@@ -80,7 +83,7 @@ export function ElementPickerDialog({
   const items = all.filter((c) => explorerLabel(c.el, false).toLowerCase().includes(query.toLowerCase()))
   const [selected, setSelected] = useState<string | null>(null)
   const finish = (id: string | null): void => {
-    uiStore.getState().openModal(null)
+    if (!nested) uiStore.getState().openModal(null)
     resolve(id)
   }
   return (
@@ -150,6 +153,7 @@ export function ReferenceListDialog({
   resolve: (ids: readonly string[] | null) => void
 }): React.JSX.Element {
   const [ids, setIds] = useState<string[]>([...initial])
+  const [picking, setPicking] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const repo = projectStore.getState().repository
   const index = selected ? ids.indexOf(selected) : -1
@@ -164,11 +168,13 @@ export function ReferenceListDialog({
     next.splice(index + step, 0, item as string)
     setIds(next)
   }
-  // The picker replaces this dialog; reopen with the current list afterwards.
-  const add = async (): Promise<void> => {
-    const picked = await pickElement(`Add to ${title}`, types)
-    const next = picked && !ids.includes(picked) ? [...ids, picked] : ids
-    uiStore.getState().openModal({ kind: 'refList', title, types, initial: next, resolve })
+  // The picker shows in place of this dialog, which stays the open one and keeps its list.
+  if (picking) {
+    const added = (picked: string | null): void => {
+      setPicking(false)
+      if (picked && !ids.includes(picked)) setIds([...ids, picked])
+    }
+    return <ElementPickerDialog title={`Add to ${title}`} types={types} nested resolve={added} />
   }
   return (
     <Modal
@@ -209,7 +215,7 @@ export function ReferenceListDialog({
           })}
         </div>
         <div className="collection-buttons">
-          <button className="icon-button" aria-label="Add" data-tip="Add..." onClick={() => void add()}>
+          <button className="icon-button" aria-label="Add" data-tip="Add..." onClick={() => setPicking(true)}>
             <UiIcon name="plus" />
           </button>
           <button

@@ -6,7 +6,7 @@ import { keystrokeFor, registry, runCommand } from './app/commands'
 import { UiIcon, type UiIconName } from './icons'
 import { displayKeystroke } from './keymap'
 import { Cmd } from './menus/commandIds'
-import { useUiStore } from './uiStore'
+import { uiStore, useUiStore } from './uiStore'
 
 function useCommandStateTick(): void {
   // Re-render on any state that command predicates read.
@@ -40,6 +40,25 @@ function ToolButton({ command, icon, label }: { command: string; icon: UiIconNam
   )
 }
 
+/** Export: a menu with the formats instead of one button per format. */
+function ExportButton(): React.JSX.Element {
+  return (
+    <button
+      className="icon-button toolbar-button"
+      data-tip="Export Diagram"
+      aria-label="Export Diagram"
+      aria-haspopup="menu"
+      disabled={!registry.isEnabled(Cmd.fileExportPng)}
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        uiStore.getState().openContextMenu({ x: r.left, y: r.bottom + 2, menu: 'export' })
+      }}
+    >
+      <UiIcon name="export" />
+    </button>
+  )
+}
+
 export function Toolbar(): React.JSX.Element {
   useCommandStateTick()
   const activeId = useProjectStore((s) => s.activeDiagramId)
@@ -65,7 +84,7 @@ export function Toolbar(): React.JSX.Element {
       <span className="toolbar-sep" />
       <ToolButton command={Cmd.viewShowGrid} icon="grid" label="Show Grid" />
       <ToolButton command={Cmd.viewSnapToGrid} icon="snap" label="Snap to Grid" />
-      <ToolButton command={Cmd.fileExportPng} icon="export" label="Export Diagram as PNG" />
+      <ExportButton />
       <span className="spacer" />
       <ToolButton command={Cmd.viewSidebar} icon="sidebar" label="Toggle Sidebar" />
       <ToolButton command={Cmd.viewNavigator} icon="navigator" label="Toggle Navigator" />

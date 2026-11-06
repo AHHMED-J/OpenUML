@@ -3,10 +3,11 @@ import { Component } from 'react'
 import type React from 'react'
 import { DiagramEditor } from '../../diagram'
 import { projectStore } from '../../store'
+import { useCanvasMode } from '../canvasMode'
 import { PanelBoundary } from '../components/PanelBoundary'
 import { TypeIcon, UiIcon } from '../icons'
 import { uiStore, useUiStore } from '../uiStore'
-import { diagramLabel, openDiagramContextMenu, useOpenDiagrams } from './WorkingDiagrams'
+import { diagramLabel, openDiagramContextMenu, useActiveRowInView, useOpenDiagrams } from './WorkingDiagrams'
 
 class EditorBoundary extends Component<{ children: React.ReactNode; resetKey: string }, { error: Error | null }> {
   state: { error: Error | null } = { error: null }
@@ -37,9 +38,10 @@ class EditorBoundary extends Component<{ children: React.ReactNode; resetKey: st
 
 function DiagramTabs(): React.JSX.Element | null {
   const { diagrams, activeId } = useOpenDiagrams()
+  const tabs = useActiveRowInView<HTMLDivElement>('.tab.active', activeId)
   if (diagrams.length === 0) return null
   return (
-    <div className="tabs" role="tablist" aria-label="Open diagrams">
+    <div className="tabs" ref={tabs} role="tablist" aria-label="Open diagrams">
       {diagrams.map((d) => {
         const active = d._id === activeId
         return (
@@ -97,6 +99,7 @@ export function DiagramArea(): React.JSX.Element {
   const snapToGrid = useUiStore((s) => s.prefs.snapToGrid)
   const gridSize = useUiStore((s) => s.prefs.gridSize)
   const defaultFontSize = useUiStore((s) => s.prefs.defaultFontSize)
+  const canvas = useCanvasMode()
 
   return (
     <main className="diagram-area" aria-label="Diagram">
@@ -125,6 +128,7 @@ export function DiagramArea(): React.JSX.Element {
               snapToGrid={snapToGrid}
               gridSize={gridSize}
               defaultFontSize={defaultFontSize}
+              canvas={canvas}
               onNotify={(message) => uiStore.getState().toast(message)}
             />
           </EditorBoundary>

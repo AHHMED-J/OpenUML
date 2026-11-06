@@ -4,18 +4,18 @@
  * editor, which owns select all, zoom, format and alignment) registered the same id first.
  */
 import {
-  deleteFromModel,
   reorderElement,
   setFieldsOfAll,
   type CommandDefinition,
   type CommandRegistry
 } from '../../commands'
-import { deleteIdef0Elements, getTextMeasurer, highlightViews, requestReveal } from '../../diagram'
+import { deleteModelElements, highlightViews, requestReveal } from '../../diagram'
 import { isKindOf, type DiagramKind, type Elem, type View } from '../../model'
-import { projectStore, selectedModels } from '../../store'
-import { arrowFolderKeys, expandableIds, revealPath } from '../explorer/tree'
+import { activeDiagram, projectStore, selectedModels, selectionOrActiveDiagram } from '../../store'
+import { arrowFolderKeys, expandableIds, moveStep, revealPath } from '../explorer/tree'
 import { Cmd } from '../menus/commandIds'
-import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement } from '../modelActions'
+import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement, diagramPlacement } from '../modelActions'
+import { currentCanvasMode } from '../canvasMode'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
 import { bridge, showInFolderLabel } from './bridge'
 import { EXAMPLES } from '../examples'
@@ -46,8 +46,9 @@ function selectedParent(): Elem {
   return selectedModels(ps())[0] ?? ps().project
 }
 
-/** Selects an element in the explorer and reveals it (expanding its ancestors). */
+/** Selects an element in the explorer and reveals it (expanding its ancestors; leaving Diagrams Only for other elements). */
 export function selectInExplorer(el: Elem): void {
+  if (ui().diagramsOnly && !isKindOf(el, 'Diagram')) ui().setDiagramsOnly(false)
   const path = revealPath(el, { groupArrows: ui().groupArrows })
   ui().expandMany(path.expand)
   if (path.folder) ui().setFoldersCollapsed([path.folder], false)
@@ -91,20 +92,13 @@ function panelToggle(id: string, label: string, panel: ToggleablePanel): Command
 
 function moveSelected(step: number): void {
   const el = singleSelectedModel()
-  const c = el ? ps().repository.containmentOf(el) : null
-  if (!el || !c || c.index < 0) return
-  const list = c.owner[c.field] as Elem[]
-  const index = c.index + step
-  if (index < 0 || index >= list.length) return
-  reorderElement(ps().engine, el, index)
+  const move = el ? moveStep(el, step) : null
+  if (move) reorderElement(ps().engine, move.element, move.index)
 }
 
 function canMove(step: number): boolean {
   const el = singleSelectedModel()
-  const c = el ? ps().repository.containmentOf(el) : null
-  if (!el || !c || c.index < 0) return false
-  const index = c.index + step
-  return index >= 0 && index < (c.owner[c.field] as Elem[]).length
+  return el !== null && moveStep(el, step) !== null
 }
 
 /**
@@ -141,14 +135,8 @@ function selectInDiagram(): void {
 export function confirmAndDeleteFromModel(elements: readonly Elem[]): Promise<void> {
   const deletable = elements.filter((e) => !isKindOf(e, 'Project'))
   if (deletable.length === 0) return Promise.resolve()
-  const run = (): void => {
-    const engine = ps().engine
-    // IDEF0 arrows and ports follow the diagram's deletion rules (branches, linked boundary arrows).
-    engine.transact('Delete', () => {
-      const rest = deleteIdef0Elements(engine, deletable, getTextMeasurer())
-      if (rest.length > 0) deleteFromModel(engine, rest)
-    })
-  }
+  // IDEF0 arrows and ports follow the diagram's deletion rules (branches, linked boundary arrows).
+  const run = (): void => deleteModelElements(deletable, 'Delete')
   if (!bridge) {
     if (window.confirm(`Delete ${deletable.length} element(s) from the model?`)) run()
     return Promise.resolve()
@@ -288,8 +276,11 @@ export function registerAppCommands(registry: CommandRegistry): void {
     label: 'Add Diagram',
     run: async (arg) => {
       const kind = (arg as { kind?: DiagramKind } | undefined)?.kind ?? 'ClassDiagram'
-      if (!ADD_DIAGRAM_ITEMS.some((i) => i.kind === kind)) return
-      const parent = selectedParent()
+      const item = ADD_DIAGRAM_ITEMS.find((i) => i.kind === kind)
+      if (!item) return
+      const place = diagramPlacement(item, selectionOrActiveDiagram(ps()), activeDiagram(ps()))
+      if (!place) throw new Error(`${item.label} cannot be placed here.`)
+      const { parent, after } = place
       // Decomposing a function asks for the number of child boxes first, like Decompose; cancel changes nothing.
       let boxCount: number | undefined
       if (kind === 'IDEF0Diagram' && isKindOf(parent, 'IDEF0Function')) {
@@ -297,7 +288,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
         if (count === null) return
         boxCount = count
       }
-      const diagram = addDiagram(ps().engine, parent, kind, boxCount)
+      const diagram = addDiagram(ps().engine, parent, kind, boxCount, after)
       openDiagram(diagram)
     }
   })
@@ -362,6 +353,12 @@ export function registerAppCommands(registry: CommandRegistry): void {
     isChecked: () => ui().prefs.snapToGrid,
     run: () => ui().setPrefs({ snapToGrid: !ui().prefs.snapToGrid })
   })
+  add({
+    id: Cmd.viewDarkCanvas,
+    label: 'Dark Canvas',
+    isChecked: () => currentCanvasMode(ui().prefs) === 'dark',
+    run: () => ui().setPrefs({ canvasMode: currentCanvasMode(ui().prefs) === 'dark' ? 'light' : 'dark' })
+  })
   add(panelToggle(Cmd.viewSidebar, 'Sidebar', 'sidebar'))
   add(panelToggle(Cmd.viewNavigator, 'Navigator', 'navigator'))
   add(panelToggle(Cmd.viewToolbar, 'Toolbar', 'toolbar'))
@@ -380,6 +377,12 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({ id: Cmd.explorerSortByAdded, label: 'Sort by Added', isChecked: () => ui().sortBy === 'added', run: () => ui().setSortBy('added') })
   add({ id: Cmd.explorerSortByName, label: 'Sort by Name', isChecked: () => ui().sortBy === 'name', run: () => ui().setSortBy('name') })
   add({
+    id: Cmd.explorerDiagramsOnly,
+    label: 'Show Diagrams Only',
+    isChecked: () => ui().diagramsOnly,
+    run: () => ui().setDiagramsOnly(!ui().diagramsOnly)
+  })
+  add({
     id: Cmd.explorerShowStereotype,
     label: 'Show Stereotype Text',
     isChecked: () => ui().showStereotype,
@@ -388,12 +391,13 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.explorerExpandAll,
     label: 'Expand All',
+    isEnabled: () => !ui().diagramsOnly,
     run: () => {
       ui().expandMany(expandableIds(ps().project))
       ui().setFoldersCollapsed(arrowFolderKeys(ps().project), false)
     }
   })
-  add({ id: Cmd.explorerCollapseAll, label: 'Collapse All', run: () => ui().collapseAll() })
+  add({ id: Cmd.explorerCollapseAll, label: 'Collapse All', isEnabled: () => !ui().diagramsOnly, run: () => ui().collapseAll() })
   add({ id: Cmd.explorerFind, label: 'Find in Model Explorer', run: findInExplorer })
   add({
     id: Cmd.explorerGroupArrows,
@@ -404,13 +408,13 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.explorerExpandArrowFolders,
     label: 'Expand All Arrow Folders',
-    isEnabled: () => ui().groupArrows,
+    isEnabled: () => ui().groupArrows && !ui().diagramsOnly,
     run: () => ui().setFoldersCollapsed(arrowFolderKeys(ps().project), false)
   })
   add({
     id: Cmd.explorerCollapseArrowFolders,
     label: 'Collapse All Arrow Folders',
-    isEnabled: () => ui().groupArrows,
+    isEnabled: () => ui().groupArrows && !ui().diagramsOnly,
     run: () => ui().setFoldersCollapsed(arrowFolderKeys(ps().project), true)
   })
 
@@ -430,7 +434,7 @@ export function registerAppCommands(registry: CommandRegistry): void {
   add({
     id: Cmd.helpCheckForUpdates,
     label: 'Check for Updates...',
-    run: () => checkForUpdates(true),
+    run: () => checkForUpdates('manual'),
     isEnabled: () => bridge !== null
   })
   add({

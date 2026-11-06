@@ -7,6 +7,7 @@
  * association ends are expanded into their own sections; with several elements selected only
  * the fields they all share are shown, with a merged value.
  */
+import { isActorLifeline } from '../../diagram'
 import { fieldOf, fieldsOf, getEnumLiterals, isElem, isKindOf, type Elem, type FeatureKind, type FieldDef } from '../../model'
 
 type WidgetKind =
@@ -156,11 +157,37 @@ function rowsFor(targets: readonly Elem[], prefix: string, section: string | und
   return [...plain, ...collections]
 }
 
+/** The key of the row that draws a lifeline as an actor; no field stores it (see `isActorLifeline`). */
+export const LIFELINE_ACTOR_ROW = 'isActor'
+
+/** A lifeline on a sequence diagram: the other diagrams of an interaction have no actor form. */
+function isSequenceLifeline(el: Elem): boolean {
+  const owned = isKindOf(el, 'UMLLifeline') ? el._parent?.['ownedElements'] : null
+  return Array.isArray(owned) && owned.some((child) => isKindOf(child as Elem, 'UMLSequenceDiagram'))
+}
+
+function lifelineActorRow(lifelines: readonly Elem[]): PropertyRow {
+  const values = lifelines.map(isActorLifeline)
+  return {
+    key: LIFELINE_ACTOR_ROW,
+    field: LIFELINE_ACTOR_ROW,
+    label: 'Is Actor',
+    widget: 'checkbox',
+    type: 'Boolean',
+    targets: lifelines,
+    readOnly: false,
+    advanced: false,
+    value: values[0],
+    mixed: values.some((v) => v !== values[0])
+  }
+}
+
 /** Rows for the selected model elements (empty when nothing is selected). */
 export function propertyRows(elements: readonly Elem[]): PropertyRow[] {
   if (elements.length === 0) return []
   const single = elements.length === 1
   const rows = rowsFor(elements, '', undefined, single)
+  if (elements.every(isSequenceLifeline)) rows.splice(rows.findIndex((r) => r.field === 'name') + 1, 0, lifelineActorRow(elements))
   const first = elements[0] as Elem
   for (const end of EXPANDED) {
     const def = fieldOf(first, end)

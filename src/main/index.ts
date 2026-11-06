@@ -17,6 +17,7 @@ import {
 } from './ipcValidation'
 import { pdfHtml, sanitizePdfPages } from './pdf'
 import { RecoveryStore, sanitizeSnapshot } from './recovery'
+import { RendererCrashes } from './rendererCrashes'
 import { isNewerVersion, LATEST_RELEASE_API, MAX_RELEASE_JSON_BYTES, parseLatestRelease } from './updates'
 import appIcon from '../../resources/icon.png?asset'
 
@@ -66,12 +67,10 @@ function isAppUrl(url: string): boolean {
   }
 }
 
-/** Renderer crashes (e.g. out of memory on a hostile file) reload the UI, at most a few times a minute. */
-const crashTimes: number[] = []
-
 function createWindow(): void {
   closeConfirmed = false
   isDirty = false
+  const crashes = new RendererCrashes()
   const window = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -101,7 +100,7 @@ function createWindow(): void {
   window.once('ready-to-show', () => window.show())
 
   window.on('close', (event) => {
-    if (isDirty && !closeConfirmed) {
+    if (isDirty && !closeConfirmed && !crashes.gaveUp) {
       event.preventDefault()
       window.webContents.send(IpcChannels.closeRequested)
     }
@@ -127,11 +126,8 @@ function createWindow(): void {
 
   contents.on('render-process-gone', (_event, details) => {
     if (details.reason === 'clean-exit') return
-    const now = Date.now()
-    while (crashTimes.length > 0 && now - (crashTimes[0] as number) > 60_000) crashTimes.shift()
-    crashTimes.push(now)
     rendererReady = false
-    if (crashTimes.length <= 3) contents.reload()
+    if (crashes.record(Date.now())) contents.reload()
   })
 
   if (devServerUrl) void window.loadURL(devServerUrl)

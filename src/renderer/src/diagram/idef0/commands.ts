@@ -31,6 +31,7 @@ import { validateIdef0, type IdefIssue } from './validate'
 import { STATUS_STAGES, statusLabel } from './strings'
 import { applyTitleBlockToChildren, descendantDiagramsOf } from './titleBlock'
 import { applySheetSizeToChildren, fitSheetToContent, setSheetSize } from './sheet'
+import { spreadBoundaryArrows } from './spread'
 
 export const Idef0CommandIds = {
   decompose: 'idef0.decompose',
@@ -43,6 +44,7 @@ export const Idef0CommandIds = {
   nodeIndex: 'idef0.node-index',
   tunnelEnd: 'idef0.tunnel-end',
   resetRoute: 'idef0.reset-route',
+  spreadArrows: 'idef0.spread-boundary-arrows',
   connectTo: 'idef0.connect-to',
   /** Shows the Advanced Arrows panel (registered by the shell, which owns the panels). */
   advancedArrows: 'idef0.advanced-arrows',
@@ -290,6 +292,17 @@ export function registerIdef0Commands(registry: CommandRegistry, ctx: Idef0Comma
     run: () => {
       const d = idefDiagram()
       if (d) resetArrowRoutes(envOf(d), selectedArrowViews())
+    }
+  })
+  add({
+    id: Idef0CommandIds.spreadArrows,
+    label: 'Spread Boundary Arrows',
+    isEnabled: () => !!idefDiagram(),
+    run: () => {
+      const d = idefDiagram()
+      if (!d) return
+      const n = spreadBoundaryArrows(envOf(d))
+      ctx.toast(n === 0 ? 'Every boundary arrow already has its own place on the frame' : `Moved ${n} boundary arrow${n === 1 ? '' : 's'}`)
     }
   })
   add({

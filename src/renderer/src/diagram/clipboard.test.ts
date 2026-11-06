@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { addAttribute } from '../commands'
 import { isKindOf, type EdgeView, type Elem, type NodeView, type UMLClassifierView, type View } from '../model'
 import { diagramCanHostView } from '../ui/toolbox/palettes'
-import { createDiagram } from '../commands'
+import { createDiagram, createNode } from '../commands'
 import { copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard } from './clipboard'
 import { createNodeAt, moveSelection } from './editor/actions'
 import { testDiagram } from './testUtils'
+import { FixedWidthTextMeasurer } from './core'
 import { decomposeFunction } from './idef0/decompose'
+import { createIdef0Edge } from './idef0/gestures'
+import { computeDiagramLayout } from './layout/layoutDiagram'
 import { newKit } from './idef0/testkit'
 import { validateIdef0 } from './idef0/validate'
 
@@ -107,6 +110,56 @@ describe('view clipboard', () => {
     const copy = t.repository.get(id) as View
     expect(copy.containerView).toBeNull()
     expect(pkg.containedViews).not.toContain(copy)
+  })
+
+  it('puts an IDEF0 box pasted on another diagram in that diagram, numbered there', () => {
+    const kit = newKit()
+    const [first, second] = kit.boxes(kit.child)
+    createIdef0Edge(kit.envOf(kit.child), kit.layoutOf(kit.child), { kind: 'IDEF0Arrow' }, first!._id, second!._id, { x: first!.left + first!.width, y: first!.top + 20 }, { x: second!.left, y: second!.top + 20 })
+    const arrow = kit.child.ownedViews.find((v) => v._type === 'IDEF0ArrowView') as View
+    const scope = first!.model as Elem
+    const target = decomposeFunction(kit.engine, scope, 3)
+    const payload = copyViews(kit.repository, kit.child, [first!._id, second!._id, arrow._id], kit.layoutOf(kit.child))!
+    const ids = pasteViews(kit.engine, target, payload, { x: 700, y: 500 })
+
+    const models = ids.map((id) => (kit.repository.get(id) as View).model as Elem)
+    const boxes = models.filter((m) => m._type === 'IDEF0Function')
+    expect(boxes.map((m) => m._parent)).toEqual([scope, scope])
+    expect(boxes.map((m) => m['boxNumber'])).toEqual([4, 5])
+    expect((scope['functions'] as Elem[]).length).toBe(5)
+    expect((kit.top['functions'] as Elem[]).length).toBe(3)
+    expect(models.find((m) => m._type === 'IDEF0Arrow')?._parent).toBe(scope)
+  })
+
+  it('refuses to paste an IDEF0 box on the context diagram', () => {
+    const kit = newKit()
+    const payload = copyViews(kit.repository, kit.child, [kit.boxes(kit.child)[0]!._id], kit.layoutOf(kit.child))!
+    expect(() => pasteViews(kit.engine, kit.context, payload)).toThrow(PasteError)
+    expect((kit.top['functions'] as Elem[]).length).toBe(3)
+  })
+
+  it('puts a class pasted on a diagram of another package in that package', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 100, 60)
+    const pkg = t.node('Package', 300, 0, 200, 150)
+    const other = createDiagram(t.engine, 'ClassDiagram', pkg.model as Elem).diagram
+    const [id] = pasteViews(t.engine, other, copyViews(t.repository, t.diagram, [a._id], t.layout())!)
+    expect((t.repository.get(id as string) as View).model?._parent).toBe(pkg.model)
+    // Pasting on the same diagram keeps the owner of the original.
+    const [same] = pasteViews(t.engine, t.diagram, copyViews(t.repository, t.diagram, [a._id], t.layout())!)
+    expect((t.repository.get(same as string) as View).model?._parent).toBe(a.model?._parent)
+  })
+
+  it('puts a state pasted on another state machine in its first region', () => {
+    const t = testDiagram()
+    const model = t.diagram._parent as Elem
+    const first = createDiagram(t.engine, 'StatechartDiagram', model).diagram
+    const second = createDiagram(t.engine, 'StatechartDiagram', model).diagram
+    const state = createNode(t.engine, { kind: 'State', diagram: first, left: 100, top: 100 }).view as View
+    const layout = computeDiagramLayout(first, t.repository, new FixedWidthTextMeasurer())
+    const [id] = pasteViews(t.engine, second, copyViews(t.repository, first, [state._id], layout)!)
+    const region = ((second._parent as Elem)['regions'] as Elem[])[0]
+    expect((t.repository.get(id as string) as View).model?._parent).toBe(region)
   })
 
   it('pastes an IDEF0 box as a plain new box with the next free number', () => {

@@ -202,6 +202,7 @@ describe('IDEF0 menus', () => {
       'Tunnel Source End',
       'Tunnel Target End',
       'Reset Arrow Route',
+      'Spread Boundary Arrows',
       'Connect to...',
       'Validate IDEF0 Model',
       'Show Node Index'
@@ -214,6 +215,7 @@ describe('IDEF0 menus', () => {
       ['Status: Publication', false],
       [],
       ['Sheet Size'],
+      ['Spread Boundary Arrows', undefined],
       [],
       ['Color Arrows by Role', false]
     ])
