@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addFeature, addOperation, setFields } from '../../commands'
+import { addFeature, addOperation, deleteFromModel, setFields } from '../../commands'
 import { childrenOf, createElement, type EdgeView, type Elem, type NodeView, type UMLOperation, type UMLParameter, type View } from '../../model'
 import { testDiagram } from '../testUtils'
 import { readMdj, writeMdj } from '../../format'
@@ -147,6 +147,39 @@ describe('editor actions', () => {
     expect(reconnectEnd(t, e._id, 'head', c._id)).toBe(true)
     expect(e.head).toBe(c)
     expect(e.model?.['target']).toBe(c.model)
+  })
+
+  it.each(['Generalization', 'Association'] as const)('moves a %s to its new source when the tail is reconnected', (kind) => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 100, 60) as NodeView
+    const b = t.node('Class', 300, 0, 100, 60)
+    const c = t.node('Class', 300, 200, 100, 60)
+    const e = t.edge(kind, a, b) as EdgeView
+    const rel = e.model as Elem
+    expect(rel._parent).toBe(a.model)
+
+    expect(reconnectEnd(t, e._id, 'tail', c._id)).toBe(true)
+    expect(rel._parent).toBe(c.model)
+    expect((a.model as Elem)['ownedElements'] ?? []).not.toContain(rel)
+
+    // One undo step puts it back with its old owner.
+    t.engine.undo()
+    expect(t.engine.repository.get(rel._id)?._parent).toBe(a.model)
+    t.engine.redo()
+
+    // Deleting the old source no longer takes the relationship with it.
+    deleteFromModel(t.engine, [a.model as Elem])
+    expect(t.engine.repository.get(rel._id)).toBeDefined()
+  })
+
+  it('leaves a relationship with its owner when the head is reconnected', () => {
+    const t = testDiagram()
+    const a = t.node('Class', 0, 0, 100, 60)
+    const b = t.node('Class', 300, 0, 100, 60)
+    const c = t.node('Class', 300, 200, 100, 60)
+    const e = t.edge('Generalization', a, b) as EdgeView
+    expect(reconnectEnd(t, e._id, 'head', c._id)).toBe(true)
+    expect(e.model?._parent).toBe(a.model)
   })
 
   it('hit-tests handles, nodes and edges, and selects with a rubber band', () => {
