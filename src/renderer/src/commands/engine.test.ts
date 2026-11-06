@@ -443,3 +443,66 @@ describe('CommandRegistry', () => {
     expect(registry.isEnabled('missing')).toBe(false)
   })
 })
+
+describe('an undo or redo that cannot finish', () => {
+  /** One operation renaming `a` then `b`: undo reverts `b` first. */
+  function renamed() {
+    const { repo, engine, model } = setup()
+    const a = createElement('UMLClass', { name: 'A' }) as Elem
+    const b = createElement('UMLClass', { name: 'B' }) as Elem
+    engine.transact('Add', (t) => {
+      t.insert(model, 'ownedElements', a)
+      t.insert(model, 'ownedElements', b)
+    })
+    engine.transact('Rename', (t) => {
+      t.set(a, 'name', 'A2')
+      t.set(b, 'name', 'B2')
+    })
+    return { repo, engine, a, b }
+  }
+
+  it('leaves the model as it was and keeps the operation to undo', () => {
+    const { repo, engine, a, b } = renamed()
+    repo.unregister(a)
+    expect(() => engine.undo()).toThrow()
+    expect(b['name']).toBe('B2')
+    expect(engine.undoName).toBe('Rename')
+    expect(engine.canRedo).toBe(false)
+
+    repo.register(a)
+    expect(engine.undo()?.name).toBe('Rename')
+    expect([a['name'], b['name']]).toEqual(['A', 'B'])
+    expect(engine.canRedo).toBe(true)
+  })
+
+  it('leaves the model as it was and keeps the operation to redo', () => {
+    const { repo, engine, a, b } = renamed()
+    engine.undo()
+    repo.unregister(b)
+    expect(() => engine.redo()).toThrow()
+    expect(a['name']).toBe('A')
+    expect(engine.undoName).toBe('Add')
+    expect(engine.canRedo).toBe(true)
+
+    repo.register(b)
+    expect(engine.redo()?.name).toBe('Rename')
+    expect([a['name'], b['name']]).toEqual(['A2', 'B2'])
+  })
+
+  it('does not leave elements behind when a redo that creates them fails', () => {
+    const { repo, engine, model } = setup()
+    const other = createElement('UMLClass', { name: 'Other' }) as Elem
+    engine.transact('Add', (t) => t.insert(model, 'ownedElements', other))
+    const created = createElement('UMLClass', { name: 'New' }) as Elem
+    engine.transact('Add and rename', (t) => {
+      t.insert(model, 'ownedElements', created)
+      t.set(other, 'name', 'Other2')
+    })
+    engine.undo()
+    repo.unregister(other)
+    const count = (model['ownedElements'] as Elem[]).length
+    expect(() => engine.redo()).toThrow()
+    expect(repo.get(created._id)).toBeUndefined()
+    expect(model['ownedElements']).toHaveLength(count)
+  })
+})

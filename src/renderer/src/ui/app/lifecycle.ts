@@ -10,7 +10,7 @@ import { buildAppMenu } from '../menus/appMenu'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
 import { WHEN_TOOL_ACTIVE } from '../menus/keymaps'
 import { resolveMenu, toNativeMenu, type MenuContext } from '../menus/menuModel'
-import { uiStore } from '../uiStore'
+import { cancelPendingDialog, uiStore } from '../uiStore'
 import { bridge, isTextInputFocused, platform } from './bridge'
 import { applyKeybindings, initCommands, keymap, registry, reportError, runCommand } from './commands'
 import { handleCloseRequest, openProjectPath, windowTitle } from './fileOps'
@@ -72,6 +72,16 @@ function onKeyDown(e: KeyboardEvent): void {
   runCommand(binding.command, binding.args)
 }
 
+/**
+ * A dialog waiting for an answer about the open project goes when another project replaces it:
+ * the answer would be applied to a project the user never asked about.
+ */
+export function cancelDialogsOnProjectChange(): () => void {
+  return projectStore.subscribe((s, prev) => {
+    if (s.engine !== prev.engine) cancelPendingDialog()
+  })
+}
+
 export function startShell(): () => void {
   initCommands()
   const cleanups: Array<() => void> = []
@@ -98,6 +108,7 @@ export function startShell(): () => void {
       }
     })
   )
+  cleanups.push(cancelDialogsOnProjectChange())
   cleanups.push(
     projectStore.subscribe((s, prev) => {
       if (s.dirty !== prev.dirty || s.filePath !== prev.filePath || s.project !== prev.project || s.version !== prev.version) {

@@ -107,6 +107,7 @@ function applyFieldStep(repo: Repository, step: FieldStep): void {
  * 1. materialize and register created elements (`I` forward / `R` backward) and resolve their refs;
  * 2. apply field steps in order (inverted and in reverse order when reverting);
  * 3. unregister removed elements (`R` forward / `I` backward).
+ * All or nothing: if a step throws, the steps already applied are undone and the error is rethrown.
  */
 export function runSteps(repo: Repository, steps: readonly Step[], forward: boolean): void {
   const createOp = forward ? 'I' : 'R'
@@ -114,17 +115,26 @@ export function runSteps(repo: Repository, steps: readonly Step[], forward: bool
 
   const reader = new ElementReader({ generateId: () => repo.generateId() })
   const created: Elem[] = []
-  for (const step of steps) {
-    if (step.op !== createOp) continue
-    const el = reader.read(step.json)
-    if (el) created.push(el)
-  }
-  for (const el of created) repo.register(el)
-  reader.resolve((id) => repo.get(id))
-
   const fieldSteps = steps.filter((s): s is FieldStep => s.op !== 'I' && s.op !== 'R')
-  if (forward) for (const s of fieldSteps) applyFieldStep(repo, s)
-  else for (let i = fieldSteps.length - 1; i >= 0; i--) applyFieldStep(repo, invert(fieldSteps[i] as FieldStep))
+  const ordered = forward ? fieldSteps : fieldSteps.map(invert).reverse()
+  let applied = 0
+  try {
+    for (const step of steps) {
+      if (step.op !== createOp) continue
+      const el = reader.read(step.json)
+      if (el) created.push(el)
+    }
+    for (const el of created) repo.register(el)
+    reader.resolve((id) => repo.get(id))
+    for (const s of ordered) {
+      applyFieldStep(repo, s)
+      applied++
+    }
+  } catch (err) {
+    for (let i = applied - 1; i >= 0; i--) applyFieldStep(repo, invert(ordered[i] as FieldStep))
+    for (const el of created) repo.unregister(el)
+    throw err
+  }
 
   for (const step of steps) {
     if (step.op !== deleteOp) continue
