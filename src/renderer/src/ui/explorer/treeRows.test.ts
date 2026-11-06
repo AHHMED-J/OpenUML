@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildOrderExample } from '../../model/idef0-example'
-import { folderKey, flattenTree, searchTree, treeLabel, type TreeRow } from './tree'
+import { createDiagram, createNode, ModelEngine } from '../../commands'
+import { createDefaultProject, Repository, type Diagram, type Elem } from '../../model'
+import { flattenDiagramTree, folderKey, flattenTree, searchTree, treeLabel, type TreeRow } from './tree'
 
 /** A row as text: its guides (│ pass, ├ tee, └ elbow, space none) and label. */
 const draw = (row: TreeRow): string =>
@@ -59,4 +61,38 @@ describe('explorer rows', () => {
     expect(rows.map((r) => treeLabel(r.node))).toEqual(['Output 1: Validated Order'])
     expect(rows[0]?.guides).toEqual([])
   })
+
+  it('Diagrams Only lists every diagram with the containers that lead to it, all open, and nothing else', () => {
+    const ex = buildOrderExample()
+    const rows = flattenDiagramTree(ex.project)
+    expect(rows.map(draw)).toEqual(DIAGRAMS_ONLY_IDEF0)
+    expect(rows.every((r) => !r.expandable)).toBe(true)
+
+    const project = createDefaultProject()
+    const engine = new ModelEngine(new Repository(project))
+    const model = (project['ownedElements'] as Elem[])[0] as Elem
+    const main = (model['ownedElements'] as Elem[])[0] as Diagram
+    createNode(engine, { kind: 'Class', diagram: main, left: 0, top: 0, name: 'Order' })
+    createDiagram(engine, 'SequenceDiagram', model, 'Checkout')
+    createDiagram(engine, 'StatechartDiagram', project, 'Lifecycle')
+    expect(flattenDiagramTree(project).map(draw)).toEqual(DIAGRAMS_ONLY_UML)
+  })
 })
+
+const DIAGRAMS_ONLY_IDEF0 = [
+  'Order Handling',
+  '└Order Management',
+  ' ├A-0 Context diagram: Process Customer Order',
+  ' └A0 Process Customer Order',
+  '  └A0 Diagram: Process Customer Order'
+]
+const DIAGRAMS_ONLY_UML = [
+  'Untitled',
+  '├Model',
+  '│├Main',
+  '│└Collaboration1',
+  '│ └Interaction1',
+  '│  └Checkout',
+  '└StateMachine1',
+  ' └Lifecycle'
+]

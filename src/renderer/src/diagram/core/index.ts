@@ -36,6 +36,7 @@
 export * from './geometry'
 export * from './formats'
 export * from './style'
+export * from './canvasPalette'
 export * from './viewport'
 export * from './junction'
 export * from './routing'

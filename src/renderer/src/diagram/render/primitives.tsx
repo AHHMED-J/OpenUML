@@ -1,7 +1,7 @@
 /**
  * SVG drawing primitives shared by all notations: text lines, shadows, the standard edge drawing
- * and edge labels. Components here are pure (no hooks) so they also render to static markup for
- * SVG export.
+ * and edge labels. Components here only read the canvas context, so they also render to static
+ * markup for SVG export.
  */
 import type React from 'react'
 import {
@@ -19,6 +19,7 @@ import {
   type Rect
 } from '../core'
 import type { EdgeLabelLayout, EdgeLayout, TextLine, ViewStyle } from '../layout/types'
+import { useCanvasPalette } from './canvasContext'
 
 /** SVG presentation attributes for a font. */
 export function fontAttrs(font: Font): React.SVGProps<SVGTextElement> {
@@ -77,9 +78,17 @@ export function SvgLine({ x1, y1, x2, y2, color, dash }: { x1: number; y1: numbe
   )
 }
 
-/** Translucent offset shadow of a shape given as path data (spec 03 §2.2). */
+/** How strong the light border around a shape is on the dark canvas. */
+const GLOW = { width: 3, alpha: 0.14 } as const
+
+/**
+ * Translucent offset shadow of a shape given as path data (spec 03 §2.2). A shadow would not show
+ * on the dark canvas, which draws a faint light border around the shape instead.
+ */
 export function Shadow({ d, show }: { d: string; show: boolean }): React.JSX.Element | null {
+  const { glow } = useCanvasPalette()
   if (!show || !d) return null
+  if (glow) return <path d={d} fill="none" stroke={glow} strokeOpacity={GLOW.alpha} strokeWidth={GLOW.width} />
   return (
     <path
       d={d}
@@ -113,17 +122,18 @@ export function StyledRect({ r, style, fill = true }: { r: Rect; style: ViewStyl
   )
 }
 
-function endFill(shape: EndShape, lineColor: string): string {
+function endFill(shape: EndShape, lineColor: string, background: string): string {
   if (shape.type === 'polyline') return 'none'
-  return shape.fill === 'line' ? lineColor : shape.fill === 'background' ? '#ffffff' : 'none'
+  return shape.fill === 'line' ? lineColor : shape.fill === 'background' ? background : 'none'
 }
 
 /** End decorations of an edge. */
 export function EndDecorations({ shapes, lineColor }: { shapes: readonly EndShape[]; lineColor: string }): React.JSX.Element {
+  const { edgeBackground } = useCanvasPalette()
   return (
     <>
       {shapes.map((shape, i) => (
-        <path key={i} d={endShapePath(shape)} fill={endFill(shape, lineColor)} stroke={lineColor} strokeWidth={1} strokeLinejoin="miter" />
+        <path key={i} d={endShapePath(shape)} fill={endFill(shape, lineColor, edgeBackground)} stroke={lineColor} strokeWidth={1} strokeLinejoin="miter" />
       ))}
     </>
   )

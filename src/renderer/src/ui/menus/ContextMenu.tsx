@@ -15,6 +15,7 @@ import {
   canvasContextMenu,
   explorerContextMenu,
   explorerSettingsMenu,
+  exportMenu,
   workingDiagramsContextMenu
 } from './appMenu'
 import { Cmd } from './commandIds'
@@ -207,6 +208,8 @@ function menuFor(kind: string, targetId: string | undefined): MenuNode[] {
       return workingDiagramsContextMenu(targetId)
     case 'canvas':
       return canvasContextMenu()
+    case 'export':
+      return exportMenu()
     case 'zoom':
       return zoomMenu()
     default:

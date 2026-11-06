@@ -40,6 +40,8 @@ export interface PaletteTool {
 }
 
 export type ThemePreference = 'system' | 'dark' | 'light'
+/** The diagram canvas: fixed, or following the app theme. */
+export type CanvasPreference = 'light' | 'dark' | 'follow'
 export type SortMode = 'added' | 'name'
 
 export interface PanelState {
@@ -57,6 +59,9 @@ const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', rig
 
 export interface Preferences {
   readonly theme: ThemePreference
+  readonly canvasMode: CanvasPreference
+  /** Export PNG, SVG and PDF on the dark canvas instead of the light one. */
+  readonly exportDarkCanvas: boolean
   readonly showGrid: boolean
   readonly snapToGrid: boolean
   /** Grid step of the diagram editor in diagram units (drawing, snapping, Shift+arrow nudge). */
@@ -80,6 +85,8 @@ export const AUTO_SAVE_INTERVALS: readonly number[] = [0, 30, 60, 120, 300, 600]
 
 const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
+  canvasMode: 'light',
+  exportDarkCanvas: false,
   showGrid: true,
   snapToGrid: true,
   gridSize: GRID.size,
@@ -172,7 +179,7 @@ export interface ContextMenuState {
   readonly x: number
   readonly y: number
   /** Which menu to show (resolved by the context-menu host). */
-  readonly menu: 'explorer' | 'explorer-settings' | 'working-diagrams' | 'canvas' | 'zoom'
+  readonly menu: 'explorer' | 'explorer-settings' | 'working-diagrams' | 'canvas' | 'zoom' | 'export'
   /** Element the menu was opened on (e.g. a diagram in the working-diagrams list). */
   readonly targetId?: string
 }
@@ -201,6 +208,8 @@ export interface UiState {
   readonly expanded: Readonly<Record<string, true>>
   /** IDEF0 arrows of a box shown in role folders (true) or as a flat list. */
   readonly groupArrows: boolean
+  /** Model Explorer shows only diagrams and the containers that lead to them. */
+  readonly diagramsOnly: boolean
   /** Collapsed IDEF0 role folders (folder keys); folders are open by default. Persisted per viewer. */
   readonly collapsedFolders: Readonly<Record<string, true>>
   /** Explorer node whose inline rename should start. */
@@ -252,6 +261,7 @@ export interface UiState {
   expandMany(ids: readonly string[]): void
   collapseAll(): void
   setGroupArrows(group: boolean): void
+  setDiagramsOnly(diagramsOnly: boolean): void
   /** Collapses or opens IDEF0 role folders (keys from `folderKey`). */
   setFoldersCollapsed(keys: readonly string[], collapsed: boolean): void
   startRename(id: string | null): void
@@ -285,6 +295,7 @@ interface PersistedLayout {
   showStereotype?: boolean
   showAdvancedProperties?: boolean
   groupArrows?: boolean
+  diagramsOnly?: boolean
 }
 
 /** Most collapsed role folders remembered (oldest forgotten first). */
@@ -312,6 +323,8 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
   const v = value ?? {}
   return {
     theme: v.theme === 'dark' || v.theme === 'light' || v.theme === 'system' ? v.theme : DEFAULT_PREFERENCES.theme,
+    canvasMode: v.canvasMode === 'dark' || v.canvasMode === 'light' || v.canvasMode === 'follow' ? v.canvasMode : DEFAULT_PREFERENCES.canvasMode,
+    exportDarkCanvas: typeof v.exportDarkCanvas === 'boolean' ? v.exportDarkCanvas : DEFAULT_PREFERENCES.exportDarkCanvas,
     showGrid: typeof v.showGrid === 'boolean' ? v.showGrid : DEFAULT_PREFERENCES.showGrid,
     snapToGrid: typeof v.snapToGrid === 'boolean' ? v.snapToGrid : DEFAULT_PREFERENCES.snapToGrid,
     gridSize: sanitizeGridSize(v.gridSize),
@@ -360,7 +373,8 @@ export function createUiStore() {
         sortBy: s.sortBy,
         showStereotype: s.showStereotype,
         showAdvancedProperties: s.showAdvancedProperties,
-        groupArrows: s.groupArrows
+        groupArrows: s.groupArrows,
+        diagramsOnly: s.diagramsOnly
       } satisfies PersistedLayout)
     }
     const setRecent = (recentFiles: string[]): void => {
@@ -397,6 +411,7 @@ export function createUiStore() {
       showStereotype: layout.showStereotype !== false,
       expanded: {},
       groupArrows: layout.groupArrows !== false,
+      diagramsOnly: layout.diagramsOnly === true,
       collapsedFolders: loadCollapsedFolders(),
       renamingId: null,
       revealTick: 0,
@@ -542,6 +557,10 @@ export function createUiStore() {
         set({ groupArrows })
         persistLayout()
       },
+      setDiagramsOnly(diagramsOnly) {
+        set({ diagramsOnly })
+        persistLayout()
+      },
       setFoldersCollapsed(keys, collapsed) {
         const next = { ...get().collapsedFolders }
         let changed = false
@@ -579,6 +598,10 @@ export function createUiStore() {
         saveJson('paletteMru', paletteMru)
       },
       openModal(modal) {
+        // A dialog replaced by another one will never be answered: that counts as cancelling it.
+        // (`null` is how a dialog closes itself, right before giving its own answer.)
+        const replaced = get().modal
+        if (modal && replaced && modal !== replaced && 'resolve' in replaced) replaced.resolve(null)
         set({ modal, contextMenu: null })
       },
       openContextMenu(contextMenu) {
@@ -621,6 +644,14 @@ export function useUiStore<T>(selector: (state: UiState) => T): T {
 
 // ---------------------------------------------------------------------------------------------
 // Promise-based dialogs
+
+/** Closes the open promise-based dialog, if any, answering it with "cancelled". */
+export function cancelPendingDialog(): void {
+  const { modal, openModal } = uiStore.getState()
+  if (!modal || !('resolve' in modal)) return
+  openModal(null)
+  modal.resolve(null)
+}
 
 export function promptText(title: string, initial = ''): Promise<string | null> {
   return new Promise((resolve) => uiStore.getState().openModal({ kind: 'prompt', title, initial, resolve }))

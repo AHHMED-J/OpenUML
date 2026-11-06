@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { cssFontFamily, isBold, isItalic, type Font, type Rect } from '../core'
 import type { EditTarget } from '../layout/types'
+import { useCanvasPalette } from '../render/canvasContext'
 import { quickEditSyntaxHint } from './quickEditApply'
 import { QUICK_EDIT_HINTS } from './quickEditSyntax'
 
@@ -47,6 +48,7 @@ function hintFor(target: EditTarget): string {
 }
 
 export function QuickEditor({ state, zoom, onCommit, onCancel }: QuickEditorProps): React.JSX.Element {
+  const { editorText, editorField } = useCanvasPalette()
   const [text, setText] = useState(state.text)
   const [invalid, setInvalid] = useState(false)
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
@@ -110,8 +112,8 @@ export function QuickEditor({ state, zoom, onCommit, onCancel }: QuickEditorProp
     fontSize: lineHeight,
     fontWeight: isBold(font) ? 'bold' : 'normal',
     fontStyle: isItalic(font) ? 'italic' : 'normal',
-    color: '#000000',
-    background: '#ffffff',
+    color: editorText,
+    background: editorField,
     border: `1px solid ${invalid ? '#e5484d' : '#4f99ff'}`,
     outline: 'none',
     borderRadius: 2,

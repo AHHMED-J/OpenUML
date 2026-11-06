@@ -4,7 +4,7 @@
  * the command registry when the tree is resolved.
  */
 import { Idef0CommandIds, hasParentArrows } from '../../diagram'
-import { projectStore, selectedModels } from '../../store'
+import { projectStore, selectedModels, selectionOrActiveDiagram } from '../../store'
 import type { Platform } from '../keymap'
 import { addDiagramItemsFor, addItemsFor } from '../modelActions'
 import { baseName } from '../recentFiles'
@@ -29,7 +29,7 @@ function addDiagramMenu(): MenuNode {
     label: 'Add Diagram',
     placeholder: '(nothing to add here)',
     submenu: () =>
-      addDiagramItemsFor(parent()).map((item) => ({
+      addDiagramItemsFor(selectionOrActiveDiagram(ps())).map((item) => ({
         id: `uml.${item.kind}`,
         label: item.label,
         command: Cmd.modelAddDiagram,
@@ -256,6 +256,7 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
       SEP,
       { id: 'view.show-grid', label: 'Show Grid', command: Cmd.viewShowGrid, checkbox: true },
       { id: 'view.snap-to-grid', label: 'Snap to Grid', command: Cmd.viewSnapToGrid, checkbox: true },
+      { id: 'view.dark-canvas', label: 'Dark Canvas', command: Cmd.viewDarkCanvas, checkbox: true },
       SEP,
       { id: 'view.sidebar', label: 'Sidebar', command: Cmd.viewSidebar, checkbox: true },
       { id: 'view.navigator', label: 'Navigator', command: Cmd.viewNavigator, checkbox: true },
@@ -351,6 +352,7 @@ export function explorerSettingsMenu(): MenuNode[] {
     { label: 'Sort by Added', command: Cmd.explorerSortByAdded, checkbox: true },
     { label: 'Sort by Name', command: Cmd.explorerSortByName, checkbox: true },
     SEP,
+    { label: 'Show Diagrams Only', command: Cmd.explorerDiagramsOnly, checkbox: true },
     { label: 'Show Stereotype Text', command: Cmd.explorerShowStereotype, checkbox: true },
     { label: 'Group Arrows by Role', command: Cmd.explorerGroupArrows, checkbox: true },
     SEP,
@@ -369,6 +371,14 @@ export function workingDiagramsContextMenu(targetId: string | undefined): MenuNo
     { label: 'Close All Diagrams', command: Cmd.viewCloseAllDiagrams },
     SEP,
     { label: 'Rename...', command: Cmd.viewRenameDiagram, args }
+  ]
+}
+
+/** The toolbar's Export button. */
+export function exportMenu(): MenuNode[] {
+  return [
+    { label: 'PNG...', command: Cmd.fileExportPng },
+    { label: 'PDF...', command: Cmd.fileExportPdf }
   ]
 }
 

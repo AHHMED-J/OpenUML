@@ -56,8 +56,10 @@ export function createEdge(engine: ModelEngine, req: EdgeRequest): CreationPlan 
 }
 
 /** Creates a diagram (plus wrapping model/collaboration/interaction/activity as needed). */
-export function createDiagram(engine: ModelEngine, kind: DiagramKind, owner: Elem, name?: string): DiagramPlan {
-  const plan = planDiagram(kind, owner, name)
+export function createDiagram(engine: ModelEngine, kind: DiagramKind, owner: Elem, name?: string, index?: number): DiagramPlan {
+  const planned = planDiagram(kind, owner, name)
+  // The first insertion is what goes under `owner`: the diagram or the elements wrapping it.
+  const plan = index === undefined ? planned : { ...planned, insertions: planned.insertions.map((ins, i) => (i === 0 ? { ...ins, index } : ins)) }
   engine.transact(`Create ${kindLabel(kind)}`, (b) => applyPlan(b, plan))
   return plan
 }

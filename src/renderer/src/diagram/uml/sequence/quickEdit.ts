@@ -5,27 +5,30 @@
  * to elements by name, else are stored as text.
  */
 import type { OperationBuilder } from '../../../commands'
-import { createElement, fieldOf, isKindOf, nextName, type Elem, type Repository } from '../../../model'
+import { fieldOf, type Elem, type Repository } from '../../../model'
 import { registerQuickEditSyntax, resolveByName, setStereotype } from '../../editor/quickEditApply'
+import { actorNamed, ensureLifelineRole, isActorLifeline, syncLifelineDisplay } from './lifelineActor'
 import { messageDisplayName, parseGuard, parseLifeline, parseMessage, SEQUENCE_EDIT_HINTS, type ParsedLifeline, type ParsedMessage } from './strings'
+
+/** The element or text a typed lifeline type resolves to; an actor stays an actor until its box is unchecked. */
+function resolveLifelineType(b: OperationBuilder, repo: Repository, lifeline: Elem, type: string, actor: boolean): Elem | string {
+  if (!actor) return resolveByName(repo, lifeline, type, 'UMLClassifier') ?? type
+  return resolveByName(repo, lifeline, type, 'UMLActor') ?? resolveByName(repo, lifeline, type, 'UMLClassifier') ?? actorNamed(b, repo, lifeline, type)
+}
 
 /** Applies a parsed lifeline notation; the type goes to the represented role (created when missing). */
 function applyLifeline(b: OperationBuilder, repo: Repository, lifeline: Elem, p: ParsedLifeline): void {
-  b.set(lifeline, 'name', p.name)
+  const actor = isActorLifeline(lifeline)
+  // Under the stick figure a bare name is the actor's, not an instance name beside it.
+  const bare = actor && p.name !== '' && !p.type
+  const type = bare ? p.name : p.type
+  b.set(lifeline, 'name', bare ? '' : p.name)
   if (fieldOf(lifeline, 'visibility')) b.set(lifeline, 'visibility', p.visibility ?? 'public')
   setStereotype(b, repo, lifeline, p.stereotype)
   b.set(lifeline, 'selector', p.selector)
-  let role = lifeline['represent'] as Elem | null | undefined
-  if (!role && p.type) {
-    // A lifeline without a role: add one to the collaboration (or classifier) owning the interaction.
-    const owner = lifeline._parent?._parent
-    if (isKindOf(owner, 'UMLClassifier')) {
-      role = createElement('UMLAttribute', { name: nextName(owner.attributes ?? [], 'Role') })
-      b.insert(owner, 'attributes', role)
-      b.set(lifeline, 'represent', role)
-    }
-  }
-  if (role) b.set(role, 'type', p.type ? (resolveByName(repo, lifeline, p.type, 'UMLClassifier') ?? p.type) : null)
+  const role = type ? ensureLifelineRole(b, lifeline) : ((lifeline['represent'] as Elem | null | undefined) ?? null)
+  if (role) b.set(role, 'type', type ? resolveLifelineType(b, repo, lifeline, type, actor) : null)
+  if (isActorLifeline(lifeline) !== actor) syncLifelineDisplay(b, repo, lifeline, !actor)
 }
 
 /** Applies a parsed message notation; a signature whose name no longer matches is dropped. */

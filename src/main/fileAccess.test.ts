@@ -115,6 +115,26 @@ describe('writeFileAtomic', () => {
     if (dir) await rm(dir, { recursive: true, force: true })
   })
 
+  it('applies concurrent saves of one file in the order they were asked for', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'openuml-'))
+    const path = join(dir, 'model.mdj')
+    // The first version is by far the largest, so without a queue it finishes last.
+    const versions = ['a'.repeat(4_000_000), ...Array.from({ length: 20 }, (_, i) => `v${i}`)]
+    await Promise.all(versions.map((v) => writeFileAtomic(path, v)))
+    expect(await readFile(path, 'utf8')).toBe('v19')
+    expect(await readdir(dir)).toEqual(['model.mdj'])
+  })
+
+  it('keeps saving a file after one write to it failed', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'openuml-'))
+    const path = join(dir, 'model.mdj')
+    const bad = writeFileAtomic(path, 42 as unknown as string)
+    const good = writeFileAtomic(path, 'saved')
+    await expect(bad).rejects.toThrow()
+    await good
+    expect(await readFile(path, 'utf8')).toBe('saved')
+  })
+
   it('replaces the file, creates missing folders and leaves no temporary file', async () => {
     dir = await mkdtemp(join(tmpdir(), 'openuml-'))
     const path = join(dir, 'a', 'b', 'model.mdj')

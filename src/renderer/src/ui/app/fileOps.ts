@@ -4,7 +4,7 @@
  */
 import runtime from 'virtual:openuml-viewer'
 import { diagramToPdfPage, diagramToPngBase64, diagramToSvg } from '../../export'
-import { getTextMeasurer } from '../../diagram'
+import { getTextMeasurer, type CanvasMode } from '../../diagram'
 import { buildWebsiteDigest, diagramsInTreeOrder, websiteHtml } from '../../website'
 import { explorerLabel } from '../explorer/tree'
 import type { WebsiteChoice } from '../uiStore'
@@ -20,10 +20,13 @@ const MDJ_FILTERS = [{ name: 'Models', extensions: ['mdj'] }]
 const ps = () => projectStore.getState()
 const ui = () => uiStore.getState()
 
-/** Window title: `OpenUML 0.1.4 — name.mdj •` (bullet when there are unsaved changes). */
-export function windowTitle(filePath: string | null, projectName: string, dirty: boolean, version: string | null = null): string {
+/**
+ * Window title: `OpenUML 0.1.4 — name.mdj •` (bullet when there are unsaved changes), followed by
+ * the newer version when there is one.
+ */
+export function windowTitle(filePath: string | null, projectName: string, dirty: boolean, version: string | null = null, update: string | null = null): string {
   const name = filePath ? baseName(filePath) : projectName || 'Untitled'
-  return `OpenUML${version ? ` ${version}` : ''} — ${name}${dirty ? ' •' : ''}`
+  return `OpenUML${version ? ` ${version}` : ''} — ${name}${dirty ? ' •' : ''}${update ? ` — New version ${update} available` : ''}`
 }
 
 function requireBridge(): NonNullable<typeof bridge> {
@@ -41,11 +44,10 @@ function commitPendingEdits(): void {
 // Working diagrams per file
 
 interface WorkingDiagrams {
-  readonly open: readonly string[]
   readonly active: string | null
 }
 
-/** The working diagrams remembered per file path (empty when the stored value is unusable). */
+/** The diagram last on screen per file path (empty when the stored value is unusable). */
 function loadWorkingDiagrams(): Record<string, WorkingDiagrams> {
   const all = loadJson<unknown>('workingDiagrams', {})
   return all && typeof all === 'object' && !Array.isArray(all) ? (all as Record<string, WorkingDiagrams>) : {}
@@ -57,22 +59,28 @@ function rememberWorkingDiagrams(): void {
   const all = loadWorkingDiagrams()
   // Re-insert so the entry moves to the end (most recent) of the key order.
   delete all[s.filePath]
-  all[s.filePath] = { open: s.openDiagramIds, active: s.activeDiagramId }
+  all[s.filePath] = { active: s.activeDiagramId }
   // Keep the map small: most recent 30 files.
   const entries = Object.entries(all).slice(-30)
   saveJson('workingDiagrams', Object.fromEntries(entries))
 }
 
-function restoreWorkingDiagrams(path: string): void {
-  const saved = loadWorkingDiagrams()[path]
-  if (!saved || typeof saved !== 'object' || !Array.isArray(saved.open)) return
-  const s = ps()
-  for (const id of saved.open) if (typeof id === 'string' && isKindOf(s.repository.get(id), 'Diagram')) ps().openDiagram(id)
-  if (saved.active && isKindOf(ps().repository.get(saved.active), 'Diagram')) ps().openDiagram(saved.active)
+/** Lists every diagram of the opened project, in Model Explorer order, on the one last on screen. */
+function showAllDiagrams(path: string | null): void {
+  const saved = path ? loadWorkingDiagrams()[path] : undefined
+  const active = saved && typeof saved === 'object' ? saved.active : null
+  ps().showDiagrams(diagramsInTreeOrder(ps().repository).map((d) => d._id), typeof active === 'string' ? active : null)
 }
 
 // ---------------------------------------------------------------------------------------------
 // Unsaved changes
+
+let askingToSave = false
+
+/** Whether the "save the changes?" question is open: auto-save must not answer it for the user. */
+export function isAskingToSave(): boolean {
+  return askingToSave
+}
 
 /**
  * If the project has unsaved changes, asks Save / Don't Save / Cancel. Resolves true when the
@@ -85,12 +93,15 @@ async function confirmDiscardChanges(): Promise<boolean> {
   const name = ps().filePath ? baseName(ps().filePath as string) : 'Untitled'
   // macOS HIG order: Save, Cancel, Don't Save.
   const buttons = isMac ? ['Save', 'Cancel', "Don't Save"] : ['Save', "Don't Save", 'Cancel']
-  const choice = await bridge.showMessageBox({
-    type: 'warning',
-    message: `Do you want to save the changes to ${name}?`,
-    detail: 'Your changes will be lost if you do not save them.',
-    buttons
-  })
+  askingToSave = true
+  const choice = await bridge
+    .showMessageBox({
+      type: 'warning',
+      message: `Do you want to save the changes to ${name}?`,
+      detail: 'Your changes will be lost if you do not save them.',
+      buttons
+    })
+    .finally(() => (askingToSave = false))
   const label = buttons[choice]
   if (label === 'Save') return saveProject()
   return label === "Don't Save"
@@ -117,8 +128,8 @@ function loadProject(text: string, path: string | null, label = path ? baseName(
   if (path) {
     ui().addRecent(path)
     bridge?.addRecentDocument(path)
-    restoreWorkingDiagrams(path)
   }
+  showAllDiagrams(path)
   const project = ps().project
   ui().expandMany([project._id, ...((project.ownedElements ?? []) as Array<{ _id: string }>).map((e) => e._id)])
   const warnings = ps().loadWarnings
@@ -274,6 +285,11 @@ function activeDiagramOrThrow(): Diagram {
   return d
 }
 
+/** The canvas of exported pictures: light unless Preferences changes the default. */
+function exportCanvas(): CanvasMode {
+  return ui().prefs.exportDarkCanvas ? 'dark' : 'light'
+}
+
 export async function exportDiagram(format: 'png' | 'svg' | 'pdf'): Promise<void> {
   const b = requireBridge()
   const diagram = activeDiagramOrThrow()
@@ -282,22 +298,27 @@ export async function exportDiagram(format: 'png' | 'svg' | 'pdf'): Promise<void
   let path = await b.chooseSavePath(name, filters)
   if (!path) return
   if (!path.toLowerCase().endsWith(`.${format}`)) path += `.${format}`
-  if (format === 'svg') await b.writeTextFile(path, diagramToSvg(diagram._id))
-  else if (format === 'pdf') await b.writePdf(path, [diagramToPdfPage(diagram._id)])
-  else await b.writeBinaryFile(path, await diagramToPngBase64(diagram._id, 2))
+  const canvas = exportCanvas()
+  if (format === 'svg') await b.writeTextFile(path, diagramToSvg(diagram._id, { canvas }))
+  else if (format === 'pdf') await b.writePdf(path, [diagramToPdfPage(diagram._id, canvas)])
+  else await b.writeBinaryFile(path, await diagramToPngBase64(diagram._id, 2, { canvas }))
   ui().toast(`Exported ${baseName(path)}`)
 }
 
-/** Every diagram of the project in one PDF, one page per diagram (model order). */
+/**
+ * Every diagram of the project in one PDF, one page per diagram, in Model Explorer order (an
+ * IDEF0 model reads A-0, A0, A1…, not the order the file stores its diagrams in).
+ */
 export async function exportAllDiagramsPdf(): Promise<void> {
   const b = requireBridge()
-  const diagrams = ps().repository.diagrams()
+  const diagrams = diagramsInTreeOrder(ps().repository)
   if (diagrams.length === 0) throw new Error('No diagram to export.')
   const name = ps().filePath ? baseName(ps().filePath as string).replace(/\.mdj$/i, '') : ps().project.name
   let path = await b.chooseSavePath(`${exportFileName(name ?? '')}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }])
   if (!path) return
   if (!path.toLowerCase().endsWith('.pdf')) path += '.pdf'
-  await b.writePdf(path, diagrams.map((d) => diagramToPdfPage(d._id)))
+  const canvas = exportCanvas()
+  await b.writePdf(path, diagrams.map((d) => diagramToPdfPage(d._id, canvas)))
   ui().toast(`Exported ${diagrams.length} diagram${diagrams.length === 1 ? '' : 's'} to ${baseName(path)}`)
 }
 
@@ -316,13 +337,14 @@ export async function exportAllDiagrams(format: 'png' | 'svg'): Promise<void> {
   if (diagrams.length === 0) throw new Error('No diagram to export.')
   const folder = await b.chooseFolder(`Select a folder where all diagrams will be exported as ${format.toUpperCase()}s`)
   if (!folder) return
+  const canvas = exportCanvas()
   const sep = platform === 'win32' ? '\\' : '/'
   const target = `${folder.replace(/[\\/]+$/, '')}${sep}${format}`
   let count = 0
   for (const [index, diagram] of diagrams.entries()) {
     const file = `${target}${sep}${exportFileName(pathName(diagram))}_${index}.${format}`
-    if (format === 'svg') await b.writeTextFile(file, diagramToSvg(diagram._id))
-    else await b.writeBinaryFile(file, await diagramToPngBase64(diagram._id, 2))
+    if (format === 'svg') await b.writeTextFile(file, diagramToSvg(diagram._id, { canvas }))
+    else await b.writeBinaryFile(file, await diagramToPngBase64(diagram._id, 2, { canvas }))
     count++
   }
   ui().toast(`Exported ${count} diagram${count === 1 ? '' : 's'} to ${target}`)

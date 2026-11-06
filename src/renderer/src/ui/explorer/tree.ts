@@ -445,6 +445,85 @@ export function dropField(target: Elem, source: Elem): string | null {
   return null
 }
 
+/** Diagrams that only work inside the behavior they draw (new nodes go to `diagram._parent`). */
+const BEHAVIOR_DIAGRAMS = ['UMLSequenceDiagram', 'UMLCommunicationDiagram', 'UMLTimingDiagram', 'UMLActivityDiagram', 'UMLStatechartDiagram']
+
+function ownedElementsOf(el: Elem): Elem[] {
+  const owned = el['ownedElements']
+  return Array.isArray(owned) ? (owned as Elem[]) : []
+}
+
+/**
+ * What actually moves when `el` is moved in the explorer: the only diagram of a behavior carries
+ * the behavior along, and a collaboration that holds nothing else, because the diagram cannot
+ * work outside them (Add Diagram created them together).
+ */
+export function movedElement(el: Elem): Elem {
+  if (!BEHAVIOR_DIAGRAMS.some((type) => isKindOf(el, type))) return el
+  const behavior = el._parent
+  if (!behavior || !isKindOf(behavior, 'UMLBehavior')) return el
+  if (ownedElementsOf(behavior).filter((child) => isKindOf(child, 'Diagram')).length !== 1) return el
+  const wrapper = behavior._parent
+  return wrapper && isKindOf(wrapper, 'UMLCollaboration') && ownedElementsOf(wrapper).length === 1 ? wrapper : behavior
+}
+
+/** The containment list of its owner that holds `el`. */
+function containingField(el: Elem): string | null {
+  const owner = el._parent
+  if (!owner) return null
+  return containmentFields(owner).find((f) => (owner[f.name] as unknown[] | undefined)?.includes?.(el))?.name ?? null
+}
+
+export type DropPlace = 'before' | 'into' | 'after'
+
+export interface SiblingDrop {
+  /** The element to move (see `movedElement`). */
+  readonly element: Elem
+  readonly owner: Elem
+  readonly field: string
+  /** Final position in `owner[field]`. */
+  readonly index: number
+}
+
+/**
+ * Dropping `source` right before or after the row of `target`, or null when the tree cannot show
+ * it there: rows are grouped by type and IDEF0 boxes follow their numbers, so an element can only
+ * change places within its group, and only while the tree is in the order things were added.
+ */
+export function siblingDrop(target: Elem, source: Elem, place: 'before' | 'after', sortBy: SortMode = 'added'): SiblingDrop | null {
+  if (sortBy !== 'added') return null
+  const element = movedElement(source)
+  const sibling = movedElement(target)
+  const owner = sibling._parent
+  if (!owner || element === sibling || isIdef0Function(sibling) || typeOrder(element) !== typeOrder(sibling)) return null
+  const field = containingField(sibling)
+  if (!field) return null
+  if ((element._parent !== owner || containingField(element) !== field) && dropField(owner, element) !== field) return null
+  const others = (owner[field] as Elem[]).filter((child) => child !== element)
+  return { element, owner, field, index: others.indexOf(sibling) + (place === 'after' ? 1 : 0) }
+}
+
+/** Which part of a row a pointer at `ratio` (0 = top, 1 = bottom) drops on, or null when nothing is allowed. */
+export function dropPlaceAt(ratio: number, sibling: { before: boolean; after: boolean }, into: boolean): DropPlace | null {
+  const edge = into ? 0.25 : 0.5
+  if (ratio < edge && sibling.before) return 'before'
+  if (ratio >= 1 - edge && sibling.after) return 'after'
+  return into ? 'into' : null
+}
+
+/** Move Up / Down: the element that moves and its new position, passing the rows the tree shows elsewhere. */
+export function moveStep(el: Elem, step: number): { element: Elem; index: number } | null {
+  const element = movedElement(el)
+  const owner = element._parent
+  const field = containingField(element)
+  if (!owner || !field) return null
+  const list = owner[field] as Elem[]
+  for (let i = list.indexOf(element) + step; i >= 0 && i < list.length; i += step) {
+    if (typeOrder(list[i] as Elem) === typeOrder(element)) return { element, index: i }
+  }
+  return null
+}
+
 /** `_parent` chain from the root down to `el` (inclusive), for breadcrumbs and reveal. */
 export function pathTo(el: Elem): Elem[] {
   const chain: Elem[] = []
@@ -506,6 +585,31 @@ function rowOf(node: TreeNode, trail: readonly Trail[], parentKey: string | null
   return { node, guides: guidesOf(trail), el: node.kind === 'folder' ? null : node.el, depth: trail.length, parentKey, expandable, expanded }
 }
 
+/**
+ * The Diagrams Only view: every diagram under `root` with the containers that lead to it, all
+ * open (containers get no twisty, so the view never hides a diagram). Other elements and IDEF0
+ * arrows are left out.
+ */
+export function flattenDiagramTree(root: Elem, options: TreeOptions = {}): TreeRow[] {
+  const leads = new Map<Elem, boolean>()
+  const leadsToDiagram = (el: Elem): boolean => {
+    let result = leads.get(el)
+    if (result === undefined) {
+      result = isKindOf(el, 'Diagram') || explorerChildren(el, options.sortBy ?? 'added').some(leadsToDiagram)
+      leads.set(el, result)
+    }
+    return result
+  }
+  const rows: TreeRow[] = []
+  const visit = (el: Elem, trail: readonly Trail[], parentKey: string | null): void => {
+    rows.push(rowOf(elementNode(el), trail, parentKey, false, false))
+    const children = explorerChildren(el, options.sortBy ?? 'added').filter(leadsToDiagram)
+    children.forEach((child, i) => visit(child, [...trail, { more: i < children.length - 1, role: null }], el._id))
+  }
+  visit(root, [], null)
+  return rows
+}
+
 /** The visible rows of the tree under `root` (pre-order), with their indent guides. */
 export function flattenTree(root: Elem, state: OpenState, options: TreeOptions = {}): TreeRow[] {
   const rows: TreeRow[] = []
@@ -520,6 +624,44 @@ export function flattenTree(root: Elem, state: OpenState, options: TreeOptions =
   }
   visit(elementNode(root), [], null)
   return rows
+}
+
+export interface TreePath {
+  /** The rows that contain the row, up to the root. */
+  readonly containers: ReadonlySet<string>
+  /** Guide levels on the line down to the row, per row key. */
+  readonly passes: ReadonlyMap<string, ReadonlySet<number>>
+  /** Rows where the line reaches a child on the way: its guide level, where the line turns. */
+  readonly turns: ReadonlyMap<string, number>
+}
+
+const NO_PATH: TreePath = { containers: new Set(), passes: new Map(), turns: new Map() }
+
+/** What contains the row `key`: its containers and the guide line that runs from each down to it. */
+export function pathToRow(rows: readonly TreeRow[], key: string | null): TreePath {
+  const indexOf = new Map(rows.map((row, i) => [row.node.key, i]))
+  const start = key === null ? undefined : indexOf.get(key)
+  if (start === undefined) return NO_PATH
+  const containers = new Set<string>()
+  const passes = new Map<string, Set<number>>()
+  const turns = new Map<string, number>()
+  let child = rows[start] as TreeRow
+  let childIndex = start
+  while (child.parentKey !== null) {
+    const parentIndex = indexOf.get(child.parentKey)
+    if (parentIndex === undefined) break
+    const parent = rows[parentIndex] as TreeRow
+    containers.add(parent.node.key)
+    turns.set(child.node.key, parent.depth)
+    for (let i = parentIndex + 1; i < childIndex; i++) {
+      const rowKey = (rows[i] as TreeRow).node.key
+      const levels = passes.get(rowKey) ?? new Set<number>()
+      passes.set(rowKey, levels.add(parent.depth))
+    }
+    child = parent
+    childIndex = parentIndex
+  }
+  return { containers, passes, turns }
 }
 
 /** Elements whose name contains `query` (each once, at most 200), as flat rows. */

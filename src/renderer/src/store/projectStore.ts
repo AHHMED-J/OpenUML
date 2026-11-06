@@ -47,6 +47,8 @@ export interface ProjectState {
   redo(): void
   /** Opens (or focuses) a diagram tab and makes it active. */
   openDiagram(id: string): void
+  /** Replaces the diagram tabs with `ids`, showing `active` when it is one of them. */
+  showDiagrams(ids: readonly string[], active?: string | null): void
   closeDiagram(id: string): void
   setActiveDiagram(id: string | null): void
   /** Sets the selection; omitted parts are cleared. */
@@ -148,6 +150,13 @@ export function createProjectStore(): ProjectStore {
         })
       },
 
+      showDiagrams(ids, active) {
+        const s = get()
+        const open = ids.filter((id) => isKindOf(s.repository.get(id), 'Diagram'))
+        const shown = [active, s.activeDiagramId].find((id) => id && open.includes(id))
+        set({ openDiagramIds: open, activeDiagramId: shown ?? open[0] ?? null, selectedViewIds: [] })
+      },
+
       closeDiagram(id) {
         const s = get()
         const index = s.openDiagramIds.indexOf(id)
@@ -201,6 +210,12 @@ export function selectedModels(state: ProjectState): Elem[] {
     .map((v) => v.model)
     .filter((m): m is Elem => m !== null)
   return [...new Set(models)]
+}
+
+/** What Add Diagram works from: the selected model element, else the UML diagram on screen, else the project. */
+export function selectionOrActiveDiagram(state: ProjectState): Elem {
+  const active = activeDiagram(state)
+  return selectedModels(state)[0] ?? (active && isKindOf(active, 'UMLDiagram') ? active : state.project)
 }
 
 // ---------------------------------------------------------------------------------------------

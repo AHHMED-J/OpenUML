@@ -204,6 +204,48 @@ function WhatsNewScene(): React.JSX.Element {
   )
 }
 
+/** The same small diagram on the light canvas (left) and the dark one (right). */
+function DarkCanvas(): React.JSX.Element {
+  const half = (x: number, canvas: string, ink: string, box: string): React.JSX.Element => (
+    <g>
+      <rect x={x} y={24} width={200} height={162} rx={4} fill={canvas} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <rect x={x + 22} y={52} width={66} height={36} rx={2} fill={box} stroke={ink} strokeWidth={1.5} />
+      <rect x={x + 112} y={122} width={66} height={36} rx={2} fill={box} stroke={ink} strokeWidth={1.5} />
+      <path d={`M${x + 88} 70 H${x + 145} V116`} fill="none" stroke={ink} strokeWidth={1.8} />
+      <path d={`M${x + 145} 122 l-4.5 -8 h9 z`} fill={ink} />
+    </g>
+  )
+  return (
+    <>
+      {half(50, '#ffffff', '#1f2329', '#ffffff')}
+      {half(270, '#0f1115', '#e8e8e8', '#1b1f27')}
+    </>
+  )
+}
+
+/** Tabs and the Working Diagrams list, both full as soon as a file opens. */
+function WorkingDiagrams(): React.JSX.Element {
+  const names = ['A-0 Context', 'A0 Diagram', 'A1 Diagram', 'A2 Diagram']
+  return (
+    <>
+      <rect x={70} y={30} width={380} height={150} rx={6} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      {names.map((name, i) => (
+        <g key={name}>
+          <rect x={84 + i * 90} y={42} width={84} height={22} rx={4} fill={i === 1 ? 'var(--selection)' : 'none'} stroke={i === 1 ? ACCENT : 'var(--border-strong)'} strokeWidth={1.5} />
+          <text x={126 + i * 90} y={57} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--text)">
+            {name}
+          </text>
+          <rect x={84} y={76 + i * 24} width={352} height={20} rx={3} fill={i === 1 ? 'var(--selection)' : 'none'} />
+          <rect x={92} y={81 + i * 24} width={10} height={10} rx={2} fill={i === 1 ? ACCENT : INK} />
+          <text x={110} y={90 + i * 24} fontSize={12} fill="var(--text)">
+            {name}
+          </text>
+        </g>
+      ))}
+    </>
+  )
+}
+
 const SCENES: Readonly<Record<IllustrationId, () => React.JSX.Element>> = {
   'pending-arrows': PendingArrows,
   'box-table': BoxTable,
@@ -211,7 +253,9 @@ const SCENES: Readonly<Record<IllustrationId, () => React.JSX.Element>> = {
   website: Website,
   'rad-lines': RadLines,
   'show-in-folder': ShowInFolder,
-  'whats-new': WhatsNewScene
+  'whats-new': WhatsNewScene,
+  'dark-canvas': DarkCanvas,
+  'working-diagrams': WorkingDiagrams
 }
 
 export function Illustration({ id }: { id: IllustrationId }): React.JSX.Element {
