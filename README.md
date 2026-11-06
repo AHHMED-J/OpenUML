@@ -52,7 +52,8 @@ for which file to pick.
 - **Undo/redo** for every change (one step per gesture), with unsaved-change tracking.
 - **Files** – New, Open, Open Recent, *Open Example* (bundled models from `examples/`, e.g. a six-box IDEF0 software
   release process), Save, Save As; export the current diagram (or all diagrams) to PNG or SVG, or to PDF
-  (one diagram, or every diagram in one file; IDEF0 sheets sized to a paper print on that paper).
+  (one diagram, or every diagram in one file; IDEF0 sheets sized to a paper print on that paper). The toolbar's
+  Export button offers PNG or PDF. Opening a file lists all its diagrams in Working Diagrams and the tabs.
 - **Interactive website** – *File > Export Interactive Website* writes one self-contained HTML file anyone can open
   offline in a browser (email it, upload it to Moodle or GitHub Pages): the model tree, the diagrams with pan and
   zoom, IDEF0 boxes that zoom into their child diagrams, a breadcrumb, Left/Right to walk the model box by box, and
@@ -74,7 +75,8 @@ for which file to pick.
   slide with the smaller improvements and fixes. Reopen it from *Help > What's New…*; turn the automatic window off in
   *Preferences > Updates*.
 - **Themes** – light and dark, following the system setting by default; preferences for grid, snap and default
-  font size.
+  font size. The canvas can be dark on its own (*View > Dark Canvas*), without changing the file; exports stay light
+  unless *Preferences* says otherwise.
 
 ## Download
 
@@ -157,6 +159,9 @@ python3 build/icon-src/make_icons.py
 ```
 
 ## Project layout
+
+User guides for IDEF0 diagrams: [English](docs/guides/OpenUML_IDEF0_Guide_EN.pdf) and
+[español](docs/guides/OpenUML_Instructivo_IDEF0.pdf).
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the process and module structure and
 [docs/PROGRESS.md](docs/PROGRESS.md) for the development log.
