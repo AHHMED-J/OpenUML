@@ -579,6 +579,10 @@ export function createUiStore() {
         saveJson('paletteMru', paletteMru)
       },
       openModal(modal) {
+        // A dialog replaced by another one will never be answered: that counts as cancelling it.
+        // (`null` is how a dialog closes itself, right before giving its own answer.)
+        const replaced = get().modal
+        if (modal && replaced && modal !== replaced && 'resolve' in replaced) replaced.resolve(null)
         set({ modal, contextMenu: null })
       },
       openContextMenu(contextMenu) {
@@ -621,6 +625,14 @@ export function useUiStore<T>(selector: (state: UiState) => T): T {
 
 // ---------------------------------------------------------------------------------------------
 // Promise-based dialogs
+
+/** Closes the open promise-based dialog, if any, answering it with "cancelled". */
+export function cancelPendingDialog(): void {
+  const { modal, openModal } = uiStore.getState()
+  if (!modal || !('resolve' in modal)) return
+  openModal(null)
+  modal.resolve(null)
+}
 
 export function promptText(title: string, initial = ''): Promise<string | null> {
   return new Promise((resolve) => uiStore.getState().openModal({ kind: 'prompt', title, initial, resolve }))
