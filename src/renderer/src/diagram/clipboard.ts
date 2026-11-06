@@ -78,14 +78,24 @@ function isLinkedBoundaryPort(view: View): boolean {
   return !!model && model._type === 'IDEF0Port' && !!model['corresponds']
 }
 
-/** The copyable subset of `ids`: top-level views, except linked IDEF0 boundary ports; edges only with both ends. */
+/**
+ * The copyable subset of `ids`: top-level views, except linked IDEF0 boundary ports; edges only with
+ * both ends. An end may be another edge (an IDEF0 branch on its trunk), so dropping one edge can
+ * drop more: repeats until nothing changes.
+ */
 export function copyableViews(repo: Repository, diagram: Diagram, ids: readonly string[]): View[] {
   const views = ids.map((id) => repo.get(id)).filter((v): v is View => isKindOf(v, 'View') && v._parent === diagram && !isLinkedBoundaryPort(v))
-  const set = new Set<View>(views)
-  return views.filter((v) => {
-    if (!isKindOf(v, 'EdgeView')) return true
-    return v.tail !== null && v.head !== null && set.has(hostOf(v.tail)) && set.has(hostOf(v.head))
-  })
+  const kept = new Set<View>(views)
+  const hasBothEnds = (v: View): boolean => !isKindOf(v, 'EdgeView') || (v.tail !== null && v.head !== null && kept.has(hostOf(v.tail)) && kept.has(hostOf(v.head)))
+  for (let dropped = true; dropped; ) {
+    dropped = false
+    for (const v of kept) {
+      if (hasBothEnds(v)) continue
+      kept.delete(v)
+      dropped = true
+    }
+  }
+  return views.filter((v) => kept.has(v))
 }
 
 /** Visits every object in a JSON tree. */
