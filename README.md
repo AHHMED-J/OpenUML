@@ -39,6 +39,8 @@ for which file to pick.
   applies the choice in one undo step. For many arrows at once, right-click a decomposition diagram in the Model
   Explorer (or View > Panels) for the dockable *Advanced Arrows* panel: one row per parent arrow, one column per box,
   each checkbox applied at once, so an older file whose arrows all reach one box can be re-spread in a few clicks.
+  New boundary arrows take a free spot on the frame edge, and *Spread Boundary Arrows* gives every arrow of a diagram its
+  own spot in one undo step.
 - **Editing** – live preview while moving, resizing and drawing, animated zoom, grid and snap-to-grid, inline
   name editing and quick-edit syntax (e.g. `-total : Money [0..1] = 0`, `trigger [guard] / effect`), copy,
   paste and duplicate (pasted elements are new, independent copies with the same names), alignment commands.
