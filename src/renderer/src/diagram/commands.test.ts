@@ -4,6 +4,7 @@ import type { Diagram, Elem, View } from '../model'
 import { activeDiagram, projectStore } from '../store'
 import { copySelection, pasteClipboard, registerDiagramCommands } from './commands'
 import { setActiveEditor } from './editor/activeEditor'
+import { decomposeFunction } from './idef0/decompose'
 import { ensureNotations } from './notations'
 
 function setup(clipboard: { readText(): Promise<string>; writeText?(text: string): Promise<void> }): { diagram: Diagram; view: View } {
@@ -82,5 +83,60 @@ describe('paste command', () => {
     } finally {
       setActiveEditor(null)
     }
+  })
+})
+
+describe('deleting from the menu', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  /** The app's order: diagram commands first; `edit.delete` must not be left to the core one. */
+  function withCommands(run: (registry: CommandRegistry) => void): void {
+    vi.stubGlobal('navigator', { clipboard: { readText: async () => '', writeText: async () => undefined } })
+    const registry = new CommandRegistry()
+    const dispose = registerDiagramCommands(registry, { getZoom: () => 1, setZoom: () => undefined, canHostView: () => true, notify: () => undefined })
+    try {
+      run(registry)
+    } finally {
+      dispose()
+    }
+  }
+
+  function idef0(): { top: Elem; child: Diagram; boxView: (n: number) => View } {
+    ensureNotations()
+    projectStore.getState().newProject()
+    const store = projectStore.getState()
+    const model = createDiagram(store.engine, 'IDEF0Diagram', store.project as Elem).model as Elem
+    const top = model['topFunction'] as Elem
+    const child = decomposeFunction(store.engine, top, 3)
+    store.openDiagram(child._id)
+    const boxView = (n: number): View => child.ownedViews.find((v) => (v.model as Elem | null)?.['boxNumber'] === n) as View
+    return { top, child, boxView }
+  }
+
+  const numbers = (top: Elem): number[] => (top['functions'] as Elem[]).map((f) => f['boxNumber'] as number).sort()
+
+  it.each(['edit.delete', 'edit.cut'])('%s applies the IDEF0 rules: the box leaves the model and the numbers close up', (id) => {
+    withCommands((registry) => {
+      const { top, boxView } = idef0()
+      projectStore.getState().select({ views: [boxView(2)._id] })
+      registry.execute(id)
+      expect(numbers(top)).toEqual([1, 2])
+    })
+  })
+
+  it.each(['edit.delete', 'edit.cut'])('%s applies the RAD rules: the activity leaves the model', (id) => {
+    withCommands((registry) => {
+      ensureNotations()
+      projectStore.getState().newProject()
+      const store = projectStore.getState()
+      const diagram = createDiagram(store.engine, 'RADDiagram', store.project as Elem).diagram
+      store.openDiagram(diagram._id)
+      const engine = projectStore.getState().engine
+      const role = createNode(engine, { kind: 'RADRole', diagram, left: 20, top: 40, width: 220, height: 360 }).view as View
+      const activity = createNode(engine, { kind: 'RADActivity', diagram, left: 60, top: 100, container: role }).view as View
+      projectStore.getState().select({ views: [activity._id] })
+      registry.execute(id)
+      expect((role.model as Elem)['elements']).toHaveLength(0)
+    })
   })
 })
