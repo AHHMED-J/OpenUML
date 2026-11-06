@@ -141,9 +141,10 @@ export class ModelEngine {
 
   undo(): Operation | null {
     if (this.readOnly) return null
-    const op = this.undoStack.pop()
+    const op = this.undoStack.at(-1)
     if (!op) return null
     revertOperation(this.repository, op)
+    this.undoStack.pop()
     this.redoStack.push(op)
     if (this.redoStack.length > this.historyLimit) this.redoStack.shift()
     this.emit({ type: 'undo', operation: op })
@@ -152,9 +153,10 @@ export class ModelEngine {
 
   redo(): Operation | null {
     if (this.readOnly) return null
-    const op = this.redoStack.pop()
+    const op = this.redoStack.at(-1)
     if (!op) return null
     applyOperation(this.repository, op)
+    this.redoStack.pop()
     this.undoStack.push(op)
     this.emit({ type: 'redo', operation: op })
     return op
