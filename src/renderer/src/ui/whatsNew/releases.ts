@@ -6,7 +6,7 @@
  */
 
 /** Hero drawings available to feature slides (see `illustrations.tsx`). */
-export type IllustrationId = 'pending-arrows' | 'box-table' | 'advanced-arrows' | 'website' | 'rad-lines' | 'show-in-folder' | 'whats-new'
+export type IllustrationId = 'pending-arrows' | 'box-table' | 'advanced-arrows' | 'website' | 'rad-lines' | 'show-in-folder' | 'whats-new' | 'dark-canvas' | 'working-diagrams'
 
 export interface ReleaseFeature {
   readonly title: string
@@ -34,6 +34,40 @@ export function releaseUrl(version: string): string {
 }
 
 export const RELEASES: readonly Release[] = [
+  {
+    version: '0.1.9',
+    date: '2026-11-05',
+    features: [
+      {
+        title: 'Dark canvas',
+        description:
+          'Draw your diagrams on a dark canvas with View > Dark Canvas or Cmd/Ctrl+Shift+D, or choose Light, Dark or Follow App in Preferences. Your file does not change and exports stay light unless you ask for dark ones in Preferences.',
+        illustration: 'dark-canvas'
+      },
+      {
+        title: 'Every diagram ready when you open a file',
+        description:
+          'Opening a file now lists all its diagrams in Working Diagrams and the tabs, in Model Explorer order, so you no longer have to open them one by one.',
+        illustration: 'working-diagrams'
+      }
+    ],
+    minor: [
+      { kind: 'improved', text: 'The toolbar has one Export button that offers PNG or PDF.' },
+      { kind: 'improved', text: 'A newer version is offered on every start, and after Later the window title keeps showing it.' },
+      { kind: 'improved', text: 'The Model Explorer shows the path to the selected row, and rows can be dropped between rows.' },
+      { kind: 'improved', text: 'Add Diagram places the new diagram beside the one you are working on.' },
+      { kind: 'improved', text: 'Sequence lifelines have an Is Actor box that draws a stick figure, also in StarUML.' },
+      { kind: 'improved', text: 'Deleting a diagram also removes the Interaction and Collaboration left empty around it.' },
+      { kind: 'fixed', text: 'All to One PDF prints in Model Explorer order, so an IDEF0 model starts with A-0.' },
+      { kind: 'fixed', text: 'Saving the same file twice in a row can no longer lose a save.' },
+      { kind: 'fixed', text: 'Undo and redo apply completely or not at all.' },
+      { kind: 'fixed', text: 'Cut and menu Delete follow the same IDEF0 and RAD deletion rules as the Delete key.' },
+      { kind: 'fixed', text: 'Pasting goes to the scope of the target diagram and numbers boxes there, and a copied branch never comes without its trunk.' },
+      { kind: 'fixed', text: 'Reconnecting a relationship moves it to its new source in the model.' },
+      { kind: 'fixed', text: 'Auto-save waits while the unsaved changes question is open, and a dialog left without an answer is cancelled.' },
+      { kind: 'fixed', text: 'The window closes without asking once OpenUML has crashed four times in a row.' }
+    ]
+  },
   {
     version: '0.1.8',
     date: '2026-10-26',
