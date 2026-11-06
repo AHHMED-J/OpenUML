@@ -22,6 +22,7 @@ import {
   formatPoints,
   isKindOf,
   isSubtype,
+  fieldOf,
   listField,
   nextFreeBoxNumber,
   parsePoints,
@@ -47,6 +48,8 @@ export interface ViewClipboardPayload {
   readonly format: typeof VIEW_CLIPBOARD_FORMAT
   readonly version: 1
   readonly diagramType: string
+  /** The diagram the views were copied from (absent in older payloads). */
+  readonly diagramId?: string
   readonly views: readonly JsonObject[]
   /** Models the copied views show, pasted as new elements (absent in older payloads). */
   readonly models?: readonly ModelCopy[]
@@ -166,6 +169,7 @@ export function copyViews(repo: Repository, diagram: Diagram, ids: readonly stri
     format: VIEW_CLIPBOARD_FORMAT,
     version: 1,
     diagramType: diagram._type,
+    diagramId: diagram._id,
     views: json,
     models,
     outerRefs: [...new Set([...outerRefIds(json, inside), ...outerRefIds(models.map((m) => m.json), inside), ...models.map((m) => m.owner).filter((id) => !inside.has(id))])],
@@ -249,6 +253,22 @@ function readAll(repo: Repository, roots: readonly JsonObject[]): Elem[] {
 
 export class PasteError extends Error {}
 
+/**
+ * Where a copied element whose owner was not copied goes: with its original owner on the diagram it
+ * came from, on another diagram in what that diagram shows (its owner, or the machine's first
+ * region), or with the original owner if that cannot hold it.
+ */
+function pasteOwner(repo: Repository, diagram: Diagram, payload: ViewClipboardPayload, copy: ModelCopy): Elem | undefined {
+  const original = repo.get(copy.owner)
+  const scope = diagram._parent
+  if (!scope || !payload.diagramId || payload.diagramId === diagram._id) return original
+  const region = listField(scope, 'regions')[0]
+  const holders = region ? [scope, region] : [scope]
+  // An IDEF0 box is never left in its original owner: that would number it on another diagram.
+  const fallback = copy.json['_type'] === 'IDEF0Function' ? scope : original
+  return holders.find((h) => fieldOf(h, copy.field)?.kind === 'objs') ?? fallback
+}
+
 /** Whether a diagram of type `diagramType` may hold a top-level view of type `viewType`. */
 export type ViewHostPredicate = (diagramType: string, viewType: string) => boolean
 
@@ -297,12 +317,12 @@ export function pasteViews(
   const copies = elements.slice(0, models.length)
   const views = elements.slice(models.length)
   const byId = new Map(elements.map((e) => [e._id, e]))
-  const ownerOf = (id: string): Elem | undefined => byId.get(mapping.get(id) ?? '') ?? repo.get(id)
   engine.transact(options.name ?? 'Paste', (builder) => {
     models.forEach((m, i) => {
-      const owner = ownerOf(m.owner)
       const copy = copies[i] as Elem
+      const owner = byId.get(mapping.get(m.owner) ?? '') ?? pasteOwner(repo, diagram, payload, m)
       if (!owner) throw new PasteError('Some copied elements no longer exist')
+      if (copy._type === 'IDEF0Function' && !fieldOf(owner, 'functions')) throw new PasteError('The context diagram has only its top box')
       // A pasted IDEF0 box takes the next free box number on its diagram.
       if (copy._type === 'IDEF0Function') copy['boxNumber'] = nextFreeBoxNumber(listField(owner, 'functions'))
       builder.insert(owner, m.field, copy)
