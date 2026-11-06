@@ -74,6 +74,13 @@ function restoreWorkingDiagrams(path: string): void {
 // ---------------------------------------------------------------------------------------------
 // Unsaved changes
 
+let askingToSave = false
+
+/** Whether the "save the changes?" question is open: auto-save must not answer it for the user. */
+export function isAskingToSave(): boolean {
+  return askingToSave
+}
+
 /**
  * If the project has unsaved changes, asks Save / Don't Save / Cancel. Resolves true when the
  * caller may proceed (saved or discarded), false when cancelled.
@@ -85,12 +92,15 @@ async function confirmDiscardChanges(): Promise<boolean> {
   const name = ps().filePath ? baseName(ps().filePath as string) : 'Untitled'
   // macOS HIG order: Save, Cancel, Don't Save.
   const buttons = isMac ? ['Save', 'Cancel', "Don't Save"] : ['Save', "Don't Save", 'Cancel']
-  const choice = await bridge.showMessageBox({
-    type: 'warning',
-    message: `Do you want to save the changes to ${name}?`,
-    detail: 'Your changes will be lost if you do not save them.',
-    buttons
-  })
+  askingToSave = true
+  const choice = await bridge
+    .showMessageBox({
+      type: 'warning',
+      message: `Do you want to save the changes to ${name}?`,
+      detail: 'Your changes will be lost if you do not save them.',
+      buttons
+    })
+    .finally(() => (askingToSave = false))
   const label = buttons[choice]
   if (label === 'Save') return saveProject()
   return label === "Don't Save"

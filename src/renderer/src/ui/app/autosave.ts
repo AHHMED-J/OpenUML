@@ -9,7 +9,7 @@
 import { projectStore } from '../../store'
 import { uiStore } from '../uiStore'
 import { bridge } from './bridge'
-import { loadRecoveredProject, saveSilently } from './fileOps'
+import { isAskingToSave, loadRecoveredProject, saveSilently } from './fileOps'
 
 /** Quiet time after a change before the recovery copy is taken. */
 const RECOVERY_DELAY_MS = 2000
@@ -106,7 +106,7 @@ export function startAutosave(): () => void {
   const tick = async (): Promise<void> => {
     const seconds = ui().prefs.autoSaveSeconds
     const s = ps()
-    if (saving || seconds <= 0 || !s.filePath || !s.dirty || ui().modal) return
+    if (saving || seconds <= 0 || !s.filePath || !s.dirty || ui().modal || isAskingToSave()) return
     const now = Date.now()
     if (now - lastChange < AUTO_SAVE_IDLE_MS || now - dirtySince < seconds * 1000 || now - lastAutoSave < seconds * 1000) return
     saving = true
