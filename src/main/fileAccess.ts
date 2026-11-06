@@ -2,6 +2,7 @@
  * File-system guards for the IPC handlers: which paths the renderer may read and write, and
  * crash-safe writing. Kept free of Electron so it can be unit tested.
  */
+import { randomUUID } from 'node:crypto'
 import { chmod, mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { isAbsolutePath } from './ipcValidation'
@@ -126,10 +127,27 @@ export async function readProjectFile(path: string, requireProjectTarget: boolea
  * a symbolic link at `path` keeps pointing to the (replaced) file it links to, and a replaced file
  * keeps its permissions.
  */
-export async function writeFileAtomic(path: string, data: string | Buffer): Promise<void> {
+export function writeFileAtomic(path: string, data: string | Buffer): Promise<void> {
+  // Runs after the previous write to this path, whether it worked or not.
+  const write = (writeQueues.get(path) ?? Promise.resolve()).then(
+    () => replaceFile(path, data),
+    () => replaceFile(path, data)
+  )
+  const settled = write.catch(() => undefined)
+  writeQueues.set(path, settled)
+  void settled.then(() => {
+    if (writeQueues.get(path) === settled) writeQueues.delete(path)
+  })
+  return write
+}
+
+/** Last pending write per path: saves of one file run one at a time, in the order they were asked for. */
+const writeQueues = new Map<string, Promise<void>>()
+
+async function replaceFile(path: string, data: string | Buffer): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
   const target = await realpath(path).catch(() => path)
-  const tmp = join(dirname(target), `.${basename(target)}.${process.pid}.${Date.now()}.tmp`)
+  const tmp = join(dirname(target), `.${basename(target)}.${process.pid}.${randomUUID()}.tmp`)
   try {
     await writeFile(tmp, data)
     const mode = await stat(target).then((info) => info.mode & 0o7777, () => null)

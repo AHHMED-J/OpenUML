@@ -9,7 +9,7 @@ import { fieldOf, isKindOf, type Diagram, type View } from '../model'
 import { activeDiagram, projectStore, selectedViews } from '../store'
 import { LineStyle, stepZoom, ZOOM } from './core'
 import { canCopyViewsOf, copyViews, duplicateViews, parseClipboard, pasteViews, PasteError, serializeClipboard, type ViewClipboardPayload, type ViewHostPredicate } from './clipboard'
-import { findDropContainer, moveSelection, type DiagramEnv } from './editor/actions'
+import { deleteViews, findDropContainer, moveSelection, type DiagramEnv } from './editor/actions'
 import { getActiveEditor } from './editor/activeEditor'
 import { ALIGN_OPS, alignViews, reorderViews } from './editor/alignment'
 import { computeDiagramLayout } from './layout/layoutDiagram'
@@ -28,6 +28,7 @@ export interface DiagramCommandContext {
 export const DiagramCommandIds = {
   selectAll: 'edit.select-all',
   cut: 'edit.cut',
+  delete: 'edit.delete',
   copy: 'edit.copy',
   paste: 'edit.paste',
   duplicate: 'edit.duplicate',
@@ -107,6 +108,13 @@ function currentDiagram(): Diagram | null {
 
 function selection(): View[] {
   return selectedViews(state())
+}
+
+/** Deletes the selected views under the rules of the diagram they are on (IDEF0, RAD). */
+function deleteSelection(name?: string): void {
+  const diagram = currentDiagram()
+  if (diagram) deleteViews(envOf(diagram), state().selectedViewIds, name)
+  else deleteFromView(state().engine, selection(), name)
 }
 
 function selectViews(ids: readonly string[]): void {
@@ -255,8 +263,14 @@ export function registerDiagramCommands(registry: CommandRegistry, ctx: DiagramC
     isEnabled: () => isTextFieldFocused() || (hasSelection() && canCopyViewsOf(currentDiagram() as Diagram)),
     run: () => {
       if (nativeEdit('cut')) return
-      if (copySelection()) deleteFromView(state().engine, selection(), 'Cut')
+      if (copySelection()) deleteSelection('Cut')
     }
+  })
+  add({
+    id: DiagramCommandIds.delete,
+    label: 'Delete',
+    isEnabled: () => state().selectedViewIds.length > 0,
+    run: () => deleteSelection()
   })
   add({
     id: DiagramCommandIds.paste,
