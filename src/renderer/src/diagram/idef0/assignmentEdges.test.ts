@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { writeMdj } from '../../format'
-import { functionViewsOf, type Elem, type View } from '../../model'
+import { functionViewsOf, type EdgeView, type Elem, type View } from '../../model'
 import { duplicateViews } from '../clipboard'
 import { assignParentArrow } from './assignment'
 import { addBoundaryArrow, toggleTunnel } from './decompose'
+import { createIdef0Edge } from './gestures'
 import { pendingPorts } from './pending'
 import { measurer, newKit } from './testkit'
 import { validateIdef0 } from './validate'
@@ -60,6 +61,21 @@ describe('copying parent arrows on a child diagram', () => {
     const view = k.child.ownedViews.find((v) => v.model === k.port('control')) as View
     expect(duplicateViews(k.engine, k.child, [view._id])).toEqual([])
     expect(linkedPorts(k, 'control')).toHaveLength(1)
+  })
+
+  it('leaves out a branch whose trunk is not copied, so no copy points at the original trunk', () => {
+    const k = parentArrows()
+    assignParentArrow(k.envOf(k.child), k.port('input'), [k.box(1)])
+    const trunk = k.child.ownedViews.find((v) => (v as EdgeView).tail?.model === k.port('input')) as EdgeView
+    const target = k.boxes(k.child)[1]!
+    const fork = createIdef0Edge(k.envOf(k.child), k.layoutOf(k.child), { kind: 'IDEF0Arrow' }, trunk._id, target._id, { x: 0, y: 0 }, { x: target.left + 4, y: target.top + 20 })
+    expect((k.repository.get(fork as string) as EdgeView).tail).toBe(trunk)
+
+    const pasted = duplicateViews(k.engine, k.child, k.child.ownedViews.map((v) => v._id)).map((id) => k.repository.get(id) as EdgeView)
+    const arrows = pasted.filter((v) => v._type === 'IDEF0ArrowView')
+    expect(arrows.filter((v) => !v.tail || !v.head)).toEqual([])
+    expect(arrows.filter((v) => (v.model as Elem)['source'] === trunk.model)).toEqual([])
+    expect(k.repository.get(fork as string)).toBeDefined()
   })
 
   it('duplicates a box without the boundary arrow of the parent arrow it uses', () => {
