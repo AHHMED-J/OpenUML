@@ -28,7 +28,7 @@ function keyOf(modal: object): number {
 
 /** Closes `modal`, answering a pending promise-based dialog with "cancelled". */
 function dismissModal(modal: ModalState): void {
-  if (modal.kind === 'prompt' || modal.kind === 'picker' || modal.kind === 'refList' || modal.kind === 'checklist' || modal.kind === 'website') modal.resolve(null)
+  if ('resolve' in modal) modal.resolve(null)
   uiStore.getState().openModal(null)
 }
 
