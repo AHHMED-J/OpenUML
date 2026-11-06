@@ -472,6 +472,7 @@ export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'hea
   }
   if (unchanged) return false
   withGeometry(env, 'Reconnect', (b) => {
+    const oldTail = edge.tail
     b.set(edge, end, view)
     const model = edge.model
     if (isKindOf(model, 'DirectedRelationship')) b.set(model, end === 'tail' ? 'source' : 'target', view.model)
@@ -479,6 +480,9 @@ export function reconnectEnd(env: DiagramEnv, edgeId: string, end: 'tail' | 'hea
       const relEnd = end === 'tail' ? model.end1 : model.end2
       if (relEnd) b.set(relEnd, 'reference', view.model)
     }
+    // A relationship owned by its source follows it: deleting the old source must not delete it.
+    const newOwner = view.model
+    if (end === 'tail' && model && newOwner && model._parent === oldTail?.model && fieldOf(newOwner, 'ownedElements')?.kind === 'objs') b.move(model, newOwner, 'ownedElements')
   })
   return true
 }
