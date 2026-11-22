@@ -12,7 +12,7 @@ release/
 *.pem
 *.key
 
-# Reverse-engineering artifacts (never publish)
+# Local analysis output (never publish)
 rea-out/
 *.evidence.json
 analysis/
