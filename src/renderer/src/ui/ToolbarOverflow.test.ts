@@ -3,7 +3,8 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ToolbarOverflow } from './ToolbarOverflow'
-import { Toolbar } from './Toolbar'
+import { Shell } from './Shell'
+import { Toolbar, ToolRail, toolbarPlacement } from './Toolbar'
 import { uiStore } from './uiStore'
 
 declare global {
@@ -72,18 +73,35 @@ describe('compact toolbar drop-down', () => {
     expect(panel(el)).toBeNull()
   })
 
-  it('keeps every toolbar button: compact shows four on the bar and the rest in the drop-down', () => {
+  it('compact mode drops the row and shows the column beside the canvas, after the diagram area', () => {
+    act(() => uiStore.getState().setPrefs({ toolbarMode: 'compact' }))
+    const el = mount(createElement(Shell))
+    expect(el.querySelector('.toolbar')).toBeNull()
+    const rail = el.querySelector('.workspace > .tool-rail')
+    expect(rail).not.toBeNull()
+    expect(rail?.previousElementSibling?.classList.contains('diagram-area')).toBe(true)
+    act(() => uiStore.getState().setPrefs({ toolbarMode: 'normal' }))
+    expect(el.querySelector('.toolbar')).not.toBeNull()
+    expect(el.querySelector('.tool-rail')).toBeNull()
+  })
+
+  it('keeps every toolbar button: the column shows Save, Undo and Redo and the drop-down the rest', () => {
     const labels = (el: HTMLElement): string[] =>
       [...el.querySelectorAll('button[aria-label]')].map((b) => b.getAttribute('aria-label') as string).filter((l) => l !== 'More Tools')
     const normal = labels(mount(createElement(Toolbar)))
     act(() => root?.unmount())
     host?.remove()
-    act(() => uiStore.getState().setPrefs({ toolbarMode: 'compact' }))
-    const el = mount(createElement(Toolbar))
-    const bar = labels(el)
-    expect(bar).toEqual(['Save', 'Undo', 'Redo'])
-    expect(el.querySelector('.toolbar-zoom')).not.toBeNull()
+    const el = mount(createElement(ToolRail))
+    expect(labels(el)).toEqual(['Save', 'Undo', 'Redo'])
+    expect(el.querySelector('.toolbar-zoom')).toBeNull()
+    for (const b of el.querySelectorAll('button')) expect(b.getAttribute('data-tip-side')).toBe('left')
     click(trigger(el))
     expect([...labels(el)].sort()).toEqual([...normal].sort())
+  })
+
+  it('places the toolbar by mode, and hides both when the toolbar is hidden', () => {
+    expect(toolbarPlacement('normal', true)).toEqual({ row: true, rail: false })
+    expect(toolbarPlacement('compact', true)).toEqual({ row: false, rail: true })
+    expect(toolbarPlacement('compact', false)).toEqual({ row: false, rail: false })
   })
 })

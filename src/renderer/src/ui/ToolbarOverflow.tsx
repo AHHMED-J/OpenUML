@@ -1,7 +1,8 @@
 /**
  * Drop-down of the compact toolbar: a button that shows the toolbar buttons that do not fit the
- * compact bar. Using any button in it closes it (open it again for the next one); so do Esc, a click
- * outside, and clicking the trigger again. Opening it moves the keyboard focus to its first button.
+ * compact column. It opens beside its button, towards the canvas, and its tooltip goes left too.
+ * Using any button in it closes it (open it again for the next one); so do Esc, a click outside,
+ * and clicking the trigger again. Opening it moves the keyboard focus to its first button.
  */
 import { useEffect, useId, useRef, useState } from 'react'
 import type React from 'react'
@@ -43,13 +44,14 @@ export function ToolbarOverflow({ label = 'More Tools', children }: { label?: st
         ref={trigger}
         className={`icon-button toolbar-button${open ? ' pressed' : ''}`}
         data-tip={label}
+        data-tip-side="left"
         aria-label={label}
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((v) => !v)}
       >
-        <UiIcon name="chevron-down" />
+        <UiIcon name="ellipsis" />
       </button>
       {open ? (
         <div

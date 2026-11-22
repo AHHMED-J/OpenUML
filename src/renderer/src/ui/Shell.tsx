@@ -1,5 +1,6 @@
 /**
- * Application shell layout: toolbar; left and right dock areas around the center diagram area;
+ * Application shell layout: toolbar (a row, or a column beside the canvas in Compact mode); left and
+ * right dock areas around the center diagram area;
  * status bar. Each part of the window has its own error boundary (`components/PanelBoundary`),
  * so a render error in one panel shows a "Reload panel" notice there instead of a blank window.
  * Each dock area is a vertical stack of dockable panels (Model Explorer, Working
@@ -21,7 +22,7 @@ import { ContextMenuHost } from './menus/ContextMenu'
 import { ModalHost, Toasts } from './Overlays'
 import { TooltipLayer } from './components/Tooltip'
 import { StatusBar } from './StatusBar'
-import { Toolbar } from './Toolbar'
+import { Toolbar, ToolRail, toolbarPlacement } from './Toolbar'
 import { appTheme } from './canvasMode'
 import { uiStore, useUiStore } from './uiStore'
 
@@ -60,10 +61,11 @@ function ShellLayout(): React.JSX.Element {
   // An area collapses out of the window when hidden or when none of its panels is shown.
   const showLeft = panels.sidebar.visible && !isAreaEmpty(dock, 'left')
   const showRight = panels.navigator.visible && !isAreaEmpty(dock, 'right')
+  const toolbar = toolbarPlacement(useUiStore((s) => s.prefs.toolbarMode), panels.toolbar.visible)
 
   return (
     <div className="app">
-      {panels.toolbar.visible ? (
+      {toolbar.row ? (
         <PanelBoundary name="Toolbar">
           <Toolbar />
         </PanelBoundary>
@@ -87,6 +89,11 @@ function ShellLayout(): React.JSX.Element {
           </>
         ) : null}
         <DiagramArea />
+        {toolbar.rail ? (
+          <PanelBoundary name="Toolbar">
+            <ToolRail />
+          </PanelBoundary>
+        ) : null}
         {showRight ? (
           <>
             <Splitter

@@ -51,7 +51,7 @@ export function PreferencesDialog(): React.JSX.Element {
           </select>
         </div>
         <div className="pref-row">
-          <label htmlFor="pref-toolbar" title="Compact keeps Save, Undo, Redo and the zoom on the toolbar and puts the other buttons in a drop-down">
+          <label htmlFor="pref-toolbar" title="Compact removes the toolbar row: Save, Undo, Redo and a button with the other tools go in a thin column beside the canvas">
             Toolbar mode
           </label>
           <select id="pref-toolbar" value={prefs.toolbarMode} onChange={(e) => set({ toolbarMode: e.target.value as ToolbarMode })}>

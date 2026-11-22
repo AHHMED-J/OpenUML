@@ -1,7 +1,8 @@
 /**
  * Tooltips of the app's icon buttons: any element with a `data-tip` attribute shows that text in a
  * small bubble after a short hover (about 0.4 s; at once when moving from one tipped button to the
- * next), or when it gets keyboard focus. Replaces the native `title` tooltips, which come late or
+ * next), or when it gets keyboard focus. `data-tip-side="left"` puts the bubble at the element's left
+ * (for buttons along the right edge of the window). Replaces the native `title` tooltips, which come late or
  * not at all in Electron on macOS. One layer for the whole window, mounted once by the shell.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -19,10 +20,28 @@ const EDGE = 4
 interface Tip {
   readonly text: string
   readonly anchor: DOMRect
+  readonly side: TipSide
 }
 
-/** Where a bubble of `size` goes for `anchor`: centered below it, above when it would not fit. */
-export function tooltipPosition(anchor: { left: number; top: number; width: number; height: number }, size: { width: number; height: number }, viewport: { width: number; height: number }): { left: number; top: number } {
+export type TipSide = 'below' | 'left'
+
+/**
+ * Where a bubble of `size` goes for `anchor`: centered below it, above when it would not fit; or, for
+ * `left`, beside it on the left, vertically centered (on the right when there is no room).
+ */
+export function tooltipPosition(
+  anchor: { left: number; top: number; width: number; height: number },
+  size: { width: number; height: number },
+  viewport: { width: number; height: number },
+  side: TipSide = 'below'
+): { left: number; top: number } {
+  if (side === 'left') {
+    const before = anchor.left - GAP - size.width
+    const left = before >= EDGE ? before : Math.min(anchor.left + anchor.width + GAP, Math.max(EDGE, viewport.width - EDGE - size.width))
+    const middle = anchor.top + anchor.height / 2 - size.height / 2
+    const top = Math.min(Math.max(EDGE, middle), Math.max(EDGE, viewport.height - EDGE - size.height))
+    return { left: Math.round(left), top: Math.round(top) }
+  }
   const below = anchor.top + anchor.height + GAP
   const top = below + size.height + EDGE <= viewport.height ? below : Math.max(EDGE, anchor.top - GAP - size.height)
   const centered = anchor.left + anchor.width / 2 - size.width / 2
@@ -63,7 +82,7 @@ export function TooltipLayer(): React.JSX.Element | null {
         const text = el.getAttribute('data-tip')
         if (!text || !el.isConnected) return
         shown = true
-        setTip({ text, anchor: el.getBoundingClientRect() })
+        setTip({ text, anchor: el.getBoundingClientRect(), side: el.getAttribute('data-tip-side') === 'left' ? 'left' : 'below' })
       }, delay)
     }
     const onOver = (e: PointerEvent): void => {
@@ -111,7 +130,7 @@ export function TooltipLayer(): React.JSX.Element | null {
     const el = bubble.current
     if (!tip || !el) return setPos(null)
     const r = el.getBoundingClientRect()
-    setPos(tooltipPosition(tip.anchor, { width: r.width, height: r.height }, { width: window.innerWidth, height: window.innerHeight }))
+    setPos(tooltipPosition(tip.anchor, { width: r.width, height: r.height }, { width: window.innerWidth, height: window.innerHeight }, tip.side))
   }, [tip])
 
   if (!tip) return null

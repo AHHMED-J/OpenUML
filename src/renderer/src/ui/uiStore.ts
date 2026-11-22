@@ -43,7 +43,10 @@ export type ThemePreference = 'system' | 'dark' | 'light'
 /** The diagram canvas: fixed, or following the app theme. */
 export type CanvasPreference = 'light' | 'dark' | 'follow'
 export type SortMode = 'added' | 'name'
-/** Normal: every toolbar button. Compact: Save, Undo, Redo and the zoom, the rest in a drop-down. */
+/**
+ * Normal: every toolbar button in a row at the top. Compact: no row; a thin column beside the canvas
+ * with Save, Undo, Redo and a drop-down with the rest (the zoom shows in the status bar).
+ */
 export type ToolbarMode = 'normal' | 'compact'
 
 export interface PanelState {
