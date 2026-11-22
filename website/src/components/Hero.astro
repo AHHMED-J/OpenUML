@@ -5,8 +5,8 @@
  * and fades out again once the mouse leaves, so a moving mouse leaves a short wake of tiles. The
  * tiles never move, catch clicks or focus, and are hidden from screen readers.
  *
- * Cost: one pointermove listener for the whole hero works out the tile from the coordinates and
- * changes a class only when the tile changes, once per frame; only opacity transitions. The ten
+ * Cost: one pointermove listener for the page works out the tile from the coordinates and
+ * changes a class only when the tile changes; only opacity transitions. The ten
  * pictures (SVG exports of the example models in public/hero, `<name>-light.svg` and
  * `<name>-dark.svg` for the page theme) are fetched and decoded once, off the main thread, when
  * the mouse first enters, and a tile gets its picture only once it is lit. Without a mouse
@@ -44,8 +44,9 @@ const pictureRules = PICTURES.map(
     --cols: 8;
     --tile-opacity: 0.4;
     position: absolute;
-    top: 0;
-    bottom: 0;
+    /* From the header down to the app picture: past the content panel's 1.5rem padding. */
+    top: -1.5rem;
+    bottom: -1.5rem;
     left: 50%;
     width: 100vw;
     transform: translateX(-50%);
@@ -101,24 +102,27 @@ const pictureRules = PICTURES.map(
   const mouse = window.matchMedia('(hover: hover) and (pointer: fine)')
   const still = window.matchMedia('(prefers-reduced-motion: reduce)')
   if (grid && mouse.matches) {
-    const hero = grid.parentElement as HTMLElement
     const tiles = grid.children
     const names = (grid.dataset.pictures ?? '').split(' ')
     const PICTURES = names.length
     const GAP = 2
-    // Grid geometry in page coordinates (unchanged by scrolling), measured on entering the hero.
+    // Grid box in page coordinates (unchanged by scrolling); measured on the first move and on resize.
+    let measured = false
     let left = 0
     let top = 0
+    let right = 0
+    let bottom = 0
     let colPitch = 1
     let rowPitch = 1
     let cols = 1
     let laidOut = -1
-    let x = 0
-    let y = 0
+    // Last pointer position in the window (page position = this + scroll).
+    let x = -1
+    let y = -1
     let lit: Element | null = null
-    let frame = 0
 
     const measure = (): void => {
+      measured = true
       const box = grid.getBoundingClientRect()
       cols = Number(getComputedStyle(grid).getPropertyValue('--cols')) || 8
       // Columns share the width less the 2px gaps; rows are width / cols tall, plus a gap.
@@ -126,6 +130,8 @@ const pictureRules = PICTURES.map(
       rowPitch = box.width / cols + GAP
       left = box.left + window.scrollX
       top = box.top + window.scrollY
+      right = left + box.width
+      bottom = top + box.height
       if (laidOut === cols) return
       // Pictures by row and column: neighbours (sides and corners) never share one.
       laidOut = cols
@@ -153,33 +159,34 @@ const pictureRules = PICTURES.map(
       tile?.classList.add('seen', 'on')
       lit = tile
     }
+    // Browsers already send at most one pointermove per frame, and this is a few sums that touch
+    // the page only when the tile changes, so it runs right away (no frame wait to miss).
     const update = (): void => {
-      frame = 0
-      const c = Math.floor((x - left) / colPitch)
-      const r = Math.floor((y - top) / rowPitch)
-      light(c >= 0 && c < cols && r >= 0 ? (tiles[r * cols + c] ?? null) : null)
+      if (!measured) measure()
+      const px = x + window.scrollX
+      const py = y + window.scrollY
+      if (x < 0 || px < left || px >= right || py < top || py >= bottom) return light(null)
+      preload()
+      const c = Math.min(cols - 1, Math.floor((px - left) / colPitch))
+      const r = Math.floor((py - top) / rowPitch)
+      light(tiles[r * cols + c] ?? null)
     }
-
-    hero.addEventListener(
-      'pointerenter',
-      (e) => {
-        if (e.pointerType !== 'mouse' || !mouse.matches || still.matches) return
-        measure()
-        preload()
-      },
-      { passive: true }
-    )
-    hero.addEventListener(
+    // One listener for the whole page: the grid spans the window, wider than the hero's column,
+    // and the title, text and buttons sit on top of it.
+    document.addEventListener(
       'pointermove',
       (e) => {
         if (e.pointerType !== 'mouse' || !mouse.matches || still.matches) return
-        x = e.pageX
-        y = e.pageY
-        if (!frame) frame = requestAnimationFrame(update)
+        x = e.clientX
+        y = e.clientY
+        update()
       },
       { passive: true }
     )
-    hero.addEventListener('pointerleave', () => light(null), { passive: true })
-    window.addEventListener('resize', () => loaded.size > 0 && measure(), { passive: true })
+    // Leaving the window turns the tile off; scrolling moves the page under a still pointer.
+    document.documentElement.addEventListener('pointerleave', () => ((x = -1), update()), { passive: true })
+    window.addEventListener('scroll', () => x >= 0 && update(), { passive: true })
+    window.addEventListener('resize', () => measured && measure(), { passive: true })
+    window.addEventListener('load', () => measured && measure(), { passive: true })
   }
 </script>
