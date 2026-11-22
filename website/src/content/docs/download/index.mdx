@@ -1,0 +1,33 @@
+---
+title: Download
+description: Download OpenUML for Windows, macOS and Linux.
+---
+
+import DownloadButton from '../../../components/DownloadButton.astro'
+
+<DownloadButton />
+
+## Or use it in your browser
+
+[OpenUML in your browser](/app/) has every feature of the desktop app, with nothing to install. It works in Chrome, Edge, Firefox and Safari, and your files never leave your computer. [How it works](/docs/browser/).
+
+## All files
+
+Every release is on [GitHub](https://github.com/AHHMED-J/OpenUML/releases/latest), with SHA-256 checksums in `SHA256SUMS.txt`.
+
+| System | File |
+| --- | --- |
+| Windows 10/11 (64-bit) | [OpenUML-win-x64.exe](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-win-x64.exe) |
+| macOS, Apple Silicon (M1 or later) | [OpenUML-mac-arm64.dmg](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-mac-arm64.dmg) |
+| macOS, Intel | [OpenUML-mac-x64.dmg](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-mac-x64.dmg) |
+| Linux (64-bit) | [OpenUML-linux-x86_64.AppImage](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-linux-x86_64.AppImage) |
+
+## First launch
+
+The builds are not code-signed yet, so each system warns the first time you open OpenUML.
+
+- **Windows:** in "Windows protected your PC", click *More info*, then *Run anyway*.
+- **macOS:** open the `.dmg`, drag OpenUML to *Applications*, then right-click it and choose *Open* (or *System Settings › Privacy & Security › Open Anyway*). If macOS says the app "is damaged", run `xattr -cr /Applications/OpenUML.app` once in Terminal.
+- **Linux:** make the AppImage executable (`chmod +x OpenUML-*.AppImage`) and run it. Without FUSE 2, add `--appimage-extract-and-run`; on Ubuntu 24.04 or later you may also need `--no-sandbox`.
+
+See the [code signing policy](https://github.com/AHHMED-J/OpenUML/blob/main/docs/CODE_SIGNING_POLICY.md).

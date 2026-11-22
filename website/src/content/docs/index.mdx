@@ -1,0 +1,73 @@
+---
+title: OpenUML
+description: The free, open-source alternative to StarUML. UML, IDEF0 and Role Activity Diagrams for Windows, macOS and Linux.
+template: splash
+hero:
+  tagline: The free, open-source alternative to StarUML. 15 UML diagram types, IDEF0 and Role Activity Diagrams, saved in .mdj files, on Windows, macOS and Linux.
+  image:
+    file: ../../assets/logo-large.png
+    alt: ''
+  actions:
+    - text: Download
+      link: /download/
+      icon: right-arrow
+    - text: Try it in your browser
+      link: /app/
+      icon: external
+      variant: secondary
+      attrs:
+        target: _blank
+    - text: Documentation
+      link: /docs/getting-started/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components'
+import AppShot from '../../components/AppShot.astro'
+import SystemDownloads from '../../components/SystemDownloads.astro'
+
+<AppShot alt="OpenUML with a class diagram open" />
+
+## What you can draw
+
+![Sequence, activity, state machine, use case, IDEF0 and RAD diagrams made in OpenUML](../../assets/gallery.png)
+
+<CardGrid>
+  <Card title="UML structure" icon="seti:folder">
+    Class, object, package, component, deployment, composite structure and profile diagrams.
+  </Card>
+  <Card title="UML behavior" icon="random">
+    Use case, activity, state machine, sequence, communication, timing, interaction overview and information flow.
+  </Card>
+  <Card title="IDEF0" icon="puzzle">
+    Automatic numbering, ICOM arrows, decomposition into child diagrams, the A-0 context diagram and consistency warnings.
+  </Card>
+  <Card title="Role Activity Diagrams" icon="seti:pipeline">
+    Roles, activities, interactions between roles, case and part refinements, waits and state markers.
+  </Card>
+</CardGrid>
+
+## Built for everyday modeling
+
+<CardGrid>
+  <Card title="Your files, open format" icon="document">
+    Models are `.mdj` files: plain JSON you own, that other tools that read `.mdj` can open too.
+  </Card>
+  <Card title="Safe editing" icon="approve-check">
+    Undo and redo for every change, autosave every minute and recovery after a crash.
+  </Card>
+  <Card title="Share it" icon="external">
+    Export to PNG, SVG and PDF, or to an offline interactive website that anyone can browse.
+  </Card>
+  <Card title="Your way" icon="setting">
+    Light and dark themes, a compact toolbar, panels you can rearrange, a command palette and custom shortcuts.
+  </Card>
+</CardGrid>
+
+## Get OpenUML
+
+Free and open source under the MIT license. No account, no telemetry: the only automatic connection is the update check, which you can turn off.
+
+<SystemDownloads />
+
+Or [use it in your browser](/app/), with nothing to install: your files stay on your computer. [How it works](/docs/browser/).

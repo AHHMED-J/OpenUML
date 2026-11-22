@@ -8,22 +8,24 @@ import { projectStore, registerCoreCommands } from '../../store'
 import { effectiveBindings, type KeybindingOverrides } from '../keybindings'
 import { Keymap } from '../keymap'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
-import { DEFAULT_KEYMAP } from '../menus/keymaps'
+import { DEFAULT_KEYMAP, browserKeymap } from '../menus/keymaps'
 import { diagramCanHostView } from '../toolbox/palettes'
 import { uiStore } from '../uiStore'
 import { registerAppCommands } from './appCommands'
 import { registerAssociationEndCommands } from './associationEnds'
 import { registerIdef0 } from './idef0'
-import { bridge, isTextInputFocused, platform } from './bridge'
+import { bridge, isTextInputFocused, isWeb, platform } from './bridge'
 
 export const registry = new CommandRegistry()
-export const keymap = new Keymap(platform, DEFAULT_KEYMAP)
+/** The default shortcuts; in a browser, the keys it keeps for itself are moved (`browserKeymap`). */
+const DEFAULTS = isWeb ? browserKeymap(DEFAULT_KEYMAP) : DEFAULT_KEYMAP
+export const keymap = new Keymap(platform, DEFAULTS)
 
 let initialized = false
 
 /** Puts the default shortcuts, with the user's customizations, into effect. */
 export function applyKeybindings(overrides: KeybindingOverrides): void {
-  keymap.reset(effectiveBindings(DEFAULT_KEYMAP, overrides, platform))
+  keymap.reset(effectiveBindings(DEFAULTS, overrides, platform))
   for (const warning of keymap.warnings) console.warn(warning)
 }
 

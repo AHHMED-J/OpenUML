@@ -17,7 +17,7 @@ import { Cmd } from '../menus/commandIds'
 import { ADD_DIAGRAM_ITEMS, ADD_ITEMS, addDiagram, addModelElement, diagramPlacement } from '../modelActions'
 import { currentCanvasMode } from '../canvasMode'
 import { promptText, uiStore, type ToggleablePanel } from '../uiStore'
-import { bridge, showInFolderLabel } from './bridge'
+import { bridge, isWeb, showInFolderLabel } from './bridge'
 import { EXAMPLES } from '../examples'
 import { promptBoxCount } from './boxCount'
 import { checkForUpdates, offerUpdate } from './updates'
@@ -200,7 +200,15 @@ export function registerAppCommands(registry: CommandRegistry): void {
       return example ? openExample(example.text) : undefined
     }
   })
-  add({ id: Cmd.fileClearRecent, label: 'Clear Recent', run: () => ui().clearRecent(), isEnabled: () => ui().recentFiles.length > 0 })
+  add({
+    id: Cmd.fileClearRecent,
+    label: 'Clear Recent',
+    run: () => {
+      ui().clearRecent()
+      void bridge?.forgetRecentFiles?.()
+    },
+    isEnabled: () => ui().recentFiles.length > 0
+  })
   add({ id: Cmd.fileSave, label: 'Save', run: () => saveProject(), isEnabled: () => bridge !== null })
   add({ id: Cmd.fileSaveAs, label: 'Save As...', run: () => saveProjectAs(), isEnabled: () => bridge !== null })
   add({
@@ -210,9 +218,11 @@ export function registerAppCommands(registry: CommandRegistry): void {
       const path = projectStore.getState().filePath
       if (path) bridge?.showItemInFolder(path)
     },
-    isEnabled: () => bridge !== null && projectStore.getState().filePath !== null
+    // The web build has no file manager to show the file in.
+    isEnabled: () => bridge !== null && !isWeb && projectStore.getState().filePath !== null
   })
-  add({ id: Cmd.fileClose, label: 'Close', run: () => closeWindow() })
+  // A browser tab is closed by the browser, not by the page.
+  add({ id: Cmd.fileClose, label: 'Close', run: () => closeWindow(), isEnabled: () => !isWeb })
   add({ id: Cmd.fileExportPng, label: 'Export Diagram as PNG...', run: () => exportDiagram('png'), isEnabled: () => hasDiagram() && bridge !== null })
   add({ id: Cmd.fileExportSvg, label: 'Export Diagram as SVG...', run: () => exportDiagram('svg'), isEnabled: () => hasDiagram() && bridge !== null })
   add({
@@ -435,7 +445,8 @@ export function registerAppCommands(registry: CommandRegistry): void {
     id: Cmd.helpCheckForUpdates,
     label: 'Check for Updates...',
     run: () => checkForUpdates('manual'),
-    isEnabled: () => bridge !== null
+    // The web build is always the latest version.
+    isEnabled: () => bridge !== null && !isWeb
   })
   add({
     id: Cmd.helpDownloadUpdate,

@@ -261,6 +261,8 @@ export async function handleCloseRequest(beforeClose?: () => Promise<void>): Pro
 export async function saveSilently(): Promise<void> {
   const path = ps().filePath
   if (!path || !ps().dirty || !bridge) return
+  // In a browser without file access a save is a download: never one every minute.
+  if (bridge.savesInPlace && !bridge.savesInPlace(path)) return
   await writeProject(path)
 }
 

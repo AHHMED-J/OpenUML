@@ -1,0 +1,17 @@
+{
+  "name": "openuml-website",
+  "private": true,
+  "type": "module",
+  "description": "The OpenUML website (openuml.org): Astro + Starlight, English and Spanish.",
+  "scripts": {
+    "dev": "astro dev",
+    "app": "npm --prefix .. run build:web && node scripts/copy-app.mjs",
+    "build": "npm run app && astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.43.1",
+    "astro": "7.4.13"
+  }
+}

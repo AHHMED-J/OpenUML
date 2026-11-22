@@ -24,6 +24,8 @@ import { ModalHost, Toasts } from './Overlays'
 import { TooltipLayer } from './components/Tooltip'
 import { StatusBar } from './StatusBar'
 import { Toolbar, ToolRail, toolbarPlacement } from './Toolbar'
+import { MenuBar } from './MenuBar'
+import { isWeb } from './app/bridge'
 import { appTheme } from './canvasMode'
 import { uiStore, useUiStore } from './uiStore'
 
@@ -66,6 +68,11 @@ function ShellLayout(): React.JSX.Element {
 
   return (
     <div className="app">
+      {isWeb ? (
+        <PanelBoundary name="Menu bar">
+          <MenuBar />
+        </PanelBoundary>
+      ) : null}
       {toolbar.row ? (
         <PanelBoundary name="Toolbar">
           <Toolbar />

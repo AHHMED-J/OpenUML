@@ -1,0 +1,200 @@
+---
+/**
+ * "Get OpenUML": one tile per system with its logo. A system with a single download links to it;
+ * one with several (macOS: chip and file type) opens a short list to pick from. The links use the
+ * version-less copies the release workflow attaches, so they always reach the latest release.
+ * Works without JavaScript (the list is a <details>); the script only closes it on Esc or an
+ * outside click and keeps one open at a time.
+ */
+import { Icon } from '@astrojs/starlight/components'
+
+interface Props {
+  lang?: 'en' | 'es'
+}
+const { lang = 'en' } = Astro.props
+const es = lang === 'es'
+const BASE = 'https://github.com/AHHMED-J/OpenUML/releases/latest/download/'
+
+interface Choice {
+  readonly label: string
+  readonly note: string
+  readonly file: string
+}
+interface System {
+  readonly id: string
+  readonly name: string
+  readonly icon: 'apple' | 'seti:windows' | 'linux'
+  readonly choices: readonly Choice[]
+}
+
+const systems: readonly System[] = [
+  {
+    id: 'mac',
+    name: 'macOS',
+    icon: 'apple',
+    choices: [
+      { label: 'Apple Silicon', note: es ? 'Imagen de disco .dmg' : '.dmg disk image', file: 'OpenUML-mac-arm64.dmg' },
+      { label: 'Intel', note: es ? 'Imagen de disco .dmg' : '.dmg disk image', file: 'OpenUML-mac-x64.dmg' },
+      { label: 'Apple Silicon', note: es ? 'Archivo .zip' : '.zip archive', file: 'OpenUML-mac-arm64.zip' },
+      { label: 'Intel', note: es ? 'Archivo .zip' : '.zip archive', file: 'OpenUML-mac-x64.zip' }
+    ]
+  },
+  {
+    id: 'windows',
+    name: 'Windows',
+    icon: 'seti:windows',
+    choices: [{ label: es ? 'Instalador para Windows' : 'Windows installer', note: '.exe (x64)', file: 'OpenUML-win-x64.exe' }]
+  },
+  {
+    id: 'linux',
+    name: 'Linux',
+    icon: 'linux',
+    choices: [{ label: 'AppImage', note: 'x86_64', file: 'OpenUML-linux-x86_64.AppImage' }]
+  }
+]
+const pick = es ? 'Elige la descarga para' : 'Choose the download for'
+const macHint = es
+  ? '¿No sabes qué Mac tienes? Menú Apple › Acerca de este Mac: «Chip Apple M…» es Apple Silicon.'
+  : 'Not sure which Mac you have? Apple menu › About This Mac: "Chip Apple M…" means Apple Silicon.'
+---
+
+<div class="system-downloads not-content">
+  {
+    systems.map((s) =>
+      s.choices.length === 1 ? (
+        <a class="system-tile" href={`${BASE}${s.choices[0]?.file}`} aria-label={`${s.name}: ${s.choices[0]?.label} (${s.choices[0]?.note})`}>
+          <Icon name={s.icon} size="3rem" />
+          <span class="system-name">{s.name}</span>
+          <span class="system-note">{s.choices[0]?.note}</span>
+        </a>
+      ) : (
+        <details class="system-pick">
+          <summary class="system-tile" aria-label={`${pick} ${s.name}`}>
+            <Icon name={s.icon} size="3rem" />
+            <span class="system-name">{s.name}</span>
+            <span class="system-note">{es ? 'Elegir versión' : 'Choose a version'}</span>
+          </summary>
+          <div class="system-menu" role="group" aria-label={`${pick} ${s.name}`}>
+            <ul>
+              {s.choices.map((c) => (
+                <li>
+                  <a href={`${BASE}${c.file}`}>
+                    <span class="choice-label">{c.label}</span>
+                    <span class="choice-note">{c.note}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+            {s.id === 'mac' ? <p class="system-hint">{macHint}</p> : null}
+          </div>
+        </details>
+      )
+    )
+  }
+</div>
+
+<script>
+  const picks = [...document.querySelectorAll<HTMLDetailsElement>('.system-pick')]
+  for (const d of picks) {
+    d.addEventListener('toggle', () => {
+      if (d.open) for (const other of picks) if (other !== d) other.open = false
+    })
+    d.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !d.open) return
+      d.open = false
+      d.querySelector('summary')?.focus()
+    })
+  }
+  document.addEventListener('click', (e) => {
+    for (const d of picks) if (d.open && !d.contains(e.target as Node)) d.open = false
+  })
+</script>
+
+<style>
+  .system-downloads {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    margin-block: 1.5rem;
+  }
+  .system-pick {
+    position: relative;
+  }
+  .system-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: 10rem;
+    padding: 1.25rem 1rem 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: var(--sl-color-gray-7, var(--sl-color-black));
+    color: var(--sl-color-white);
+    text-decoration: none;
+    cursor: pointer;
+    list-style: none;
+  }
+  .system-tile::-webkit-details-marker {
+    display: none;
+  }
+  .system-tile:hover,
+  .system-pick[open] > .system-tile {
+    border-color: var(--sl-color-accent);
+  }
+  .system-tile:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  .system-name {
+    font-weight: 600;
+    font-size: var(--sl-text-lg);
+  }
+  .system-note {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+  .system-menu {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(23rem, 92vw);
+    padding: 0.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg-nav, var(--sl-color-black));
+    box-shadow: var(--sl-shadow-lg);
+  }
+  .system-menu ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .system-menu a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    color: var(--sl-color-white);
+    text-decoration: none;
+  }
+  .system-menu a:hover,
+  .system-menu a:focus-visible {
+    background: var(--sl-color-accent-low);
+  }
+  .choice-note {
+    white-space: nowrap;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+  .system-hint {
+    margin: 0.5rem 0.75rem 0.25rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+</style>

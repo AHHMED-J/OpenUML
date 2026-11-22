@@ -21,7 +21,7 @@ import {
   type DockLayout,
   type DockPanelId
 } from './dock/dockModel'
-import { platform } from './app/bridge'
+import { isWeb, platform } from './app/bridge'
 import { sanitizeOverrides, type KeybindingOverrides } from './keybindings'
 import { loadJson, saveJson } from './persist'
 import { addRecentFile, removeRecentFile, sanitizeRecentFiles } from './recentFiles'
@@ -93,7 +93,8 @@ export const AUTO_SAVE_INTERVALS: readonly number[] = [0, 30, 60, 120, 300, 600]
 
 const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
-  toolbarMode: 'normal',
+  // The browser version opens with the compact layout: more room for the diagram in a tab.
+  toolbarMode: isWeb ? 'compact' : 'normal',
   canvasMode: 'light',
   exportDarkCanvas: false,
   showGrid: true,

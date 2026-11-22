@@ -1,0 +1,33 @@
+---
+title: Descargas
+description: Descarga OpenUML para Windows, macOS y Linux.
+---
+
+import DownloadButton from '../../../../components/DownloadButton.astro'
+
+<DownloadButton lang="es" />
+
+## O úsalo en el navegador
+
+[OpenUML en el navegador](/app/) tiene todas las funciones de la app de escritorio, sin instalar nada. Funciona en Chrome, Edge, Firefox y Safari, y tus archivos nunca salen de tu equipo. [Cómo funciona](/es/docs/browser/).
+
+## Todos los archivos
+
+Cada versión está en [GitHub](https://github.com/AHHMED-J/OpenUML/releases/latest), con sumas SHA-256 en `SHA256SUMS.txt`.
+
+| Sistema | Archivo |
+| --- | --- |
+| Windows 10/11 (64 bits) | [OpenUML-win-x64.exe](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-win-x64.exe) |
+| macOS, Apple Silicon (M1 o posterior) | [OpenUML-mac-arm64.dmg](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-mac-arm64.dmg) |
+| macOS, Intel | [OpenUML-mac-x64.dmg](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-mac-x64.dmg) |
+| Linux (64 bits) | [OpenUML-linux-x86_64.AppImage](https://github.com/AHHMED-J/OpenUML/releases/latest/download/OpenUML-linux-x86_64.AppImage) |
+
+## Primera vez que lo abres
+
+Las versiones todavía no están firmadas, así que cada sistema avisa la primera vez que abres OpenUML.
+
+- **Windows:** en «Windows protegió su PC», haz clic en *Más información* y luego en *Ejecutar de todas formas*.
+- **macOS:** abre el `.dmg`, arrastra OpenUML a *Aplicaciones*, haz clic derecho sobre él y elige *Abrir* (o *Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente*). Si macOS dice que la app «está dañada», ejecuta una vez `xattr -cr /Applications/OpenUML.app` en Terminal.
+- **Linux:** haz ejecutable el AppImage (`chmod +x OpenUML-*.AppImage`) y ábrelo. Sin FUSE 2, añade `--appimage-extract-and-run`; en Ubuntu 24.04 o posterior quizá necesites también `--no-sandbox`.
+
+Consulta la [política de firma de código](https://github.com/AHHMED-J/OpenUML/blob/main/docs/CODE_SIGNING_POLICY.md) (en inglés).

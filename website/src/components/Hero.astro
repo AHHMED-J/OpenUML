@@ -1,0 +1,200 @@
+---
+/**
+ * The home page hero (Starlight's own) over a grid of still tiles that covers it. Every tile is off
+ * (invisible) until the mouse passes over it: then it shows, dimmed, a diagram made in OpenUML,
+ * and fades out again once the mouse leaves, so a moving mouse leaves a short wake of tiles. The
+ * tiles never move, catch clicks or focus, and are hidden from screen readers.
+ *
+ * Cost: one pointermove listener for the page works out the tile from the coordinates and
+ * changes a class only when the tile changes; only opacity transitions. The ten
+ * pictures (SVG exports of the example models in public/hero, `<name>-light.svg` and
+ * `<name>-dark.svg` for the page theme) are fetched and decoded once, off the main thread, when
+ * the mouse first enters, and a tile gets its picture only once it is lit. Without a mouse
+ * (phones, tablets) or with reduced motion nothing runs and nothing loads.
+ */
+import Default from '@astrojs/starlight/components/Hero.astro'
+
+/** The pictures, in the order tiles take them. */
+const PICTURES = ['class', 'idef0-context', 'sequence', 'state', 'use-case', 'idef0-a0', 'activity', 'rad', 'deployment', 'idef0-a3']
+/** Tiles rendered: enough for the widest grid (8 columns) over the tallest hero; the rest are clipped. */
+const TILES = 8 * 6
+const pictureRules = PICTURES.map(
+  (name, i) =>
+    `.hero-grid>.seen[data-pic='${i}']{background-image:var(--feather),url(/hero/${name}-light.svg)}` +
+    `:root[data-theme='dark'] .hero-grid>.seen[data-pic='${i}']{background-image:var(--feather),url(/hero/${name}-dark.svg)}`
+).join('')
+---
+
+<div class="hero-reveal">
+  <div class="hero-grid" aria-hidden="true" data-pictures={PICTURES.join(' ')}>{Array.from({ length: TILES }, () => <span />)}</div>
+  <Default><slot /></Default>
+</div>
+<style is:inline set:html={pictureRules} />
+
+<style>
+  .hero-reveal {
+    position: relative;
+    isolation: isolate;
+  }
+  /* The grid spans the window; 100vw counts a classic scrollbar, so nothing may scroll sideways. */
+  :global(body) {
+    overflow-x: clip;
+  }
+  .hero-grid {
+    --cols: 8;
+    --tile-opacity: 0.4;
+    position: absolute;
+    /* One tile row: the extra row below the hero, where the grid fades out. */
+    --row: calc(100vw / var(--cols));
+    /* From the header (past the content panel's 1.5rem padding) to one more row of tiles behind
+       the top of the app picture, fading out over that last row: no hard edge where it ends. */
+    top: -1.5rem;
+    bottom: calc(-1.5rem - var(--row));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25 * var(--row)), transparent);
+    /* Each tile's edges melt into the page: the page colour over the picture's border (a static
+       background layer, so only opacity ever changes). */
+    --feather: linear-gradient(to right, var(--sl-color-bg), transparent 22%, transparent 78%, var(--sl-color-bg)),
+      linear-gradient(to bottom, var(--sl-color-bg), transparent 22%, transparent 78%, var(--sl-color-bg));
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
+    z-index: -1;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    grid-auto-rows: var(--row);
+    gap: 2px;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+  }
+  :global(:root[data-theme='dark']) .hero-grid {
+    --tile-opacity: 0.45;
+  }
+  @media (max-width: 80rem) {
+    .hero-grid {
+      --cols: 7;
+    }
+  }
+  @media (max-width: 64rem) {
+    .hero-grid {
+      --cols: 6;
+    }
+  }
+  @media (max-width: 48rem) {
+    .hero-grid {
+      --cols: 4;
+    }
+  }
+  .hero-grid > span {
+    opacity: 0;
+    /* Longhands: a background shorthand would reset the picture set by the rules above. */
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    transition: opacity 0.9s ease-out;
+  }
+  .hero-grid > span.on {
+    opacity: var(--tile-opacity);
+    transition-duration: 0.12s;
+  }
+  /* No mouse or no motion: no effect, and the pictures never load. */
+  @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+    .hero-grid {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  const grid = document.querySelector<HTMLElement>('.hero-grid')
+  const mouse = window.matchMedia('(hover: hover) and (pointer: fine)')
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)')
+  if (grid && mouse.matches) {
+    const tiles = grid.children
+    const names = (grid.dataset.pictures ?? '').split(' ')
+    const PICTURES = names.length
+    const GAP = 2
+    // Grid box in page coordinates (unchanged by scrolling); measured on the first move and on resize.
+    let measured = false
+    let left = 0
+    let top = 0
+    let right = 0
+    let bottom = 0
+    let colPitch = 1
+    let rowPitch = 1
+    let cols = 1
+    let laidOut = -1
+    // Last pointer position in the window (page position = this + scroll).
+    let x = -1
+    let y = -1
+    let lit: Element | null = null
+
+    const measure = (): void => {
+      measured = true
+      const box = grid.getBoundingClientRect()
+      cols = Number(getComputedStyle(grid).getPropertyValue('--cols')) || 8
+      // Columns share the width less the 2px gaps; rows are width / cols tall, plus a gap.
+      colPitch = (box.width + GAP) / cols
+      rowPitch = box.width / cols + GAP
+      left = box.left + window.scrollX
+      top = box.top + window.scrollY
+      right = left + box.width
+      bottom = top + box.height
+      if (laidOut === cols) return
+      // Pictures by row and column: neighbours (sides and corners) never share one.
+      laidOut = cols
+      for (let i = 0; i < tiles.length; i++) {
+        const c = i % cols
+        const r = Math.floor(i / cols)
+        ;(tiles[i] as HTMLElement).dataset.pic = String((c + 3 * r) % PICTURES)
+      }
+    }
+    // The pictures of the current theme, fetched and decoded once (off the main thread).
+    const loaded = new Set<string>()
+    const preload = (): void => {
+      const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+      if (loaded.has(theme)) return
+      loaded.add(theme)
+      for (const name of names) {
+        const img = new Image()
+        img.src = `/hero/${name}-${theme}.svg`
+        img.decode().catch(() => {})
+      }
+    }
+    const light = (tile: Element | null): void => {
+      if (tile === lit) return
+      lit?.classList.remove('on')
+      tile?.classList.add('seen', 'on')
+      lit = tile
+    }
+    // Browsers already send at most one pointermove per frame, and this is a few sums that touch
+    // the page only when the tile changes, so it runs right away (no frame wait to miss).
+    const update = (): void => {
+      if (!measured) measure()
+      const px = x + window.scrollX
+      const py = y + window.scrollY
+      if (x < 0 || px < left || px >= right || py < top || py >= bottom) return light(null)
+      preload()
+      const c = Math.min(cols - 1, Math.floor((px - left) / colPitch))
+      const r = Math.floor((py - top) / rowPitch)
+      light(tiles[r * cols + c] ?? null)
+    }
+    // One listener for the whole page: the grid spans the window, wider than the hero's column,
+    // and the title, text and buttons sit on top of it.
+    document.addEventListener(
+      'pointermove',
+      (e) => {
+        if (e.pointerType !== 'mouse' || !mouse.matches || still.matches) return
+        x = e.clientX
+        y = e.clientY
+        update()
+      },
+      { passive: true }
+    )
+    // Leaving the window turns the tile off; scrolling moves the page under a still pointer.
+    document.documentElement.addEventListener('pointerleave', () => ((x = -1), update()), { passive: true })
+    window.addEventListener('scroll', () => x >= 0 && update(), { passive: true })
+    window.addEventListener('resize', () => measured && measure(), { passive: true })
+    window.addEventListener('load', () => measured && measure(), { passive: true })
+  }
+</script>

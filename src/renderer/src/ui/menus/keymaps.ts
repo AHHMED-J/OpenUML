@@ -75,3 +75,19 @@ export const DEFAULT_KEYMAP: readonly KeyBinding[] = [
   { key: 'esc', command: Cmd.toolSelect },
   { key: 'a', command: Cmd.toolSelect, when: WHEN_TOOL_ACTIVE }
 ]
+
+/**
+ * Keys a browser keeps for itself (new window, close or reopen a tab): a web page never receives
+ * them. The web build moves those bindings to these keys instead.
+ */
+const BROWSER_RESERVED: Readonly<Record<string, string>> = {
+  'cmdctrl-n': 'cmdctrl-alt-n',
+  'cmdctrl-shift-w': 'cmdctrl-alt-shift-w',
+  'cmdctrl-shift-t': 'cmdctrl-alt-shift-t',
+  'cmdctrl-f4': 'alt-shift-f4'
+}
+
+/** `bindings` with the browser-reserved keys moved (see `BROWSER_RESERVED`), for the web build. */
+export function browserKeymap(bindings: readonly KeyBinding[]): KeyBinding[] {
+  return bindings.map((b) => (BROWSER_RESERVED[b.key] ? { ...b, key: BROWSER_RESERVED[b.key] as string } : b))
+}

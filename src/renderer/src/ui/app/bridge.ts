@@ -17,6 +17,8 @@ function guessPlatform(): Platform {
 
 export const platform: Platform = bridge?.platform ?? guessPlatform()
 export const isMac = platform === 'darwin'
+/** Running in a browser tab (the web build), not in the desktop app. */
+export const isWeb = bridge?.web === true
 
 /** Name of the system file manager, as the menu and toolbar call it. */
 export const showInFolderLabel = isMac ? 'Show in Finder' : platform === 'win32' ? 'Show in Explorer' : 'Show in File Manager'

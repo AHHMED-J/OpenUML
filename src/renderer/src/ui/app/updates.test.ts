@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { uiStore } from '../uiStore'
 
 const bridge = vi.hoisted(() => ({ checkForUpdates: vi.fn(), showMessageBox: vi.fn(), openExternal: vi.fn() }))
-vi.mock('./bridge', () => ({ bridge, isMac: true, platform: 'darwin' }))
+vi.mock('./bridge', () => ({ bridge, isMac: true, isWeb: false, platform: 'darwin' }))
 
 const { checkForUpdates, checkForUpdatesAtStartup } = await import('./updates')
 const { windowTitle } = await import('./fileOps')

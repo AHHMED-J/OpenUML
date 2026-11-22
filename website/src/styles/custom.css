@@ -1,0 +1,43 @@
+/* OpenUML accent (the app's selection blue) for links and buttons. */
+:root {
+  --sl-color-accent-low: #1c2f4f;
+  --sl-color-accent: #3f7fd6;
+  --sl-color-accent-high: #c9dcf7;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d6e4f8;
+  --sl-color-accent: #2c67b8;
+  --sl-color-accent-high: #183b6b;
+}
+
+/* The search box sits in the middle of the header (wide screens; on phones it is an icon). */
+@media (min-width: 50rem) {
+  .header {
+    grid-template-columns: 1fr minmax(14rem, 26rem) 1fr;
+  }
+  .header > :nth-child(2) {
+    justify-content: center;
+  }
+  .header > :nth-child(2) site-search,
+  .header > :nth-child(2) site-search > button {
+    width: 100%;
+  }
+  .header > :nth-child(3) {
+    justify-self: end;
+  }
+  /* The search panel opens in the middle of the window too. */
+  site-search dialog {
+    margin: 4rem auto auto;
+  }
+}
+
+/* The hero's logo: the app icon, not a full-width picture. */
+.hero > img {
+  max-width: min(14rem, 42vw);
+}
+
+/* Starlight sizes the theme menu for English: "Automático" did not fit. */
+starlight-theme-select label {
+  --sl-select-width: 8.75em !important;
+}

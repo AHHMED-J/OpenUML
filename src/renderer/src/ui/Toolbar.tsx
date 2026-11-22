@@ -4,7 +4,7 @@
  */
 import type React from 'react'
 import { useProjectStore } from '../store'
-import { platform, showInFolderLabel } from './app/bridge'
+import { isWeb, platform, showInFolderLabel } from './app/bridge'
 import { keystrokeFor, registry, runCommand } from './app/commands'
 import { UiIcon, type UiIconName } from './icons'
 import { displayKeystroke } from './keymap'
@@ -72,7 +72,7 @@ function MoreTools(): React.JSX.Element {
     <>
       <ToolButton command={Cmd.fileNew} icon="new" label="New" />
       <ToolButton command={Cmd.fileOpen} icon="open" label="Open" />
-      <ToolButton command={Cmd.fileShowInFolder} icon="reveal" label={showInFolderLabel} />
+      {isWeb ? null : <ToolButton command={Cmd.fileShowInFolder} icon="reveal" label={showInFolderLabel} />}
       <span className="toolbar-sep" />
       <ToolButton command={Cmd.viewZoomOut} icon="zoom-out" label="Zoom Out" />
       <ToolButton command={Cmd.viewZoomIn} icon="zoom-in" label="Zoom In" />
@@ -119,7 +119,7 @@ export function Toolbar(): React.JSX.Element {
       <ToolButton command={Cmd.fileNew} icon="new" label="New" />
       <ToolButton command={Cmd.fileOpen} icon="open" label="Open" />
       <ToolButton command={Cmd.fileSave} icon="save" label="Save" />
-      <ToolButton command={Cmd.fileShowInFolder} icon="reveal" label={showInFolderLabel} />
+      {isWeb ? null : <ToolButton command={Cmd.fileShowInFolder} icon="reveal" label={showInFolderLabel} />}
       <span className="toolbar-sep" />
       <HistoryTools />
       <span className="toolbar-sep" />

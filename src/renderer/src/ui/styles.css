@@ -433,6 +433,41 @@ textarea:focus {
   height: 26px;
 }
 
+/* Menu bar of the web build (the desktop app uses the native menu). */
+.menubar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 26px;
+  padding: 0 4px;
+  background: var(--panel-header);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.menubar-item {
+  height: 22px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.menubar-item:hover,
+.menubar-item:focus-visible,
+.menubar-item.open {
+  background: var(--hover);
+  outline: none;
+}
+
+.menubar-item.open {
+  background: var(--selection);
+}
+
 /* ---------------------------------------------------------------- explorer tree */
 
 .search-box {

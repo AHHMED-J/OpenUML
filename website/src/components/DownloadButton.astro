@@ -1,0 +1,87 @@
+---
+/**
+ * Download button that picks the installer for the visitor's system. A Mac cannot tell its chip
+ * reliably from the browser, so Macs get both files. The links use the version-less copies that the
+ * release workflow attaches, so they always reach the latest release.
+ */
+import { LinkButton } from '@astrojs/starlight/components'
+
+interface Props {
+  lang?: 'en' | 'es'
+}
+const { lang = 'en' } = Astro.props
+const BASE = 'https://github.com/AHHMED-J/OpenUML/releases/latest/download/'
+const t =
+  lang === 'es'
+    ? {
+        win: 'Descargar para Windows',
+        appleSilicon: 'Mac con Apple Silicon (M1 o posterior)',
+        intel: 'Mac con Intel',
+        linux: 'Descargar para Linux (AppImage)',
+        all: 'Todas las descargas',
+        macHint: '¿No sabes qué Mac tienes? Menú Apple › Acerca de este Mac: «Chip Apple M…» es Apple Silicon.'
+      }
+    : {
+        win: 'Download for Windows',
+        appleSilicon: 'Mac with Apple Silicon (M1 or later)',
+        intel: 'Mac with Intel',
+        linux: 'Download for Linux (AppImage)',
+        all: 'All downloads',
+        macHint: 'Not sure which Mac you have? Apple menu › About This Mac: "Chip Apple M…" means Apple Silicon.'
+      }
+const allHref = lang === 'es' ? '/es/download/' : '/download/'
+---
+
+<div class="openuml-download" data-os="unknown">
+  <div class="choice" data-for="windows">
+    <LinkButton variant="primary" href={`${BASE}OpenUML-win-x64.exe`}>{t.win}</LinkButton>
+  </div>
+  <div class="choice" data-for="mac">
+    <LinkButton variant="primary" href={`${BASE}OpenUML-mac-arm64.dmg`}>{t.appleSilicon}</LinkButton>
+    <LinkButton variant="secondary" href={`${BASE}OpenUML-mac-x64.dmg`}>{t.intel}</LinkButton>
+    <p class="hint">{t.macHint}</p>
+  </div>
+  <div class="choice" data-for="linux">
+    <LinkButton variant="primary" href={`${BASE}OpenUML-linux-x86_64.AppImage`}>{t.linux}</LinkButton>
+  </div>
+  <p class="all"><a href={allHref}>{t.all}</a></p>
+</div>
+
+<script>
+  function detect(): 'windows' | 'mac' | 'linux' | 'unknown' {
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+    const p = (nav.userAgentData?.platform || navigator.platform || navigator.userAgent).toLowerCase()
+    if (/iphone|ipad|android/.test(navigator.userAgent.toLowerCase())) return 'unknown'
+    if (p.includes('win')) return 'windows'
+    if (p.includes('mac')) return 'mac'
+    if (p.includes('linux') || p.includes('x11')) return 'linux'
+    return 'unknown'
+  }
+  for (const el of document.querySelectorAll<HTMLElement>('.openuml-download')) el.dataset.os = detect()
+</script>
+
+<style>
+  .openuml-download .choice {
+    display: none;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  /* Detected system: only its choice. Unknown (or no script): every choice. */
+  .openuml-download[data-os='unknown'] .choice,
+  .openuml-download[data-os='windows'] .choice[data-for='windows'],
+  .openuml-download[data-os='mac'] .choice[data-for='mac'],
+  .openuml-download[data-os='linux'] .choice[data-for='linux'] {
+    display: flex;
+    margin-bottom: 0.75rem;
+  }
+  .openuml-download .hint {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+  .openuml-download .all {
+    font-size: var(--sl-text-sm);
+  }
+</style>
