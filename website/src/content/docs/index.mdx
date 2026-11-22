@@ -25,6 +25,8 @@ hero:
 import { Card, CardGrid } from '@astrojs/starlight/components'
 import AppShot from '../../components/AppShot.astro'
 import SystemDownloads from '../../components/SystemDownloads.astro'
+import YouTube from '../../components/YouTube.astro'
+import { VIDEOS } from '../../videos'
 
 <AppShot alt="OpenUML with a class diagram open" />
 
@@ -71,3 +73,9 @@ Free and open source under the MIT license. No account, no telemetry: the only a
 <SystemDownloads />
 
 Or [use it in your browser](/app/), with nothing to install: your files stay on your computer. [How it works](/docs/browser/).
+
+## Basic navigation
+
+A short video tour of the OpenUML window. More videos in [Tutorials](/docs/tutorials/).
+
+<YouTube id={VIDEOS.basicNavigation} title="OpenUML basic navigation tutorial" />
