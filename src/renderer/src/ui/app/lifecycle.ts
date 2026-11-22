@@ -4,7 +4,7 @@
  * global keyboard dispatcher. `startShell()` returns a cleanup function.
  */
 import { setRadAutoThread } from '../../model'
-import { projectStore } from '../../store'
+import { activeDiagram, projectStore } from '../../store'
 import { bindingToDispatch, eventToDescriptor } from '../keymap'
 import { buildAppMenu } from '../menus/appMenu'
 import { Cmd, NATIVE_EDIT_COMMANDS } from '../menus/commandIds'
@@ -82,6 +82,18 @@ export function cancelDialogsOnProjectChange(): () => void {
   })
 }
 
+/**
+ * Tools belong to a diagram type: opening a diagram of another type drops the active tool (a Class
+ * tool must not draw on a sequence diagram). Kept here, not in the Toolbox, so it holds with the
+ * Toolbox hidden.
+ */
+export function resetToolOnDiagramTypeChange(): () => void {
+  return projectStore.subscribe((s, prev) => {
+    const type = activeDiagram(s)?._type ?? null
+    if (type !== (activeDiagram(prev)?._type ?? null)) uiStore.getState().setTool(null)
+  })
+}
+
 export function startShell(): () => void {
   initCommands()
   const cleanups: Array<() => void> = []
@@ -109,6 +121,7 @@ export function startShell(): () => void {
     })
   )
   cleanups.push(cancelDialogsOnProjectChange())
+  cleanups.push(resetToolOnDiagramTypeChange())
   cleanups.push(
     projectStore.subscribe((s, prev) => {
       if (s.dirty !== prev.dirty || s.filePath !== prev.filePath || s.project !== prev.project || s.version !== prev.version) {
