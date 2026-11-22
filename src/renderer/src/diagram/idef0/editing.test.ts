@@ -378,6 +378,31 @@ describe('deleting', () => {
     expect(validateModel(k.repository.project as Elem)).toEqual([])
   })
 
+  it('deleting a trunk and its branch together gives the same result in either selection order', () => {
+    const outcome = (reverse: boolean): { survivor: string; source: string; valid: boolean } => {
+      const k = exampleKit()
+      const trunk = arrowView(k.child, 'Sales Policy')
+      const trunkModel = trunk.model as Elem
+      const branch = (k.top['arrows'] as Elem[]).find((a) => a['source'] === trunkModel) as Elem
+      const next = (k.top['arrows'] as Elem[]).find((a) => a['source'] === branch) as Elem
+      const branchView = k.repository.viewsOf(branch)[0] as View
+      const ids = [trunk._id, branchView._id]
+      deleteViews(k.envOf(k.child), reverse ? ids.reverse() : ids)
+      const kept = k.repository.get(next._id) as Elem | undefined
+      return {
+        survivor: kept ? (kept['name'] as string) || kept._id : 'deleted',
+        source: kept ? (kept['source'] as Elem)._type : '-',
+        valid: validateModel(k.repository.project as Elem).length === 0
+      }
+    }
+    const forward = outcome(false)
+    expect(forward).toEqual(outcome(true))
+    // The arrow past both deleted ones survives, fed from where the trunk came from.
+    expect(forward.survivor).not.toBe('deleted')
+    expect(forward.source).toBe('IDEF0Port')
+    expect(forward.valid).toBe(true)
+  })
+
   it('deletes a port with its arrows and never deletes the frame or the only box of A-0', () => {
     const k = exampleKit()
     const port = k.child.ownedViews.find((v) => v._type === 'IDEF0PortView') as View
