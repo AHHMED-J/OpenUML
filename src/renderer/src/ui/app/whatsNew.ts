@@ -3,7 +3,7 @@
  * updates itself, so "after an update" means the first start of a version not seen before) and
  * from Help > What's New.
  */
-import { hasStoredData } from '../persist'
+import { hadStoredDataAtStartup } from '../persist'
 import { uiStore } from '../uiStore'
 import { decideWhatsNew, effectiveLastSeen } from '../whatsNew/logic'
 import { RELEASES } from '../whatsNew/releases'
@@ -42,7 +42,7 @@ export async function showWhatsNewAfterUpdate(): Promise<void> {
   }
   const { record, show } = decideWhatsNew({
     releases: RELEASES,
-    lastSeen: effectiveLastSeen(ui().prefs.lastSeenVersion, hasStoredData()),
+    lastSeen: effectiveLastSeen(ui().prefs.lastSeenVersion, hadStoredDataAtStartup()),
     current,
     enabled: ui().prefs.showWhatsNew
   })
