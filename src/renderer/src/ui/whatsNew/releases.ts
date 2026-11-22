@@ -57,7 +57,7 @@ export const RELEASES: readonly Release[] = [
       { kind: 'improved', text: 'The Model Explorer shows the path to the selected row, and rows can be dropped between rows.' },
       { kind: 'improved', text: 'Show Diagrams Only in the Model Explorer settings lists just the diagrams and the containers that lead to them.' },
       { kind: 'improved', text: 'Add Diagram places the new diagram beside the one you are working on.' },
-      { kind: 'improved', text: 'Sequence lifelines have an Is Actor box that draws a stick figure, also in StarUML.' },
+      { kind: 'improved', text: 'Sequence lifelines have an Is Actor box that draws a stick figure, also in other tools that open .mdj files.' },
       { kind: 'improved', text: 'Deleting a diagram also removes the Interaction and Collaboration left empty around it.' },
       { kind: 'improved', text: 'Spread Boundary Arrows, in Model > IDEF0, gives every arrow on the frame edge of a diagram its own spot.' },
       { kind: 'fixed', text: 'All to One PDF prints in Model Explorer order, so an IDEF0 model starts with A-0.' },
