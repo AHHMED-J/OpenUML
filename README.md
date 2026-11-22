@@ -8,8 +8,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/AHHMED-J/OpenUML/releases/latest"><b>⬇ Download the latest version</b></a>
-  &nbsp;·&nbsp; <a href="#download">Which file?</a>
+  <a href="https://openuml.org"><b>🌐 openuml.org</b></a>
+  &nbsp;·&nbsp; <a href="https://openuml.org/app/"><b>▶ Try it in your browser</b></a>
+  &nbsp;·&nbsp; <a href="https://github.com/AHHMED-J/OpenUML/releases/latest"><b>⬇ Download the latest version</b></a>
+  <br>
+  <a href="#download">Which file?</a>
+  &nbsp;·&nbsp; <a href="https://openuml.org/docs/tutorials/">Video tutorials</a>
   &nbsp;·&nbsp; <a href="#development">Development</a>
 </p>
 
@@ -58,13 +62,17 @@ Processes       IDEF0 · Role Activity Diagrams (RAD)
   the A-0 context diagram, decomposition, title block and consistency warnings.
 - **RAD:** roles, activities, interactions between roles, case and part refinements, waits and state markers.
 - Guides: [IDEF0 in English](docs/guides/OpenUML_IDEF0_Guide_EN.pdf) ·
-  [IDEF0 en español](docs/guides/OpenUML_Instructivo_IDEF0.pdf).
+  [IDEF0 en español](docs/guides/OpenUML_Instructivo_IDEF0.pdf) ·
+  [video tutorials](https://openuml.org/docs/tutorials/).
 
 ![An IDEF0 decomposition in dark mode](docs/images/window-dark.png)
 
 ## Download
 
-Get the installer from the [Releases page](https://github.com/AHHMED-J/OpenUML/releases/latest):
+Get the installer from the [Releases page](https://github.com/AHHMED-J/OpenUML/releases/latest)
+or from [openuml.org](https://openuml.org/download/). OpenUML also runs
+[in your browser](https://openuml.org/app/) with nothing to install: it opens and saves the same
+`.mdj` files, and they stay on your computer.
 
 | System | File |
 | --- | --- |

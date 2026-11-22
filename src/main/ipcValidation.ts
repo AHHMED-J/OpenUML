@@ -171,11 +171,11 @@ export function findFileArgument(argv: readonly unknown[], workingDirectory: str
 }
 
 /**
- * Web pages the app may open in the user's browser: the project's own pages on GitHub (help,
- * issues). Anything else is refused, so a compromised renderer cannot use the browser to send
+ * Web pages the app may open in the user's browser: the project's website and its pages on GitHub
+ * (help, issues). Anything else is refused, so a compromised renderer cannot use the browser to send
  * data elsewhere or launch other URL handlers.
  */
-const EXTERNAL_URL_PREFIXES: readonly string[] = ['https://github.com/AHHMED-J/OpenUML']
+const EXTERNAL_URL_PREFIXES: readonly string[] = ['https://openuml.org', 'https://github.com/AHHMED-J/OpenUML']
 
 /** The normalized URL when `url` may be opened externally, else null. */
 export function allowedExternalUrl(url: unknown): string | null {

@@ -101,6 +101,12 @@ describe('paths', () => {
 })
 
 describe('allowedExternalUrl', () => {
+  it('allows the project website over https', () => {
+    expect(allowedExternalUrl('https://openuml.org')).toBe('https://openuml.org/')
+    expect(allowedExternalUrl('https://openuml.org/docs/tutorials/')).toBe('https://openuml.org/docs/tutorials/')
+    expect(allowedExternalUrl('https://OpenUML.org/app/')).toBe('https://openuml.org/app/')
+  })
+
   it('allows the project pages on GitHub over https', () => {
     expect(allowedExternalUrl('https://github.com/AHHMED-J/OpenUML#readme')).toBe('https://github.com/AHHMED-J/OpenUML#readme')
     expect(allowedExternalUrl('https://github.com/AHHMED-J/OpenUML/issues')).toBe('https://github.com/AHHMED-J/OpenUML/issues')
@@ -117,6 +123,13 @@ describe('allowedExternalUrl', () => {
       'https://github.com.evil.example/AHHMED-J/OpenUML',
       'https://user:pw@github.com/AHHMED-J/OpenUML',
       'https://github.com:8443/AHHMED-J/OpenUML',
+      'http://openuml.org',
+      'https://openuml.org.evil.com',
+      'https://openuml.org.evil.com/app/',
+      'https://evil-openuml.org',
+      'https://evil.com/openuml.org',
+      'https://openuml.org@evil.com',
+      'https://openuml.org:8443/',
       'not a url',
       42
     ]) {
