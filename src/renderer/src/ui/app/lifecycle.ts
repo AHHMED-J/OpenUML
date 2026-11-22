@@ -94,9 +94,21 @@ export function resetToolOnDiagramTypeChange(): () => void {
   })
 }
 
+/**
+ * Keys pressed while an input method composes text (Chinese, Japanese, Korean...) belong to it:
+ * Enter there picks the candidate, so no field, dialog or shortcut of the app may act on it.
+ */
+export function shieldTextComposition(target: Window = window): () => void {
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.isComposing || e.keyCode === 229) e.stopImmediatePropagation()
+  }
+  target.addEventListener('keydown', onKey, true)
+  return () => target.removeEventListener('keydown', onKey, true)
+}
+
 export function startShell(): () => void {
   initCommands()
-  const cleanups: Array<() => void> = []
+  const cleanups: Array<() => void> = [shieldTextComposition()]
 
   // Title, dirty flag and menu state follow the stores.
   let menuTimer: ReturnType<typeof setTimeout> | null = null
