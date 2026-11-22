@@ -1,0 +1,10 @@
+// Cloudflare Workers static-assets deployment of the OpenUML website and web app.
+// Build: from website/, `npm ci --prefix .. && npm ci && npm run build` (outputs ./dist).
+{
+  "name": "openuml",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
