@@ -64,6 +64,11 @@ export type NativeEditAction = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'sel
 
 export interface OpenUmlBridge {
   platform: NodeJS.Platform
+  /**
+   * True in the browser build (`src/web`): files come from the browser's pickers and downloads,
+   * there is no native menu (the page shows its own menu bar) and no OS integration.
+   */
+  readonly web?: boolean
   /** Replace the native application menu. */
   setMenu(menu: MenuItemSpec[]): void
   /** Subscribe to commands triggered from the native menu. Returns an unsubscribe function. */
@@ -110,6 +115,11 @@ export interface OpenUmlBridge {
   clearRecovery(): Promise<void>
   /** Writes `pages` as a PDF to `path` (a path from `chooseSavePath`). */
   writePdf(path: string, pages: PdfPage[]): Promise<void>
+  /**
+   * Whether writing `path` updates that file in place. Absent (desktop): always. The web build
+   * answers false where the browser can only save a copy as a download, which auto-save skips.
+   */
+  savesInPlace?(path: string): boolean
 }
 
 export const IpcChannels = {

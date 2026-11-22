@@ -1,0 +1,20 @@
+/* Web build only: the message boxes drawn by `dialog.ts` (the rest is the app's stylesheet). */
+.web-dialog .modal-body {
+  padding-top: 16px;
+}
+
+.web-dialog-message {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.web-dialog-detail {
+  margin: 0 0 6px;
+  white-space: pre-line;
+}
+
+.web-dialog-field {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+}
