@@ -63,6 +63,15 @@ function redoLabel(): string {
   return name ? `Redo ${name}` : 'Redo'
 }
 
+/**
+ * Where a recent file is, after its name: its path on the desktop. The web build's paths are
+ * internal names (see src/web/files.ts), so it says where the browser keeps the file instead.
+ */
+function recentLocation(path: string): string {
+  if (!isWeb) return path
+  return path.startsWith('copy/') ? 'last saved in this browser' : 'on this computer'
+}
+
 function recentMenu(): MenuNode {
   return {
     id: 'file.open-recent',
@@ -71,7 +80,7 @@ function recentMenu(): MenuNode {
       const recent = uiStore.getState().recentFiles
       const items: MenuNode[] = recent.map((path, i) => ({
         id: `file.open-recent.${i}`,
-        label: `${baseName(path)}  —  ${path}`,
+        label: `${baseName(path)}  —  ${recentLocation(path)}`,
         command: Cmd.fileOpenRecent,
         args: path
       }))
