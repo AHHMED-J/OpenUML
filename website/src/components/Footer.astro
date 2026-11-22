@@ -1,0 +1,23 @@
+---
+// Starlight's footer plus the project notice on every page (same wording as the README).
+import Default from '@astrojs/starlight/components/Footer.astro'
+
+const es = Astro.locals.starlightRoute.locale === 'es'
+---
+
+<Default />
+<p class="openuml-notice">
+  {
+    es
+      ? 'OpenUML es un proyecto independiente, escrito desde especificaciones de comportamiento, sin código, íconos ni recursos propietarios de terceros. StarUML is a trademark of MKLab Co., Ltd.; OpenUML no está afiliado a MKLab ni a ningún otro fabricante de herramientas UML. Licencia MIT.'
+      : 'OpenUML is an independent project, written from behavioral specifications, with no third-party proprietary code, icons or assets. StarUML is a trademark of MKLab Co., Ltd.; OpenUML is not affiliated with or endorsed by MKLab or any other UML tool vendor. MIT license.'
+  }
+</p>
+
+<style>
+  .openuml-notice {
+    margin-top: 1.5rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+</style>

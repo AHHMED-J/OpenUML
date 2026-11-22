@@ -1,0 +1,12 @@
+/* OpenUML accent (the app's selection blue) for links and buttons. */
+:root {
+  --sl-color-accent-low: #1c2f4f;
+  --sl-color-accent: #3f7fd6;
+  --sl-color-accent-high: #c9dcf7;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d6e4f8;
+  --sl-color-accent: #2c67b8;
+  --sl-color-accent-high: #183b6b;
+}
