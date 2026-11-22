@@ -60,25 +60,25 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #1e1f22;
-  --surface: #26272b;
-  --surface-alt: #2b2d31;
-  --panel-header: #2f3136;
-  --border: #3a3c42;
-  --border-strong: #4a4d55;
+  --bg: #25272c;
+  --surface: #2d3036;
+  --surface-alt: #31343a;
+  --panel-header: #34373e;
+  --border: #42454d;
+  --border-strong: #535762;
   --text: #dcdde0;
-  --text-muted: #9a9ea6;
+  --text-muted: #a3a7af;
   --accent: #4b8cf0;
   --accent-text: #ffffff;
-  --selection: #2c4a78;
-  --selection-inactive: #3a3d44;
-  --hover: #33353b;
+  --selection: #2f5287;
+  --selection-inactive: #444851;
+  --hover: #3b3e46;
   --focus: #5b9bff;
   --danger: #ef6b62;
   --canvas-bg: #ffffff;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-lift: 0 16px 40px rgba(0, 0, 0, 0.6), 0 3px 8px rgba(0, 0, 0, 0.45);
-  --toast-bg: #3a3d44;
+  --toast-bg: #444851;
   --toast-text: #f3f3f4;
 
   --icon-classifier: #e7b04f;
@@ -97,7 +97,7 @@
   --tool-note: #e6d36a;
   --tool-connection: #a3afc0;
 
-  --tree-guide: #686e7a;
+  --tree-guide: #737a87;
 
   --role-input: #6ea8fe;
   --role-control: #e3b341;
