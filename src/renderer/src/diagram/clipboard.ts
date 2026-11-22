@@ -81,13 +81,21 @@ function isLinkedBoundaryPort(view: View): boolean {
   return !!model && model._type === 'IDEF0Port' && !!model['corresponds']
 }
 
+/** The IDEF0 frame with its title block belongs to its diagram: one per sheet, never copied. */
+function isDiagramFrame(view: View): boolean {
+  return view._type === 'IDEF0FrameView'
+}
+
 /**
- * The copyable subset of `ids`: top-level views, except linked IDEF0 boundary ports; edges only with
+ * The copyable subset of `ids`: top-level views, except linked IDEF0 boundary ports and the IDEF0
+ * frame; edges only with
  * both ends. An end may be another edge (an IDEF0 branch on its trunk), so dropping one edge can
  * drop more: repeats until nothing changes.
  */
 export function copyableViews(repo: Repository, diagram: Diagram, ids: readonly string[]): View[] {
-  const views = ids.map((id) => repo.get(id)).filter((v): v is View => isKindOf(v, 'View') && v._parent === diagram && !isLinkedBoundaryPort(v))
+  const views = ids
+    .map((id) => repo.get(id))
+    .filter((v): v is View => isKindOf(v, 'View') && v._parent === diagram && !isLinkedBoundaryPort(v) && !isDiagramFrame(v))
   const kept = new Set<View>(views)
   const hasBothEnds = (v: View): boolean => !isKindOf(v, 'EdgeView') || (v.tail !== null && v.head !== null && kept.has(hostOf(v.tail)) && kept.has(hostOf(v.head)))
   for (let dropped = true; dropped; ) {
