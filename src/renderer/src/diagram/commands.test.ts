@@ -10,11 +10,12 @@ import { measurer } from './idef0/testkit'
 import { computeDiagramLayout } from './layout/layoutDiagram'
 import { setTextMeasurer } from './layout/measurer'
 import { ensureNotations } from './notations'
+import { openClassDiagramProject } from '../store/testProject'
 
 function setup(clipboard: { readText(): Promise<string>; writeText?(text: string): Promise<void> }): { diagram: Diagram; view: View } {
   ensureNotations()
   vi.stubGlobal('navigator', { clipboard: { writeText: async () => undefined, ...clipboard } })
-  projectStore.getState().newProject()
+  openClassDiagramProject()
   const diagram = activeDiagram(projectStore.getState()) as Diagram
   const view = createNode(projectStore.getState().engine, { kind: 'Class', diagram, left: 0, top: 0 }).view as View
   projectStore.getState().select({ views: [view._id] })

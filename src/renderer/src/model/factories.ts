@@ -146,13 +146,27 @@ export interface FieldSet {
 // =============================================================================================
 // Project and diagrams
 
-/** New project: Project "Untitled" → UMLModel "Model" → UMLClassDiagram "Main" (default diagram). */
+/**
+ * Project "Untitled" → UMLModel "Model" → UMLClassDiagram "Main" (default diagram), the start of
+ * a StarUML project. Tests and examples build on it; File > New starts from `createEmptyProject`.
+ */
 export function createDefaultProject(): Project {
   const project = createElement<Project>('Project', { name: 'Untitled', documentVersion: 1 })
   const model = createElement('UMLModel', { name: 'Model', _parent: project })
   project.ownedElements.push(model)
   const diagram = createElement<Diagram>('UMLClassDiagram', { name: 'Main', defaultDiagram: true, _parent: model })
   ;(model['ownedElements'] as Elem[]).push(diagram)
+  return project
+}
+
+/**
+ * New project of the app: Project "Untitled" → UMLModel "Model", no diagram yet. The first diagram
+ * the user adds goes into the model (see `selectionOrActiveDiagram`).
+ */
+export function createEmptyProject(): Project {
+  const project = createElement<Project>('Project', { name: 'Untitled', documentVersion: 1 })
+  const model = createElement('UMLModel', { name: 'Model', _parent: project })
+  project.ownedElements.push(model)
   return project
 }
 

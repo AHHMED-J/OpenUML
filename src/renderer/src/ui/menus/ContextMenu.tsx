@@ -12,6 +12,7 @@ import { displayKeystroke } from '../keymap'
 import { PanelBoundary, reportPanelError } from '../components/PanelBoundary'
 import { uiStore, useUiStore, type ContextMenuState } from '../uiStore'
 import {
+  addDiagramChoices,
   canvasContextMenu,
   explorerContextMenu,
   explorerSettingsMenu,
@@ -212,6 +213,8 @@ function menuFor(kind: string, targetId: string | undefined): MenuNode[] {
       return exportMenu()
     case 'zoom':
       return zoomMenu()
+    case 'add-diagram':
+      return addDiagramChoices()
     default:
       return []
   }

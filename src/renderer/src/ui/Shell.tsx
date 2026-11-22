@@ -19,6 +19,7 @@ import { DiagramArea } from './diagramArea/DiagramArea'
 import { DockAnnouncer, DockEdgeZone, DockStack } from './dock/DockArea'
 import { isAreaEmpty } from './dock/dockModel'
 import { ContextMenuHost } from './menus/ContextMenu'
+import { TipLayer } from './guide/TipLayer'
 import { ModalHost, Toasts } from './Overlays'
 import { TooltipLayer } from './components/Tooltip'
 import { StatusBar } from './StatusBar'
@@ -124,6 +125,9 @@ function ShellLayout(): React.JSX.Element {
         <DockAnnouncer />
       </PanelBoundary>
       <ContextMenuHost />
+      <PanelBoundary name="Tips" fallback={() => null}>
+        <TipLayer />
+      </PanelBoundary>
       <ModalHost />
       <TooltipLayer />
       <PanelBoundary name="Notifications" fallback={() => null}>
