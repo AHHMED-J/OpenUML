@@ -1,0 +1,211 @@
+---
+/**
+ * The home page hero (Starlight's own) over a "cursor reveal" layer: as the mouse moves across the
+ * hero, small cards of diagrams made in OpenUML appear along its path, stack and fade. They are
+ * dimmed so the title, text and buttons stay in front, drawn on the light or the dark canvas to
+ * match the page theme, and never catch clicks or focus.
+ *
+ * Without a mouse (touch screens) or with reduced motion there is no animation: a few cards rest,
+ * fainter still, around the edges. Without JavaScript the hero is the plain one.
+ *
+ * The pictures are SVG exports of the example models (an online shop and the Software Release
+ * IDEF0 example) in public/hero, as `<name>-light.svg` and `<name>-dark.svg`.
+ */
+import Default from '@astrojs/starlight/components/Hero.astro'
+
+/** Each picture and its size in diagram units (the export's viewBox). */
+const PICTURES: ReadonlyArray<readonly [string, number, number]> = [
+  ['class', 930, 576],
+  ['idef0-context', 1028, 772],
+  ['sequence', 811, 598],
+  ['state', 401, 536],
+  ['use-case', 946, 334],
+  ['idef0-a0', 1028, 772],
+  ['activity', 345, 635],
+  ['rad', 1275, 774],
+  ['deployment', 680, 186],
+  ['idef0-a3', 1028, 772]
+]
+---
+
+<div class="hero-reveal">
+  <div class="hero-trail" aria-hidden="true" data-pictures={JSON.stringify(PICTURES)}></div>
+  <Default><slot /></Default>
+</div>
+
+<style>
+  .hero-reveal {
+    position: relative;
+    isolation: isolate;
+  }
+  /* The layer spans the window; 100vw counts a classic scrollbar, so nothing may scroll sideways. */
+  :global(body) {
+    overflow-x: clip;
+  }
+  .hero-trail {
+    --trail-opacity: 0.42;
+    --rest-opacity: 0.15;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+  }
+  :global(:root[data-theme='dark']) .hero-trail {
+    --trail-opacity: 0.45;
+    --rest-opacity: 0.18;
+  }
+  .hero-trail :global(img) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    border-radius: 6px;
+    border: 1px solid rgb(128 128 128 / 0.35);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+    will-change: transform, opacity;
+  }
+  .hero-trail :global(img.rest) {
+    opacity: var(--rest-opacity);
+  }
+</style>
+
+<script>
+  /** Cards on screen at once (older ones are reused). */
+  const POOL = 7
+  /** Distance the pointer travels before the next card appears (px). */
+  const STEP = 80
+  /** Life of a card: grows in, stays, fades (ms). */
+  const LIFE = 1600
+  /** Area of a card (px²), on wide screens. */
+  const AREA = 220 * 150
+
+  /** Where the resting cards go without a mouse: fractions of the hero box (around the edges), and a tilt. */
+  const REST: ReadonlyArray<readonly [number, number, number]> = [
+    [-0.06, 0.04, -5],
+    [0.7, 0.0, 4],
+    [0.8, 0.48, -3],
+    [-0.1, 0.6, 3],
+    [0.36, 0.9, -2]
+  ]
+
+  type Picture = readonly [string, number, number]
+
+  function setUp(layer: HTMLElement): void {
+    const pictures = JSON.parse(layer.dataset.pictures ?? '[]') as Picture[]
+    if (pictures.length === 0) return
+    const hero = layer.parentElement as HTMLElement
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const mouse = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const dark = (): boolean => document.documentElement.dataset.theme === 'dark'
+    const src = (name: string): string => `/hero/${name}-${dark() ? 'dark' : 'light'}.svg`
+    const scale = (): number => (window.innerWidth < 800 ? 0.7 : 1)
+    const size = ([, w, h]: Picture): { width: number; height: number } => {
+      const s = Math.sqrt((AREA * scale() ** 2) / (w * h))
+      return { width: Math.round(w * s), height: Math.round(h * s) }
+    }
+
+    const cards: HTMLImageElement[] = []
+    const card = (i: number): HTMLImageElement => {
+      let img = cards[i]
+      if (!img) {
+        img = document.createElement('img')
+        img.alt = ''
+        img.decoding = 'async'
+        img.draggable = false
+        layer.appendChild(img)
+        cards[i] = img
+      }
+      return img
+    }
+    const show = (img: HTMLImageElement, picture: Picture): { width: number; height: number } => {
+      const { width, height } = size(picture)
+      img.width = width
+      img.height = height
+      img.dataset.name = picture[0]
+      img.src = src(picture[0])
+      return { width, height }
+    }
+
+    // Resting cards: no mouse to follow, or no motion wanted.
+    const rest = (): void => {
+      cards.forEach((img) => img.getAnimations().forEach((a) => a.cancel()))
+      const box = layer.getBoundingClientRect()
+      REST.forEach(([fx, fy, tilt], i) => {
+        const img = card(i)
+        const { width, height } = show(img, pictures[i % pictures.length])
+        const x = Math.min(fx * box.width, box.width - width * 0.6)
+        const y = Math.min(fy * box.height, box.height - height * 0.6)
+        img.style.transform = `translate(${x}px, ${y}px) rotate(${tilt}deg)`
+        img.classList.add('rest')
+      })
+      cards.slice(REST.length).forEach((img) => img.classList.remove('rest'))
+    }
+    const clearRest = (): void => cards.forEach((img) => img.classList.remove('rest'))
+    const resting = (): boolean => reduce.matches || !mouse.matches
+    const mode = (): void => (resting() ? rest() : clearRest())
+
+    // The trail.
+    let next = 0
+    let picture = 0
+    let last: { x: number; y: number } | null = null
+    let loaded = false
+    const preload = (): void => {
+      if (loaded) return
+      loaded = true
+      for (const [name] of pictures) new Image().src = src(name)
+    }
+    hero.addEventListener('pointerenter', preload, { passive: true })
+    hero.addEventListener(
+      'pointermove',
+      (e) => {
+        if (e.pointerType !== 'mouse' || resting()) return
+        const box = layer.getBoundingClientRect()
+        const x = e.clientX - box.left
+        const y = e.clientY - box.top
+        if (last && Math.hypot(x - last.x, y - last.y) < STEP) return
+        last = { x, y }
+        const img = card(next)
+        next = (next + 1) % POOL
+        img.getAnimations().forEach((a) => a.cancel())
+        const { width, height } = show(img, pictures[picture])
+        picture = (picture + 1) % pictures.length
+        layer.appendChild(img) // newest on top
+        const tilt = Math.round(Math.random() * 12 - 6)
+        const at = `translate(${x - width / 2}px, ${y - height / 2}px) rotate(${tilt}deg)`
+        const opacity = getComputedStyle(layer).getPropertyValue('--trail-opacity').trim() || '0.4'
+        img.animate(
+          [
+            { opacity: 0, transform: `${at} scale(0.6)` },
+            { opacity, transform: `${at} scale(1)`, offset: 0.18 },
+            { opacity, transform: `${at} scale(1)`, offset: 0.6 },
+            { opacity: 0, transform: `${at} scale(0.9) translateY(12px)` }
+          ],
+          { duration: LIFE, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)', fill: 'forwards' }
+        )
+      },
+      { passive: true }
+    )
+    hero.addEventListener('pointerleave', () => (last = null), { passive: true })
+
+    // Follow the theme (the cards change canvas) and the settings.
+    new MutationObserver(() => {
+      for (const img of cards) if (img.dataset.name) img.src = src(img.dataset.name)
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    reduce.addEventListener('change', mode)
+    mouse.addEventListener('change', mode)
+    let resize = 0
+    window.addEventListener('resize', () => {
+      window.clearTimeout(resize)
+      resize = window.setTimeout(() => resting() && rest(), 150)
+    })
+    mode()
+  }
+
+  document.querySelectorAll<HTMLElement>('.hero-trail').forEach(setUp)
+</script>

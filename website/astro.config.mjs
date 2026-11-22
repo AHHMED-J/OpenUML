@@ -17,7 +17,7 @@ export default defineConfig({
       },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/AHHMED-J/OpenUML' }],
       customCss: ['./src/styles/custom.css'],
-      components: { Footer: './src/components/Footer.astro' },
+      components: { Footer: './src/components/Footer.astro', Hero: './src/components/Hero.astro' },
       sidebar: [
         { label: 'Download', translations: { es: 'Descargas' }, slug: 'download' },
         {
