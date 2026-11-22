@@ -252,7 +252,7 @@ function CompactToolbar(): React.JSX.Element {
   return (
     <>
       <rect x={60} y={24} width={400} height={162} rx={6} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
-      <rect x={60} y={24} width={360} height={162} rx={6} fill="var(--canvas-bg)" />
+      <path d="M66 24 H420 V186 H66 a6 6 0 0 1 -6 -6 V30 a6 6 0 0 1 6 -6 z" fill="var(--canvas-bg)" />
       <rect x={96} y={58} width={88} height={44} rx={2} fill="var(--canvas-bg)" stroke={INK} strokeWidth={1.5} />
       <rect x={250} y={112} width={88} height={44} rx={2} fill="var(--canvas-bg)" stroke={INK} strokeWidth={1.5} />
       <path d="M184 80 H294 V106" fill="none" stroke={INK} strokeWidth={1.8} />
@@ -350,8 +350,19 @@ function BrowserApp(): React.JSX.Element {
         <rect key={y} x={i > 0 ? 82 : 72} y={y} width={i > 0 ? 56 : 66} height={7} rx={3.5} fill="var(--border-strong)" />
       ))}
       <rect x={150} y={67} width={309} height={117} fill="var(--canvas-bg)" />
-      <Box x={190} y={100} label="Order" w={86} h={48} />
-      <Box x={340} y={100} label="Item" w={86} h={48} active />
+      {(
+        [
+          [190, 'Order', INK],
+          [340, 'Item', ACCENT]
+        ] as const
+      ).map(([x, label, stroke]) => (
+        <g key={label}>
+          <rect x={x} y={100} width={86} height={48} rx={2} fill="var(--canvas-bg)" stroke={stroke} strokeWidth={1.5} />
+          <text x={x + 43} y={128} textAnchor="middle" fontSize={13} fontWeight={600} fill="#1f2328">
+            {label}
+          </text>
+        </g>
+      ))}
       <line x1={276} y1={124} x2={340} y2={124} stroke={INK} strokeWidth={1.8} />
     </>
   )
