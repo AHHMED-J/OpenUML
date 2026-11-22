@@ -100,6 +100,10 @@ export function MenuBar(): React.JSX.Element {
             e.preventDefault()
             setOpen((o) => (o === i ? null : i))
           }}
+          onClick={(e) => {
+            // A click with no pointer press (VoiceOver, screen readers, system accessibility) opens it.
+            if (e.detail === 0) setOpen(i)
+          }}
           onPointerEnter={() => setOpen((o) => (o === null ? null : i))}
           onKeyDown={(e) => {
             if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {

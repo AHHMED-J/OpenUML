@@ -83,6 +83,12 @@ describe('menu bar', () => {
     expect(openLabel(el)).toBeNull()
   })
 
+  it('opens on a click without a pointer press (screen readers)', () => {
+    const el = mount()
+    act(() => void item(el, 'Help').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 })))
+    expect(openLabel(el)).toBe('Help')
+  })
+
   it('pressing the open menu again closes it, and F10 focuses the bar', () => {
     const el = mount()
     const file = el.querySelector<HTMLElement>('.menubar-item') as HTMLElement
