@@ -1,4 +1,7 @@
-/** Main toolbar: file, undo/redo, zoom, grid and panel toggles. */
+/**
+ * Main toolbar: file, undo/redo, zoom, grid and panel toggles. In compact mode (Preferences) only
+ * Save, Undo, Redo and the zoom stay on the bar; the other buttons are in a drop-down.
+ */
 import type React from 'react'
 import { useProjectStore } from '../store'
 import { platform, showInFolderLabel } from './app/bridge'
@@ -6,6 +9,7 @@ import { keystrokeFor, registry, runCommand } from './app/commands'
 import { UiIcon, type UiIconName } from './icons'
 import { displayKeystroke } from './keymap'
 import { Cmd } from './menus/commandIds'
+import { ToolbarOverflow } from './ToolbarOverflow'
 import { uiStore, useUiStore } from './uiStore'
 
 function useCommandStateTick(): void {
@@ -65,31 +69,79 @@ export function Toolbar(): React.JSX.Element {
   const zoom = useUiStore((s) => (activeId ? (s.zoomByDiagram[activeId] ?? 1) : null))
   const undoName = useProjectStore((s) => s.undoName)
   const redoName = useProjectStore((s) => s.redoName)
-  return (
-    <div className="toolbar" role="toolbar" aria-label="Main toolbar">
+  const compact = useUiStore((s) => s.prefs.toolbarMode === 'compact')
+
+  const fileTools = (
+    <>
       <ToolButton command={Cmd.fileNew} icon="new" label="New" />
       <ToolButton command={Cmd.fileOpen} icon="open" label="Open" />
-      <ToolButton command={Cmd.fileSave} icon="save" label="Save" />
+      {compact ? null : <ToolButton command={Cmd.fileSave} icon="save" label="Save" />}
       <ToolButton command={Cmd.fileShowInFolder} icon="reveal" label={showInFolderLabel} />
-      <span className="toolbar-sep" />
+    </>
+  )
+  const history = (
+    <>
       <ToolButton command={Cmd.editUndo} icon="undo" label={undoName ? `Undo ${undoName}` : 'Undo'} />
       <ToolButton command={Cmd.editRedo} icon="redo" label={redoName ? `Redo ${redoName}` : 'Redo'} />
-      <span className="toolbar-sep" />
-      <ToolButton command={Cmd.viewZoomOut} icon="zoom-out" label="Zoom Out" />
-      <span className="toolbar-zoom" aria-live="polite">
-        {zoom !== null ? `${Math.round(zoom * 100)}%` : '—'}
-      </span>
-      <ToolButton command={Cmd.viewZoomIn} icon="zoom-in" label="Zoom In" />
-      <ToolButton command={Cmd.viewFitToWindow} icon="fit" label="Fit to Window" />
-      <span className="toolbar-sep" />
+    </>
+  )
+  const zoomLabel = (
+    <span className="toolbar-zoom" aria-live="polite">
+      {zoom !== null ? `${Math.round(zoom * 100)}%` : '—'}
+    </span>
+  )
+  const viewTools = (
+    <>
       <ToolButton command={Cmd.viewShowGrid} icon="grid" label="Show Grid" />
       <ToolButton command={Cmd.viewSnapToGrid} icon="snap" label="Snap to Grid" />
       <ExportButton />
-      <span className="spacer" />
+    </>
+  )
+  const appTools = (
+    <>
       <ToolButton command={Cmd.viewSidebar} icon="sidebar" label="Toggle Sidebar" />
       <ToolButton command={Cmd.viewNavigator} icon="navigator" label="Toggle Navigator" />
       <ToolButton command={Cmd.viewCommandPalette} icon="palette" label="Command Palette" />
       <ToolButton command={Cmd.appPreferences} icon="gear" label="Preferences" />
+    </>
+  )
+
+  if (compact) {
+    return (
+      <div className="toolbar compact" role="toolbar" aria-label="Main toolbar">
+        <ToolButton command={Cmd.fileSave} icon="save" label="Save" />
+        <span className="toolbar-sep" />
+        {history}
+        <span className="toolbar-sep" />
+        {zoomLabel}
+        <ToolbarOverflow>
+          {fileTools}
+          <span className="toolbar-sep" />
+          <ToolButton command={Cmd.viewZoomOut} icon="zoom-out" label="Zoom Out" />
+          <ToolButton command={Cmd.viewZoomIn} icon="zoom-in" label="Zoom In" />
+          <ToolButton command={Cmd.viewFitToWindow} icon="fit" label="Fit to Window" />
+          <span className="toolbar-sep" />
+          {viewTools}
+          <span className="toolbar-sep" />
+          {appTools}
+        </ToolbarOverflow>
+      </div>
+    )
+  }
+  return (
+    <div className="toolbar" role="toolbar" aria-label="Main toolbar">
+      {fileTools}
+      <span className="toolbar-sep" />
+      {history}
+      <span className="toolbar-sep" />
+      <ToolButton command={Cmd.viewZoomOut} icon="zoom-out" label="Zoom Out" />
+      {zoomLabel}
+      <ToolButton command={Cmd.viewZoomIn} icon="zoom-in" label="Zoom In" />
+      <ToolButton command={Cmd.viewFitToWindow} icon="fit" label="Fit to Window" />
+      <span className="toolbar-sep" />
+      {viewTools}
+      <span className="spacer" />
+      {appTools}
     </div>
   )
 }

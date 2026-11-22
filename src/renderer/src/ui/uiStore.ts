@@ -43,6 +43,8 @@ export type ThemePreference = 'system' | 'dark' | 'light'
 /** The diagram canvas: fixed, or following the app theme. */
 export type CanvasPreference = 'light' | 'dark' | 'follow'
 export type SortMode = 'added' | 'name'
+/** Normal: every toolbar button. Compact: Save, Undo, Redo and the zoom, the rest in a drop-down. */
+export type ToolbarMode = 'normal' | 'compact'
 
 export interface PanelState {
   readonly visible: boolean
@@ -59,6 +61,7 @@ const AREA_PANEL: Readonly<Record<DockAreaId, PanelId>> = { left: 'sidebar', rig
 
 export interface Preferences {
   readonly theme: ThemePreference
+  readonly toolbarMode: ToolbarMode
   readonly canvasMode: CanvasPreference
   /** Export PNG, SVG and PDF on the dark canvas instead of the light one. */
   readonly exportDarkCanvas: boolean
@@ -85,6 +88,7 @@ export const AUTO_SAVE_INTERVALS: readonly number[] = [0, 30, 60, 120, 300, 600]
 
 const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
+  toolbarMode: 'normal',
   canvasMode: 'light',
   exportDarkCanvas: false,
   showGrid: true,
@@ -323,6 +327,7 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
   const v = value ?? {}
   return {
     theme: v.theme === 'dark' || v.theme === 'light' || v.theme === 'system' ? v.theme : DEFAULT_PREFERENCES.theme,
+    toolbarMode: v.toolbarMode === 'compact' || v.toolbarMode === 'normal' ? v.toolbarMode : DEFAULT_PREFERENCES.toolbarMode,
     canvasMode: v.canvasMode === 'dark' || v.canvasMode === 'light' || v.canvasMode === 'follow' ? v.canvasMode : DEFAULT_PREFERENCES.canvasMode,
     exportDarkCanvas: typeof v.exportDarkCanvas === 'boolean' ? v.exportDarkCanvas : DEFAULT_PREFERENCES.exportDarkCanvas,
     showGrid: typeof v.showGrid === 'boolean' ? v.showGrid : DEFAULT_PREFERENCES.showGrid,
