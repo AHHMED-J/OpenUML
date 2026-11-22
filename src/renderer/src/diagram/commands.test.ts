@@ -26,6 +26,22 @@ function setup(clipboard: { readText(): Promise<string>; writeText?(text: string
 describe('paste command', () => {
   afterEach(() => vi.unstubAllGlobals())
 
+  it('Paste is available after a restart, when only the system clipboard holds the views', async () => {
+    vi.resetModules()
+    const commands = await import('./commands')
+    const { CommandRegistry: Registry } = await import('../commands')
+    const { projectStore: store } = await import('../store')
+    ;(await import('./notations')).ensureNotations()
+    const registry = new Registry()
+    const dispose = commands.registerDiagramCommands(registry, { getZoom: () => 1, setZoom: () => undefined })
+    try {
+      store.getState().newProject()
+      expect(registry.isEnabled(commands.DiagramCommandIds.paste)).toBe(true)
+    } finally {
+      dispose()
+    }
+  })
+
   it('does not paste stale views when the system clipboard holds something else', async () => {
     const { diagram } = setup({ readText: async () => 'some text copied in another application' })
     const before = diagram.ownedViews.length

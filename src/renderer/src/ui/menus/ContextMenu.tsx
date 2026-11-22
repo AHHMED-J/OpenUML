@@ -242,6 +242,16 @@ export function ContextMenuHost(): React.JSX.Element | null {
 }
 
 function ContextMenuView({ state }: { state: ContextMenuState }): React.JSX.Element {
+  // The menu takes the focus; when it closes the focus goes back where it was (a tree row keeps
+  // its arrow-key navigation), unless a click already put it somewhere else.
+  // Read while rendering: the menu list focuses itself in an effect that runs before this one's.
+  const [previous] = useState(() => document.activeElement as HTMLElement | null)
+  useEffect(() => {
+    return () => {
+      const now = document.activeElement
+      if (!now || now === document.body || !now.isConnected) previous?.focus?.()
+    }
+  }, [previous])
   useEffect(() => {
     const close = (e: MouseEvent): void => {
       if (!(e.target as HTMLElement).closest?.('.menu')) uiStore.getState().openContextMenu(null)

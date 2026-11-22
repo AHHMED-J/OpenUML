@@ -33,16 +33,35 @@ function branchesOf(scope: Elem, trunk: Elem): { forks: Elem[]; joins: Elem[] } 
   return { forks: arrows.filter((a) => a['source'] === trunk), joins: arrows.filter((a) => a['target'] === trunk) }
 }
 
+/**
+ * Where `arrow`'s tail end really starts once `doomed` arrows are gone: its source, or, when that
+ * source is a doomed arrow too (several arrows of one branch chain deleted together), the first
+ * surviving end up the chain. Same for the head end with `end` 'target'. Reading only the model
+ * as it was (never the pending edits) keeps the result independent of the selection order.
+ */
+function liveEnd(env: DiagramEnv, arrow: Elem, end: 'source' | 'target', doomed: Set<Elem>): { elem: unknown; view: unknown; role: unknown } {
+  const viewEnd = end === 'source' ? 'tail' : 'head'
+  let current = arrow
+  const seen = new Set<Elem>()
+  for (;;) {
+    const next = current[end] as Elem | null
+    if (!next || !isKindOf(next, 'IDEF0Arrow') || !doomed.has(next) || seen.has(next)) {
+      return { elem: next, view: arrowViewsOf(env, current)[0]?.[viewEnd] ?? null, role: current['role'] }
+    }
+    seen.add(current)
+    current = next
+  }
+}
+
 /** Re-points the branches of `trunk` so that the first branch of each kind takes its place. */
 function promoteBranches(b: OperationBuilder, env: DiagramEnv, scope: Elem, trunk: Elem, doomed: Set<Elem>): void {
   const { forks, joins } = branchesOf(scope, trunk)
-  const trunkViews = arrowViewsOf(env, trunk)
-  const trunkView = trunkViews[0] as View | undefined
   const live = (a: Elem): boolean => !doomed.has(a)
   const [firstFork, ...otherForks] = forks.filter(live)
   if (firstFork) {
-    b.set(firstFork, 'source', trunk['source'])
-    for (const v of arrowViewsOf(env, firstFork)) b.set(v, 'tail', trunkView?.['tail'] ?? null)
+    const from = liveEnd(env, trunk, 'source', doomed)
+    b.set(firstFork, 'source', from.elem)
+    for (const v of arrowViewsOf(env, firstFork)) b.set(v, 'tail', from.view)
     for (const other of otherForks) {
       b.set(other, 'source', firstFork)
       for (const v of arrowViewsOf(env, other)) b.set(v, 'tail', arrowViewsOf(env, firstFork)[0] ?? null)
@@ -50,9 +69,10 @@ function promoteBranches(b: OperationBuilder, env: DiagramEnv, scope: Elem, trun
   }
   const [firstJoin, ...otherJoins] = joins.filter(live)
   if (firstJoin) {
-    b.set(firstJoin, 'target', trunk['target'])
-    b.set(firstJoin, 'role', trunk['role'])
-    for (const v of arrowViewsOf(env, firstJoin)) b.set(v, 'head', trunkView?.['head'] ?? null)
+    const to = liveEnd(env, trunk, 'target', doomed)
+    b.set(firstJoin, 'target', to.elem)
+    b.set(firstJoin, 'role', to.role)
+    for (const v of arrowViewsOf(env, firstJoin)) b.set(v, 'head', to.view)
     for (const other of otherJoins) {
       b.set(other, 'target', firstJoin)
       for (const v of arrowViewsOf(env, other)) b.set(v, 'head', arrowViewsOf(env, firstJoin)[0] ?? null)

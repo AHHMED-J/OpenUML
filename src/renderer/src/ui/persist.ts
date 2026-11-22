@@ -23,8 +23,8 @@ export function loadJson<T>(key: string, fallback: T): T {
   }
 }
 
-/** True when this profile already stored something (so it is not a first run of the app). */
-export function hasStoredData(): boolean {
+/** True when this profile stores something now. */
+function hasStoredData(): boolean {
   try {
     const s = storage()
     if (!s) return false
@@ -42,4 +42,15 @@ export function saveJson(key: string, value: unknown): void {
   } catch {
     // Storage full or blocked: preferences simply do not persist.
   }
+}
+
+/**
+ * Whether this profile had stored something when the app started (so it is not a first run).
+ * Read once, before anything is saved: opening the file the app was launched with records it in
+ * the recent files before the first-run checks run.
+ */
+const storedAtStartup = hasStoredData()
+
+export function hadStoredDataAtStartup(): boolean {
+  return storedAtStartup
 }

@@ -82,7 +82,7 @@ function merged<T>(views: readonly View[], read: (v: View) => T): { value: T; mi
  * and as editable text (copy the code, paste or type `#rrggbb` / `#rgb`; Enter or leaving the field
  * applies it, Esc puts back the current value).
  */
-function ColorField({ id, label, value, mixed, onCommit }: { id: string; label: string; value: string; mixed: boolean; onCommit: (v: string) => void }): React.JSX.Element {
+export function ColorField({ id, label, value, mixed, onCommit }: { id: string; label: string; value: string; mixed: boolean; onCommit: (v: string) => void }): React.JSX.Element {
   const ref = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState(value)
   const [text, setText] = useState(mixed ? '' : value)
@@ -91,12 +91,13 @@ function ColorField({ id, label, value, mixed, onCommit }: { id: string; label: 
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    // With views of different colors, any pick applies (even the first view's color).
     const onChange = (): void => {
-      if (el.value.toLowerCase() !== value.toLowerCase()) onCommit(el.value)
+      if (mixed || el.value.toLowerCase() !== value.toLowerCase()) onCommit(el.value)
     }
     el.addEventListener('change', onChange)
     return () => el.removeEventListener('change', onChange)
-  }, [value, onCommit])
+  }, [value, mixed, onCommit])
   const commitText = (): void => {
     const color = parseHexColor(text)
     if (color && (mixed || color !== value.toLowerCase())) onCommit(color)

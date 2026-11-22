@@ -54,6 +54,9 @@ export function Modal({ title, onClose, children, footer, width = 480, className
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        // Focusable (not in the Tab order): a click on its text keeps the focus inside, so Esc and
+        // the focus trap keep working.
+        tabIndex={-1}
         style={{ width }}
         onKeyDown={onKeyDown}
       >

@@ -170,6 +170,13 @@ function StackSplitter({ upper, lower, resizable }: { upper: DockPanelId; lower:
   }
 
   if (!resizable) return <div className="splitter splitter-horizontal dock-divider" aria-hidden="true" />
+  const endResize = (): void => {
+    if (!start.current) return
+    start.current = null
+    document.body.classList.remove('resizing-y')
+    uiStore.getState().setDockPanelSizes({}, true)
+  }
+
   return (
     <div
       className="splitter splitter-horizontal"
@@ -194,12 +201,12 @@ function StackSplitter({ upper, lower, resizable }: { upper: DockPanelId; lower:
         if (s) apply(s, e.clientY - s.pos, false)
       }}
       onPointerUp={(e) => {
-        if (!start.current) return
-        start.current = null
-        e.currentTarget.releasePointerCapture(e.pointerId)
-        document.body.classList.remove('resizing-y')
-        uiStore.getState().setDockPanelSizes({}, true)
+        if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+        endResize()
       }}
+      // A drag the system cancels ends too, so the resize cursor never stays on.
+      onPointerCancel={endResize}
+      onLostPointerCapture={endResize}
       onKeyDown={(e) => {
         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
         e.preventDefault()

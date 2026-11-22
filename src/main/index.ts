@@ -17,6 +17,7 @@ import {
 } from './ipcValidation'
 import { pdfHtml, sanitizePdfPages } from './pdf'
 import { RecoveryStore, sanitizeSnapshot } from './recovery'
+import { QuitIntent } from './quitIntent'
 import { RendererCrashes } from './rendererCrashes'
 import { isNewerVersion, LATEST_RELEASE_API, MAX_RELEASE_JSON_BYTES, parseLatestRelease } from './updates'
 import appIcon from '../../resources/icon.png?asset'
@@ -24,6 +25,10 @@ import appIcon from '../../resources/icon.png?asset'
 let mainWindow: BrowserWindow | null = null
 let isDirty = false
 let closeConfirmed = false
+/** Set once the first window was created at launch. */
+let started = false
+/** Whether a close held for the save question came from quitting (see `QuitIntent`). */
+const quitIntent = new QuitIntent()
 /** File to open at launch (command line or macOS open-file before the renderer asked). */
 let startupFile: string | null = findFileArgument(process.argv, process.cwd())
 /** Set once the renderer has asked for the startup file; later open-file events are forwarded. */
@@ -42,11 +47,17 @@ protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, codeCache: true } }
 ])
 
-/** Opens `path` in the running window (asking about unsaved changes), or at launch if not ready yet. */
+/**
+ * Opens `path` in the running window (asking about unsaved changes), or at launch if not ready
+ * yet. With the app running but no window (macOS, after closing it), a window opens with it.
+ */
 function openFile(path: string): void {
   if (!isProjectPath(path)) return
   if (rendererReady && mainWindow) mainWindow.webContents.send(IpcChannels.openFile, path)
-  else startupFile = path
+  else {
+    startupFile = path
+    if (started && !mainWindow) createWindow()
+  }
 }
 
 // macOS delivers files opened from Finder/Dock through this event, possibly before `ready`.
@@ -100,7 +111,9 @@ function createWindow(): void {
   window.once('ready-to-show', () => window.show())
 
   window.on('close', (event) => {
-    if (isDirty && !closeConfirmed && !crashes.gaveUp) {
+    const held = isDirty && !closeConfirmed && !crashes.gaveUp
+    quitIntent.closing(held)
+    if (held) {
       event.preventDefault()
       window.webContents.send(IpcChannels.closeRequested)
     }
@@ -339,7 +352,9 @@ function registerIpc(): void {
 
   on(IpcChannels.confirmClose, () => {
     closeConfirmed = true
-    mainWindow?.close()
+    // A quit goes on quitting (on macOS closing the window alone would leave the app running).
+    if (quitIntent.confirmed()) app.quit()
+    else mainWindow?.close()
   })
 
   on(IpcChannels.nativeEdit, (event, action) => {
@@ -432,6 +447,7 @@ if (!app.requestSingleInstanceLock()) {
     restrictPermissions()
     registerIpc()
     createWindow()
+    started = true
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
@@ -443,6 +459,8 @@ app.on('web-contents-created', (_event, contents) => {
   contents.setWindowOpenHandler(() => ({ action: 'deny' }))
   contents.on('will-attach-webview', (event) => event.preventDefault())
 })
+
+app.on('before-quit', () => quitIntent.requestQuit())
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
