@@ -1,6 +1,7 @@
 /** Preferences: appearance, diagram editor, files (auto-save), updates and keyboard shortcuts. Changes apply immediately. */
 import type React from 'react'
 import { FONT_SIZES } from '../../diagram'
+import { isWeb } from '../app/bridge'
 import { Modal } from '../components/Modal'
 import { AUTO_SAVE_INTERVALS, uiStore, useUiStore, type CanvasPreference, type ThemePreference, type ToolbarMode } from '../uiStore'
 
@@ -132,12 +133,15 @@ export function PreferencesDialog(): React.JSX.Element {
       </fieldset>
       <fieldset className="pref-group">
         <legend>Updates</legend>
-        <div className="pref-row">
-          <label htmlFor="pref-updates" title="Asks GitHub for the latest OpenUML release at startup and once a day">
-            Check for updates automatically
-          </label>
-          <input id="pref-updates" type="checkbox" checked={prefs.checkForUpdates} onChange={(e) => set({ checkForUpdates: e.target.checked })} />
-        </div>
+        {/* The web build is always the latest version: nothing to check. */}
+        {isWeb ? null : (
+          <div className="pref-row">
+            <label htmlFor="pref-updates" title="Asks GitHub for the latest OpenUML release at startup and once a day">
+              Check for updates automatically
+            </label>
+            <input id="pref-updates" type="checkbox" checked={prefs.checkForUpdates} onChange={(e) => set({ checkForUpdates: e.target.checked })} />
+          </div>
+        )}
         <div className="pref-row">
           <label htmlFor="pref-whats-new" title="Opens the What's New window the first time you start a newer version. Help > What's New always works.">
             Show What's New after updates

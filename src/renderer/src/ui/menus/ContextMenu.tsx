@@ -32,6 +32,9 @@ interface MenuListProps {
   readonly onSelect?: (item: ActionItem) => void
   /** For submenus: close only this level (Left/Esc). */
   readonly onBack?: () => void
+  /** Left / Right on a top-level menu of a menu bar: move to the previous / next menu. */
+  readonly onPrevious?: () => void
+  readonly onNext?: () => void
   readonly autoFocus?: boolean
 }
 
@@ -39,7 +42,7 @@ function isActionable(item: ResolvedMenuItem): boolean {
   return item.kind !== 'separator' && item.enabled
 }
 
-export function MenuList({ items, x, y, onClose, onSelect, onBack, autoFocus = true }: MenuListProps): React.JSX.Element {
+export function MenuList({ items, x, y, onClose, onSelect, onBack, onPrevious, onNext, autoFocus = true }: MenuListProps): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState<number>(-1)
   const [openSub, setOpenSub] = useState<number | null>(null)
@@ -93,9 +96,11 @@ export function MenuList({ items, x, y, onClose, onSelect, onBack, autoFocus = t
         break
       case 'ArrowRight':
         if (items[active]?.kind === 'submenu') setOpenSub(active)
+        else if (onNext) onNext()
         break
       case 'ArrowLeft':
         if (onBack) onBack()
+        else if (onPrevious) onPrevious()
         break
       case 'Enter':
       case ' ':

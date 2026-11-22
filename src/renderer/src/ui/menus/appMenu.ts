@@ -10,7 +10,7 @@ import { addDiagramItemsFor, addItemsFor } from '../modelActions'
 import { baseName } from '../recentFiles'
 import { EXAMPLES } from '../examples'
 import { uiStore } from '../uiStore'
-import { showInFolderLabel } from '../app/bridge'
+import { isWeb, showInFolderLabel } from '../app/bridge'
 import { Cmd } from './commandIds'
 import { endMultiplicityMenu } from '../app/associationEnds'
 import { idef0FormatMenu, idef0Menu } from './idef0Menu'
@@ -152,7 +152,14 @@ function formatItems(): MenuNode[] {
 }
 
 /** The full application menu for `platform`. */
-export function buildAppMenu(platform: Platform): MenuNode[] {
+/**
+ * The application menu bar. `web` (the browser build, default when running there) leaves out what
+ * a browser tab cannot do: quitting, closing or hiding the window, the file manager, updates (the
+ * page is always the latest); its Window menu only toggles full screen, and the File and Help
+ * menus take the Preferences and About items the macOS app menu has.
+ */
+export function buildAppMenu(platform: Platform, web: boolean = isWeb): MenuNode[] {
+  if (web) return webMenu(buildAppMenu(platform === 'darwin' ? 'linux' : platform, false))
   const mac = platform === 'darwin'
   const appMenu: MenuNode = {
     id: 'app',
@@ -315,6 +322,19 @@ export function buildAppMenu(platform: Platform): MenuNode[] {
     ]
   }
   return [...(mac ? [appMenu] : []), file, edit, format, model, view, windowMenu, help]
+}
+
+/** Commands with no meaning in a browser tab. */
+const DESKTOP_ONLY_COMMANDS: ReadonlySet<string> = new Set([Cmd.fileShowInFolder, Cmd.fileClose, Cmd.helpCheckForUpdates])
+
+function webMenu(nodes: readonly MenuNode[]): MenuNode[] {
+  const strip = (items: readonly MenuNode[]): MenuNode[] =>
+    items
+      .filter((n) => !n.role && !(n.command && DESKTOP_ONLY_COMMANDS.has(n.command)))
+      .map((n) => (Array.isArray(n.submenu) ? { ...n, submenu: strip(n.submenu as MenuNode[]) } : n))
+  return nodes.map((n) =>
+    n.id === 'window' ? { ...n, submenu: [{ id: 'window.full-screen', label: 'Full Screen', role: 'togglefullscreen' }] } : { ...n, submenu: Array.isArray(n.submenu) ? strip(n.submenu as MenuNode[]) : n.submenu }
+  )
 }
 
 // ---------------------------------------------------------------------------------------------
