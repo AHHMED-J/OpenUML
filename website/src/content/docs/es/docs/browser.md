@@ -9,6 +9,8 @@ description: Usa OpenUML sin instalarlo, en Chrome, Edge, Firefox o Safari.
 
 Todo funciona dentro del navegador. No hay servidor ni cuenta: los modelos nunca se suben, y la página solo lee y escribe los archivos que tú eliges.
 
+Para que funcionen **Open Recent** y la recuperación del trabajo sin guardar, el navegador guarda los archivos que abriste (o, en Chrome y Edge, el permiso para llegar a ellos) solo en este equipo. **File › Open Recent › Clear Recent** los borra. En un equipo compartido, bórralos al terminar o usa una ventana privada.
+
 ## Abrir y guardar archivos
 
 | Navegador | Abrir | Guardar |

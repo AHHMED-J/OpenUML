@@ -9,6 +9,8 @@ description: Use OpenUML without installing it, in Chrome, Edge, Firefox or Safa
 
 Everything runs inside your browser. There is no server and no account: models are never uploaded, and the page only reads and writes the files you choose.
 
+To work with **Open Recent** and to recover unsaved work, the browser keeps the files you opened (or, in Chrome and Edge, permission to reach them) on this computer only. **File › Open Recent › Clear Recent** deletes them. On a shared computer, clear them when you finish, or use a private window.
+
 ## Opening and saving files
 
 | Browser | Open | Save |

@@ -200,7 +200,15 @@ export function registerAppCommands(registry: CommandRegistry): void {
       return example ? openExample(example.text) : undefined
     }
   })
-  add({ id: Cmd.fileClearRecent, label: 'Clear Recent', run: () => ui().clearRecent(), isEnabled: () => ui().recentFiles.length > 0 })
+  add({
+    id: Cmd.fileClearRecent,
+    label: 'Clear Recent',
+    run: () => {
+      ui().clearRecent()
+      void bridge?.forgetRecentFiles?.()
+    },
+    isEnabled: () => ui().recentFiles.length > 0
+  })
   add({ id: Cmd.fileSave, label: 'Save', run: () => saveProject(), isEnabled: () => bridge !== null })
   add({ id: Cmd.fileSaveAs, label: 'Save As...', run: () => saveProjectAs(), isEnabled: () => bridge !== null })
   add({

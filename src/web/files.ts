@@ -193,6 +193,16 @@ export class WebFiles {
     throw new Error(`Cannot write ${path} in this browser.`)
   }
 
+  /**
+   * Deletes the stored file handles and copies (Clear Recent), so nothing of those files stays in
+   * the browser. Handles picked in this visit stay in memory: the open file can still be saved.
+   */
+  async forgetAll(): Promise<void> {
+    for (const key of await this.store.keys()) {
+      if (key.startsWith('handle:') || key.startsWith('copy:')) await this.store.delete(key)
+    }
+  }
+
   private async handle(id: string): Promise<FileHandleLike> {
     const handle = this.handles.get(id) ?? (await this.store.get<KeptHandle>(`handle:${id}`))?.handle
     if (!handle) throw new Error('This file is not available in this browser any more.')

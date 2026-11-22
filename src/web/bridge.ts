@@ -83,6 +83,7 @@ export function createWebBridge(env: WebBridgeEnv): WebBridge {
     readRecovery: async () => (await env.store.get<RecoverySnapshot>(RECOVERY_KEY)) ?? null,
     clearRecovery: () => env.store.delete(RECOVERY_KEY),
     writePdf: async (path, pages) => env.files.write(path, await env.makePdf(pages)),
-    savesInPlace: (path) => env.files.writesInPlace(path)
+    savesInPlace: (path) => env.files.writesInPlace(path),
+    forgetRecentFiles: () => env.files.forgetAll()
   }
 }

@@ -127,6 +127,19 @@ describe('web files without the API (Firefox, Safari)', () => {
     expect(await new WebFiles(plainBrowser(null), store).readTextFile('copy/Shop.mdj')).toBe('v1')
   })
 
+  it('Clear Recent deletes the kept copies and file handles, but keeps the recovery copy', async () => {
+    const store = memoryStore()
+    await new WebFiles(plainBrowser({ name: 'Shop.mdj', text: 'secret' }), store).openTextFile(MDJ)
+    const files = new WebFiles(fsaBrowser(fakeFile('A.mdj', 'a'), null), store)
+    const opened = await files.openTextFile(MDJ)
+    await store.set('recovery', { text: 'unsaved' })
+    await files.forgetAll()
+    expect((await store.keys()).sort()).toEqual(['recovery'])
+    await expect(new WebFiles(plainBrowser(null), store).readTextFile('copy/Shop.mdj')).rejects.toThrow()
+    // The file open in this visit can still be read and saved.
+    expect(await files.readTextFile(opened?.path ?? '')).toBe('a')
+  })
+
   it('saves as a download under the name asked for, and remembers that text', async () => {
     const store = memoryStore()
     const browser = plainBrowser(null, 'Order System.mdj')

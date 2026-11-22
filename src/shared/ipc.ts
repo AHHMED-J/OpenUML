@@ -120,6 +120,8 @@ export interface OpenUmlBridge {
    * answers false where the browser can only save a copy as a download, which auto-save skips.
    */
   savesInPlace?(path: string): boolean
+  /** Web build: Clear Recent also deletes what the browser keeps of those files (copies, file handles). */
+  forgetRecentFiles?(): Promise<void>
 }
 
 export const IpcChannels = {
