@@ -322,6 +322,13 @@ export function isNativeEditKeystroke(descriptor: string, platform: Platform): b
   }
   if (mod && !k.alt && !k.shift && ['c', 'x', 'v', 'z', 'y', 'a'].includes(k.key)) return true
   if (mod && !k.alt && k.shift && k.key === 'z') return true
+  // Paste as plain text.
+  if (mod && !k.alt && k.shift && k.key === 'v') return true
+  // Line and text moves (to the line or text start / end, with Shift selecting) and deleting to
+  // the line start; on macOS Option moves and deletes by word (Ctrl does elsewhere, covered here).
+  const caretKeys = ['left', 'right', 'up', 'down', 'home', 'end', 'backspace', 'delete']
+  if (mod && !k.alt && caretKeys.includes(k.key)) return true
+  if (platform === 'darwin' && k.alt && !k.cmd && !k.ctrl && caretKeys.includes(k.key)) return true
   // Plain characters typed into the field.
   if (!mod && !k.ctrl && !k.cmd && k.key.length === 1) return true
   return false

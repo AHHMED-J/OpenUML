@@ -129,6 +129,25 @@ describe('formatting', () => {
     expect(isNativeEditKeystroke('f4', 'linux')).toBe(false)
   })
 
+  it('leaves line, word and plain-paste editing keys to a text field', () => {
+    // Select to the start / end of the text, delete to the line start, paste as plain text.
+    expect(isNativeEditKeystroke('cmd-shift-up', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-shift-down', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-backspace', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-left', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-shift-v', 'darwin')).toBe(true)
+    // Word moves: Option on macOS, Ctrl elsewhere.
+    expect(isNativeEditKeystroke('alt-left', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('alt-shift-right', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('alt-backspace', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('ctrl-shift-left', 'win32')).toBe(true)
+    expect(isNativeEditKeystroke('ctrl-backspace', 'linux')).toBe(true)
+    expect(isNativeEditKeystroke('ctrl-shift-v', 'win32')).toBe(true)
+    // App shortcuts that are not text editing stay with the app.
+    expect(isNativeEditKeystroke('cmd-shift-s', 'darwin')).toBe(false)
+    expect(isNativeEditKeystroke('cmd-alt-left', 'darwin')).toBe(false)
+  })
+
   it('dispatches menu-accelerator shortcuts from the page (Cmd+Z on the canvas)', () => {
     const mac = new Keymap('darwin', DEFAULT_KEYMAP)
     // Regression: undo/redo were left to the native menu and did nothing when the page had focus.
