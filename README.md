@@ -90,6 +90,9 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt`.
 
 </details>
 
+**Code signing policy and privacy:** see [docs/CODE_SIGNING_POLICY.md](docs/CODE_SIGNING_POLICY.md).
+OpenUML collects no personal data; its only automatic connection is the update check, which can be turned off.
+
 ## Development
 
 Requires Node.js 20 or later.
