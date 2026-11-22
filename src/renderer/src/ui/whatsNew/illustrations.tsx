@@ -246,6 +246,117 @@ function WorkingDiagrams(): React.JSX.Element {
   )
 }
 
+/** The canvas with the thin compact column at its right and no tab row. */
+function CompactToolbar(): React.JSX.Element {
+  const buttons = [46, 74, 102]
+  return (
+    <>
+      <rect x={60} y={24} width={400} height={162} rx={6} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <rect x={60} y={24} width={360} height={162} rx={6} fill="var(--canvas-bg)" />
+      <rect x={96} y={58} width={88} height={44} rx={2} fill="var(--canvas-bg)" stroke={INK} strokeWidth={1.5} />
+      <rect x={250} y={112} width={88} height={44} rx={2} fill="var(--canvas-bg)" stroke={INK} strokeWidth={1.5} />
+      <path d="M184 80 H294 V106" fill="none" stroke={INK} strokeWidth={1.8} />
+      <path d="M294 112 l-4.5 -8 h9 z" fill={INK} />
+      <line x1={420} y1={24} x2={420} y2={186} stroke="var(--border-strong)" strokeWidth={1.5} />
+      {buttons.map((y, i) => (
+        <rect key={y} x={430} y={y - 10} width={20} height={20} rx={4} fill={i === 0 ? 'var(--selection)' : 'none'} stroke={ACCENT} strokeWidth={1.5} />
+      ))}
+      <text x={440} y={140} textAnchor="middle" fontSize={14} fontWeight={700} fill={ACCENT}>
+        ⋯
+      </text>
+      <Chip x={326} y={34} label="Compact" w={76} />
+    </>
+  )
+}
+
+/** The Toolbox with each tool in the color of its kind of element. */
+function ToolboxColors(): React.JSX.Element {
+  const tools: readonly [string, string][] = [
+    ['Class', 'var(--tool-classifier)'],
+    ['Package', 'var(--tool-package)'],
+    ['Attribute', 'var(--tool-feature)'],
+    ['State', 'var(--tool-behavior)'],
+    ['Use Case', 'var(--tool-usecase)'],
+    ['Note', 'var(--tool-note)'],
+    ['Association', 'var(--tool-connection)'],
+    ['Dependency', 'var(--tool-connection)']
+  ]
+  return (
+    <>
+      <rect x={110} y={20} width={300} height={170} rx={6} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <rect x={110} y={20} width={300} height={26} rx={6} fill="var(--panel-header)" />
+      <text x={124} y={38} fontSize={11} fontWeight={700} fill="var(--text-muted)" letterSpacing={0.8}>
+        TOOLBOX
+      </text>
+      {tools.map(([label, color], i) => {
+        const x = 128 + (i % 2) * 140
+        const y = 62 + Math.floor(i / 2) * 32
+        return (
+          <g key={label}>
+            {i < 6 ? <rect x={x} y={y} width={14} height={14} rx={2} fill={color} /> : <path d={`M${x} ${y + 14} L${x + 14} ${y}`} stroke={color} strokeWidth={2.2} />}
+            <text x={x + 24} y={y + 12} fontSize={13} fill="var(--text)">
+              {label}
+            </text>
+          </g>
+        )
+      })}
+    </>
+  )
+}
+
+/** The empty canvas of a new project: Add Diagram and the tip pointing at it. */
+function FirstSteps(): React.JSX.Element {
+  return (
+    <>
+      <rect x={70} y={20} width={380} height={170} rx={6} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <rect x={160} y={50} width={200} height={10} rx={5} fill="var(--text)" opacity={0.8} />
+      <rect x={190} y={70} width={140} height={7} rx={3.5} fill="var(--border-strong)" />
+      <rect x={205} y={88} width={110} height={26} rx={4} fill={ACCENT} />
+      <text x={260} y={105} textAnchor="middle" fontSize={12} fontWeight={600} fill="var(--accent-text)">
+        Add Diagram...
+      </text>
+      <rect x={170} y={127} width={180} height={50} rx={6} fill={SURFACE} stroke={ACCENT} strokeWidth={1.5} />
+      <path d="M252 127.75 L260 118 L268 127.75" fill={SURFACE} stroke={ACCENT} strokeWidth={1.5} strokeLinejoin="round" />
+      <rect x={184} y={140} width={130} height={7} rx={3.5} fill="var(--text-muted)" />
+      <rect x={184} y={156} width={90} height={7} rx={3.5} fill="var(--border-strong)" />
+      <text x={336} y={146} textAnchor="middle" fontSize={11} fill="var(--text-muted)">
+        ✕
+      </text>
+    </>
+  )
+}
+
+/** A browser window with OpenUML open at its address. */
+function BrowserApp(): React.JSX.Element {
+  return (
+    <>
+      <rect x={60} y={18} width={400} height={174} rx={8} fill={SURFACE} stroke="var(--border-strong)" strokeWidth={1.5} />
+      <path d="M60 50 H460" stroke="var(--border-strong)" strokeWidth={1.5} />
+      {[78, 92, 106].map((x) => (
+        <circle key={x} cx={x} cy={34} r={4} fill="var(--border-strong)" />
+      ))}
+      <rect x={130} y={25} width={250} height={18} rx={9} fill="var(--bg)" />
+      <text x={255} y={38} textAnchor="middle" fontSize={11} fontFamily={MONO} fill="var(--text)">
+        openuml.org/app
+      </text>
+      <rect x={61} y={51} width={398} height={16} fill="var(--panel-header)" />
+      {['File', 'Edit', 'View', 'Help'].map((m, i) => (
+        <text key={m} x={74 + i * 40} y={63} fontSize={10} fill="var(--text-muted)">
+          {m}
+        </text>
+      ))}
+      <rect x={61} y={67} width={89} height={117} fill="var(--surface-alt)" />
+      {[80, 98, 116, 134].map((y, i) => (
+        <rect key={y} x={i > 0 ? 82 : 72} y={y} width={i > 0 ? 56 : 66} height={7} rx={3.5} fill="var(--border-strong)" />
+      ))}
+      <rect x={150} y={67} width={309} height={117} fill="var(--canvas-bg)" />
+      <Box x={190} y={100} label="Order" w={86} h={48} />
+      <Box x={340} y={100} label="Item" w={86} h={48} active />
+      <line x1={276} y1={124} x2={340} y2={124} stroke={INK} strokeWidth={1.8} />
+    </>
+  )
+}
+
 const SCENES: Readonly<Record<IllustrationId, () => React.JSX.Element>> = {
   'pending-arrows': PendingArrows,
   'box-table': BoxTable,
@@ -255,7 +366,11 @@ const SCENES: Readonly<Record<IllustrationId, () => React.JSX.Element>> = {
   'show-in-folder': ShowInFolder,
   'whats-new': WhatsNewScene,
   'dark-canvas': DarkCanvas,
-  'working-diagrams': WorkingDiagrams
+  'working-diagrams': WorkingDiagrams,
+  'compact-toolbar': CompactToolbar,
+  'toolbox-colors': ToolboxColors,
+  'first-steps': FirstSteps,
+  'browser-app': BrowserApp
 }
 
 export function Illustration({ id }: { id: IllustrationId }): React.JSX.Element {
