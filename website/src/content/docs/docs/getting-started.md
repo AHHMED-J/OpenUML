@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Create your first model in OpenUML.
+description: Install OpenUML, the free, open-source UML tool, and draw your first diagram.
 ---
 
 1. [Download](/download/) and install OpenUML.

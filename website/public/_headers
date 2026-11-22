@@ -8,6 +8,11 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
   Cross-Origin-Opener-Policy: same-origin
 
+# Only openuml.org is indexed: the workers.dev addresses (production and branch previews) say
+# noindex. A host placeholder never matches a dot, so this pattern covers <name>.<account>.workers.dev.
+https://:name.:account.workers.dev/*
+  X-Robots-Tag: noindex
+
 # The app: the same policy as its page, plus frame-ancestors (a <meta> policy cannot set it).
 # Nothing is fetched from other sites: models never leave the computer.
 /app/*

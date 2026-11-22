@@ -1,6 +1,6 @@
 ---
 title: Files (.mdj)
-description: How OpenUML stores models.
+description: 'How OpenUML stores models: one .mdj file of JSON per project, the format other UML tools that use .mdj files read and write.'
 ---
 
 OpenUML saves each project as one `.mdj` file: JSON text with the model elements and the diagrams that show them. It is the format other UML tools that use `.mdj` files read and write, so models can move between them.

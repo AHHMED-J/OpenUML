@@ -1,6 +1,9 @@
 ---
 title: OpenUML in your browser
-description: Use OpenUML without installing it, in Chrome, Edge, Firefox or Safari.
+description: 'Use OpenUML, a free UML tool, in your browser with nothing to install: UML and IDEF0 in Chrome, Edge, Firefox or Safari, and your files stay on your computer.'
+head:
+  - tag: title
+    content: 'UML in the browser, nothing to install | OpenUML'
 ---
 
 [Open OpenUML in your browser](/app/). It is the same app as the desktop version, with the same diagrams, tools and file format.

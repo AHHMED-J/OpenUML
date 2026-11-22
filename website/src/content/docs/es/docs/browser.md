@@ -1,6 +1,9 @@
 ---
 title: OpenUML en el navegador
-description: Usa OpenUML sin instalarlo, en Chrome, Edge, Firefox o Safari.
+description: 'Usa OpenUML, editor UML online gratis, sin instalar nada: UML e IDEF0 en Chrome, Edge, Firefox o Safari, y tus archivos se quedan en tu equipo.'
+head:
+  - tag: title
+    content: 'Editor UML online, sin instalar nada | OpenUML'
 ---
 
 [Abre OpenUML en el navegador](/app/). Es la misma app que la versión de escritorio, con los mismos diagramas, herramientas y formato de archivo.

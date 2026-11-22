@@ -1,6 +1,6 @@
 ---
 title: About OpenUML
-description: Who makes OpenUML and how.
+description: 'OpenUML is a free, open-source UML modeling tool under the MIT license: an independent project, with no telemetry.'
 ---
 
 OpenUML is a free, open-source modeling tool, released under the [MIT license](https://github.com/AHHMED-J/OpenUML/blob/main/LICENSE). Its source code, issues and releases are on [GitHub](https://github.com/AHHMED-J/OpenUML).

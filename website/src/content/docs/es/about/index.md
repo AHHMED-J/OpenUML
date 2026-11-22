@@ -1,6 +1,6 @@
 ---
 title: Acerca de OpenUML
-description: Quién hace OpenUML y cómo.
+description: 'OpenUML es una herramienta de modelado UML gratis y de código abierto con licencia MIT: un proyecto independiente y sin telemetría.'
 ---
 
 OpenUML es una herramienta de modelado libre y de código abierto, publicada con [licencia MIT](https://github.com/AHHMED-J/OpenUML/blob/main/LICENSE). Su código, incidencias y versiones están en [GitHub](https://github.com/AHHMED-J/OpenUML).
