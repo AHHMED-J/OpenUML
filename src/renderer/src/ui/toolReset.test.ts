@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createDiagram } from '../commands'
 import type { Elem } from '../model'
 import { activeDiagram, projectStore } from '../store'
+import { openClassDiagramProject } from '../store/testProject'
 import { resetToolOnDiagramTypeChange } from './app/lifecycle'
 import { uiStore } from './uiStore'
 
@@ -13,7 +14,7 @@ afterEach(() => {
 
 describe('the active tool and the diagram type', () => {
   it('drops the tool when a diagram of another type opens, even with the Toolbox hidden', () => {
-    projectStore.getState().newProject()
+    openClassDiagramProject()
     stop = resetToolOnDiagramTypeChange()
     const store = projectStore.getState()
     const main = activeDiagram(store) as Elem
@@ -24,7 +25,7 @@ describe('the active tool and the diagram type', () => {
   })
 
   it('keeps the tool when another diagram of the same type opens', () => {
-    projectStore.getState().newProject()
+    openClassDiagramProject()
     stop = resetToolOnDiagramTypeChange()
     const store = projectStore.getState()
     const main = activeDiagram(store) as Elem

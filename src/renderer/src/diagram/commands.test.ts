@@ -31,11 +31,13 @@ describe('paste command', () => {
     const commands = await import('./commands')
     const { CommandRegistry: Registry } = await import('../commands')
     const { projectStore: store } = await import('../store')
+    const { openClassDiagramProject } = await import('../store/testProject')
     ;(await import('./notations')).ensureNotations()
     const registry = new Registry()
     const dispose = commands.registerDiagramCommands(registry, { getZoom: () => 1, setZoom: () => undefined })
     try {
-      store.getState().newProject()
+      // File > New opens no diagram; Paste needs one open.
+      openClassDiagramProject(store)
       expect(registry.isEnabled(commands.DiagramCommandIds.paste)).toBe(true)
     } finally {
       dispose()
