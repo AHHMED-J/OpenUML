@@ -2,7 +2,7 @@
   "name": "openuml",
   "productName": "OpenUML",
   "version": "0.1.9",
-  "description": "Open-source UML modeling tool (class, use case, sequence and activity diagrams) with .mdj file compatibility.",
+  "description": "Open-source alternative to StarUML: UML, IDEF0 and RAD modeling with .mdj files.",
   "license": "MIT",
   "private": true,
   "main": "./out/main/index.js",
