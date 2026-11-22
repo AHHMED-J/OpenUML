@@ -1,7 +1,7 @@
 {
   "name": "openuml",
   "productName": "OpenUML",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "Open-source alternative to StarUML: UML, IDEF0 and RAD modeling with .mdj files.",
   "license": "MIT",
   "private": true,

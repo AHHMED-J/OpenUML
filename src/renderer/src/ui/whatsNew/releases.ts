@@ -6,7 +6,20 @@
  */
 
 /** Hero drawings available to feature slides (see `illustrations.tsx`). */
-export type IllustrationId = 'pending-arrows' | 'box-table' | 'advanced-arrows' | 'website' | 'rad-lines' | 'show-in-folder' | 'whats-new' | 'dark-canvas' | 'working-diagrams'
+export type IllustrationId =
+  | 'pending-arrows'
+  | 'box-table'
+  | 'advanced-arrows'
+  | 'website'
+  | 'rad-lines'
+  | 'show-in-folder'
+  | 'whats-new'
+  | 'dark-canvas'
+  | 'working-diagrams'
+  | 'compact-toolbar'
+  | 'toolbox-colors'
+  | 'first-steps'
+  | 'browser-app'
 
 export interface ReleaseFeature {
   readonly title: string
@@ -34,6 +47,60 @@ export function releaseUrl(version: string): string {
 }
 
 export const RELEASES: readonly Release[] = [
+  {
+    version: '0.2.0',
+    date: '2026-11-22',
+    features: [
+      {
+        title: 'OpenUML in your browser',
+        description:
+          'Try OpenUML without installing anything at openuml.org/app, part of the new openuml.org website with guides and downloads. It opens and saves the same .mdj files, and your files stay on your computer.',
+        illustration: 'browser-app'
+      },
+      {
+        title: 'Compact mode',
+        description:
+          'Choose Compact in Preferences > Toolbar mode for more room to draw: Save, Undo, Redo and a menu with every other button sit in a thin column beside the canvas, and the tab row hides while only one diagram is open.',
+        illustration: 'compact-toolbar'
+      },
+      {
+        title: 'First steps',
+        description:
+          'A new project now starts with just the Model: the empty canvas offers Add Diagram, and short tips lead you to it, then to the Toolbox and Properties. Close them one by one or turn them off; Preferences > Help brings them back.',
+        illustration: 'first-steps'
+      },
+      {
+        title: 'A colorful Toolbox and a lighter dark theme',
+        description:
+          'Each tool in the Toolbox takes the color of its kind of element, as in the Model Explorer, and all relationships share one color. The dark theme is a step lighter, with easier-to-read text on every panel.',
+        illustration: 'toolbox-colors'
+      }
+    ],
+    minor: [
+      { kind: 'fixed', text: 'On macOS, Quit with unsaved changes quits after Save or Don’t Save instead of only closing the window.' },
+      { kind: 'fixed', text: 'A file opened from Finder while no window is open now opens.' },
+      { kind: 'fixed', text: 'Editing keys such as Cmd/Ctrl+Backspace, Cmd/Ctrl+Shift+Up or Down and Cmd/Ctrl+Shift+V edit the text field you are typing in.' },
+      { kind: 'fixed', text: 'Enter that picks a word in a Chinese, Japanese or Korean input method no longer confirms the field or runs a shortcut.' },
+      { kind: 'fixed', text: 'Keyboard Shortcuts refuses keys the system keeps for itself, such as Cmd+Q, and says why.' },
+      { kind: 'fixed', text: 'Toolbar tooltips show a changed shortcut right away.' },
+      { kind: 'fixed', text: 'Esc closes a dialog after a click on its text.' },
+      { kind: 'fixed', text: 'Arrow keys keep moving through the Model Explorer after a context menu closes.' },
+      { kind: 'fixed', text: 'Paste works after a restart with views still on the clipboard.' },
+      { kind: 'fixed', text: 'Duplicate and copy never add a second IDEF0 frame.' },
+      { kind: 'fixed', text: 'Deleting several arrows of an IDEF0 branch chain gives the same result in any selection order.' },
+      { kind: 'fixed', text: 'Advanced Arrows reports a failure instead of doing nothing.' },
+      { kind: 'fixed', text: 'Aligning a package together with the classes inside it no longer moves them twice.' },
+      { kind: 'fixed', text: 'Picking a color for views of different colors applies it to all of them.' },
+      { kind: 'fixed', text: 'With the Toolbox hidden, switching to another diagram type drops the active tool.' },
+      { kind: 'fixed', text: 'Toggle Editors shows the side area when it was hidden.' },
+      { kind: 'fixed', text: 'A panel resize cut short by the system no longer leaves the resize cursor on.' },
+      { kind: 'fixed', text: 'A new metaclass keeps the name you give it.' },
+      { kind: 'fixed', text: 'An empty project name stays empty after reopening the file.' },
+      { kind: 'fixed', text: 'Exports no longer include the warning mark of a RAD element with several warnings.' },
+      { kind: 'fixed', text: 'Exported interactive websites no longer lock after an interrupted zoom or break on a malformed address.' },
+      { kind: 'fixed', text: 'What’s New stays closed on a fresh install opened with a file.' }
+    ]
+  },
   {
     version: '0.1.9',
     date: '2026-11-05',
