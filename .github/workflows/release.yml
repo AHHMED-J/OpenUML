@@ -138,9 +138,15 @@ jobs:
           merge-multiple: true
           path: installers
 
-      - name: Checksums
+      # A copy of each installer without the version (OpenUML-mac-arm64.dmg...), so that the website's
+      # releases/latest/download/<name> links always reach the newest release.
+      - name: Version-less copies and checksums
         working-directory: installers
+        env:
+          VERSION: ${{ github.ref_name }}
         run: |
+          VERSION="${VERSION#v}"
+          for f in OpenUML-"$VERSION"-*; do cp "$f" "OpenUML-${f#OpenUML-$VERSION-}"; done
           sha256sum * | tee SHA256SUMS.txt
           ls -la
 
@@ -148,7 +154,8 @@ jobs:
         run: |
           cat > notes.md <<'EOF'
           Installers for Windows (64-bit), macOS (Apple Silicon and Intel) and Linux (64-bit AppImage).
-          Check the downloads against `SHA256SUMS.txt`.
+          Check the downloads against `SHA256SUMS.txt`. Files without a version number in their name are
+          the same installers, kept under a fixed name for links to the latest release.
 
           **The builds are not code-signed** (that needs paid Apple and Microsoft certificates), so
           each system warns on first launch:
@@ -156,8 +163,8 @@ jobs:
           - **Windows:** SmartScreen shows "Windows protected your PC": click *More info*, then *Run anyway*.
           - **macOS:** open the `.dmg` (or unzip), drag OpenUML to *Applications*, then right-click it and
             choose *Open* (or *System Settings > Privacy & Security > Open Anyway*).
-          - **Linux:** `chmod +x OpenUML-*.AppImage && ./OpenUML-*.AppImage`. Without FUSE 2, add
-            `--appimage-extract-and-run`.
+          - **Linux:** make the AppImage executable (`chmod +x OpenUML-*.AppImage`) and run it.
+            Without FUSE 2, add `--appimage-extract-and-run`.
 
           ---
 
