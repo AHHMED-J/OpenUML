@@ -1,174 +1,134 @@
-# OpenUML
+<p align="center"><img src="build/icon.png" alt="OpenUML logo" width="112"></p>
 
-<p align="center"><img src="build/icon.png" alt="OpenUML logo" width="128"></p>
+<h1 align="center">OpenUML</h1>
 
-OpenUML is an open-source desktop modeling tool for macOS, Windows and Linux, built with Electron, React and
-TypeScript. It edits 15 UML diagram types plus Role Activity Diagrams (RAD) and IDEF0 process models, and
-reads and writes `.mdj` project files.
+<p align="center">
+  Free, open-source modeling for macOS, Windows and Linux.<br>
+  15 UML diagram types, IDEF0 and Role Activity Diagrams, in <code>.mdj</code> files.
+</p>
 
-**[Download the latest version](https://github.com/AHHMED-J/OpenUML/releases/latest)** — see [Download](#download)
-for which file to pick.
+<p align="center">
+  <a href="https://github.com/AHHMED-J/OpenUML/releases/latest"><b>⬇ Download the latest version</b></a>
+  &nbsp;·&nbsp; <a href="#download">Which file?</a>
+  &nbsp;·&nbsp; <a href="#development">Development</a>
+</p>
 
-> OpenUML is an independent project. It is not affiliated with, endorsed by, or connected to any other UML tool
-> or its vendor. It is implemented from written behavioral specifications in its own code and contains no
-> third-party proprietary code, icons or other assets.
+![OpenUML with a class diagram open](docs/images/window-light.png)
 
-## Features
+## What you can draw
 
-- **Model Explorer** – the project tree with type icons, sorting by insertion order or name, search,
-  double-click to open a diagram or show an element on its diagram, inline rename (F2), drag-and-drop re-parenting, and context menus to add elements and diagrams.
-- **UML diagrams** – class, object, package, component, deployment, composite structure, profile, use case,
-  activity, state machine, sequence, communication, timing, interaction overview and information flow, each with
-  its own toolbox, plus annotations (notes, note links, text).
-- **Role Activity Diagrams (RAD)** – roles, activities, state lines, interactions between roles, alternative
-  (case) and parallel (part) refinements, iteration, waits, role initialization and state markers. One *Line* tool
-  draws a state line within a role and an interaction between roles (the activities it joins become interactions);
-  interaction lines take bend points. Symbols line up on their thread, a refinement moves with its branches, a role
-  can be locked (*Format > Lock Position and Size*) to select inside it without moving it, roles grow to fit their
-  content, threads stay connected when elements move, and soft warnings (for example a role name that is not a
-  gerund) never block editing.
-- **IDEF0** – function boxes with automatic numbering, ICOM arrows (input, control, output, mechanism) that
-  snap to the right side, forks and joins, call and tunneled arrows, the A-0 context diagram, *Decompose* into
-  child diagrams with Go to Parent/Child, *Set Number of Child Boxes* (add boxes, or choose which boxes to remove
-  with their arrows and sub-diagrams; one undo step), the title block, and consistency warnings with a status-bar count.
-  Decomposing no longer wires the parent's arrows to the child boxes: each one waits on the frame edge as a dashed
-  *pending arrow* (role color, ICOM code and name) until you drag it onto the side of a box that matches its role;
-  dragging it to more boxes makes a fork (a join for outputs), and the status bar counts the arrows still pending.
-  Clicking a pending arrow (or *Connect to...* on a boundary arrow) opens a table of the diagram's boxes: the checked
-  boxes are previewed on the canvas, a box with its own child diagram warns before it loses the arrow, and *Connect*
-  applies the choice in one undo step. For many arrows at once, right-click a decomposition diagram in the Model
-  Explorer (or View > Panels) for the dockable *Advanced Arrows* panel: one row per parent arrow, one column per box,
-  each checkbox applied at once, so an older file whose arrows all reach one box can be re-spread in a few clicks.
-  New boundary arrows take a free spot on the frame edge, and *Spread Boundary Arrows* gives every arrow of a diagram its
-  own spot in one undo step.
-- **Editing** – live preview while moving, resizing and drawing, animated zoom, grid and snap-to-grid, inline
-  name editing and quick-edit syntax (e.g. `-total : Money [0..1] = 0`, `trigger [guard] / effect`), copy,
-  paste and duplicate (pasted elements are new, independent copies with the same names), alignment commands.
-  Diagram tabs and a Working Diagrams list. Icon buttons show their name and shortcut in a quick tooltip.
-- **Customizable layout** – long-press a panel header (Toolbox, Model Explorer, Properties, …) and drag it to
-  another place; the layout is remembered. *View > Reset Layout* restores the default.
-- **Property Editor** – rows generated from the metamodel (text, numbers, checkboxes, enumerations, references,
-  type/stereotype autocomplete, attribute/operation/parameter/literal lists), multi-selection editing,
-  association-end sections, plus a Style editor (colors can be picked, or typed and pasted as `#rrggbb` codes) and a
-  Documentation editor.
-- **Undo/redo** for every change (one step per gesture), with unsaved-change tracking.
-- **Files** – New, Open, Open Recent, *Open Example* (bundled models from `examples/`, e.g. a six-box IDEF0 software
-  release process), Save, Save As; export the current diagram (or all diagrams) to PNG or SVG, or to PDF
-  (one diagram, or every diagram in one file; IDEF0 sheets sized to a paper print on that paper). The toolbar's
-  Export button offers PNG or PDF. Opening a file lists all its diagrams in Working Diagrams and the tabs.
-- **Interactive website** – *File > Export Interactive Website* writes one self-contained HTML file anyone can open
-  offline in a browser (email it, upload it to Moodle or GitHub Pages): the model tree, the diagrams with pan and
-  zoom, IDEF0 boxes that zoom into their child diagrams, a breadcrumb, Left/Right to walk the model box by box, and
-  under each IDEF0 diagram the inputs, controls, outputs and mechanisms of the focused box. The page loads nothing
-  from the internet.
-- **Your work is protected** – a project with a file is saved automatically every minute while it has unsaved
-  changes (*Preferences > Files*, from 30 seconds to 10 minutes, or off), and unsaved work is kept aside so that,
-  if OpenUML closes unexpectedly, the next start offers to recover it.
-- **Commands** – native application menu, context menus, keyboard shortcuts (`Cmd` on macOS, `Ctrl` elsewhere)
-  that you can change in *Keyboard Shortcuts* (any command, conflicts asked about, reset per command or all),
-  a command palette (`Cmd/Ctrl+Shift+P`) and `Cmd/Ctrl+F` to search the Model Explorer.
-- **Show in Finder** – the button next to *Save* (and *File > Show in Finder / Explorer*) reveals the open project's
-  file in its folder.
-- **Updates** – the window title shows the version you run. At startup and once a day OpenUML asks GitHub for the
-  latest release (only that request, no personal data) and, when a newer one exists, offers it in the status bar;
-  *Download* opens its release page. Turn it off in *Preferences > Updates*, or check by hand with
-  *Check for Updates…*.
-- **What's New** – the first time you start a newer version, a short carousel shows its big features and one last
-  slide with the smaller improvements and fixes. Reopen it from *Help > What's New…*; turn the automatic window off in
-  *Preferences > Updates*.
-- **Themes** – light and dark, following the system setting by default; preferences for grid, snap and default
-  font size. The canvas can be dark on its own (*View > Dark Canvas*), without changing the file; exports stay light
-  unless *Preferences* says otherwise.
+![Sequence, activity, state machine, use case, IDEF0 and RAD diagrams made in OpenUML](docs/images/gallery.png)
+
+```
+UML structure   class · object · package · component · deployment · composite structure · profile
+UML behavior    use case · activity · state machine · sequence · communication · timing
+                interaction overview · information flow
+Processes       IDEF0 · Role Activity Diagrams (RAD)
+```
+
+## Highlights
+
+| | |
+| --- | --- |
+| 🗂 **Model Explorer** | project tree, search, drag to re-parent, double-click to open |
+| ✏️ **Editing** | live preview, snap to grid, quick-edit syntax (`-total : Money = 0`), copy/paste, alignment |
+| 🧾 **Properties** | metamodel-driven editor, styles with `#rrggbb` colors, documentation |
+| ↩️ **Undo / redo** | one step per gesture, for every change |
+| 📤 **Export** | PNG, SVG, PDF, and an offline interactive website to share the model |
+| 💾 **Safe** | autosave every minute and recovery after a crash |
+| ⌨️ **Commands** | native menus, command palette (`Cmd/Ctrl+Shift+P`), custom shortcuts |
+| 🎨 **Look** | light and dark themes, dark canvas, panels you can rearrange |
+| 🔔 **Updates** | notice in the status bar when a new version is out (can be turned off) |
+
+## IDEF0 and RAD
+
+```
+                 Control
+                    │
+                    ▼
+             ┌─────────────┐
+   Input ───►│  A1  Do it  │───► Output          Decompose a box into its own child diagram,
+             └─────────────┘                     then connect the parent's arrows to the
+                    ▲                            boxes that use them.
+                    │
+                Mechanism
+```
+
+- **IDEF0:** automatic numbering, ICOM arrows that snap to the right side, forks and joins, call arrows,
+  the A-0 context diagram, decomposition, title block and consistency warnings.
+- **RAD:** roles, activities, interactions between roles, case and part refinements, waits and state markers.
+- Guides: [IDEF0 in English](docs/guides/OpenUML_IDEF0_Guide_EN.pdf) ·
+  [IDEF0 en español](docs/guides/OpenUML_Instructivo_IDEF0.pdf).
+
+![An IDEF0 decomposition in dark mode](docs/images/window-dark.png)
 
 ## Download
 
-Installers are published on the [Releases page](https://github.com/AHHMED-J/OpenUML/releases/latest).
-Download the file for your system:
+Get the installer from the [Releases page](https://github.com/AHHMED-J/OpenUML/releases/latest):
 
 | System | File |
 | --- | --- |
-| macOS, Apple Silicon (M1/M2/M3/M4) | `OpenUML-<version>-mac-arm64.dmg` |
+| macOS, Apple Silicon (M1–M4) | `OpenUML-<version>-mac-arm64.dmg` |
 | macOS, Intel | `OpenUML-<version>-mac-x64.dmg` |
 | Windows 10/11 (64-bit) | `OpenUML-<version>-win-x64.exe` |
 | Linux (64-bit) | `OpenUML-<version>-linux-x86_64.AppImage` |
 
-Not sure which Mac you have? Open the Apple menu > *About This Mac*: "Chip: Apple M…" means Apple Silicon.
-Each release lists SHA-256 checksums (`SHA256SUMS.txt`) to verify the downloads.
+The builds are not code-signed, so each system warns the first time:
 
-The builds are **not code-signed** (that needs paid Apple and Microsoft certificates), so each
-system warns on first launch:
+<details>
+<summary><b>First launch on macOS, Windows or Linux</b></summary>
 
-- **Windows:** SmartScreen shows "Windows protected your PC": click *More info*, then *Run anyway*.
-  The installer lets you choose the folder and registers OpenUML as the editor of `.mdj` files.
-- **macOS:** open the `.dmg` (or unzip), drag `OpenUML.app` to *Applications*, then right-click it
-  and choose *Open* (or *System Settings > Privacy & Security > Open Anyway*). After the first launch it
-  opens normally from Launchpad, Spotlight or the Dock. If macOS reports that the app "is damaged and
-  can't be opened", run `xattr -cr /Applications/OpenUML.app` once in Terminal. The app is signed ad hoc,
-  which Apple Silicon requires to run it at all.
-- **Linux:** `chmod +x OpenUML-<version>-linux-x86_64.AppImage` and run it. Without FUSE 2, add
-  `--appimage-extract-and-run`; on Ubuntu 24.04 and later you may also need `--no-sandbox`.
+- **macOS:** drag `OpenUML.app` to *Applications*, then right-click it > *Open* (or *System Settings >
+  Privacy & Security > Open Anyway*). If macOS says the app "is damaged", run
+  `xattr -cr /Applications/OpenUML.app` once in Terminal.
+- **Windows:** in "Windows protected your PC", click *More info* > *Run anyway*.
+- **Linux:** `chmod +x OpenUML-*.AppImage` and run it. Without FUSE 2 add `--appimage-extract-and-run`;
+  on Ubuntu 24.04+ you may also need `--no-sandbox`.
 
-### Publishing a release (maintainers)
+Not sure which Mac you have? Apple menu > *About This Mac*: "Chip: Apple M…" means Apple Silicon.
+Each release lists SHA-256 checksums in `SHA256SUMS.txt`.
 
-Releases are built by the [Release workflow](.github/workflows/release.yml) on real Windows, macOS
-and Linux runners. After typecheck and tests pass, it publishes the installers and their checksums:
+</details>
 
-```sh
-# 1. set "version" in package.json (e.g. 0.1.1), commit and push
-# 2. tag that commit with the same version and push the tag
-git tag v0.1.1
-git push origin v0.1.1
-```
+## Development
 
-The workflow fails early if the tag and `package.json` disagree. Tags with a suffix (`v0.2.0-beta.1`)
-are published as pre-releases. To only build the installers without publishing, run the workflow
-from *Actions > Release > Run workflow*: they are attached to the run for 14 days.
-
-## Getting started
-
-Requirements: Node.js 20 or later.
+Requires Node.js 20 or later.
 
 ```sh
-npm install      # install dependencies
-npm run dev      # start the app in development mode
-npm test         # run the unit tests
-npm run build    # production build into out/
+npm install        # dependencies
+npm run dev        # run the app
+npm test           # unit tests
+npm run typecheck  # TypeScript
+npm run dist       # installers for this system, into release/
 ```
 
-`npm run typecheck` runs the TypeScript compiler.
+<details>
+<summary><b>Packaging and releases (maintainers)</b></summary>
 
-## Packaging
+`npm run dist` uses electron-builder (macOS `.dmg` and `.zip`, Windows NSIS, Linux AppImage), named
+`OpenUML-<version>-<os>-<arch>.<ext>`. Installed builds open `.mdj` files.
 
-`npm run dist` builds the installers for the current operating system into `release/` with
-electron-builder (macOS: `.dmg` and `.zip`; Windows: NSIS installer; Linux: AppImage), named
-`OpenUML-<version>-<os>-<arch>.<ext>`. Installed
-builds register OpenUML as the editor of `.mdj` files, with their own document icon; opening a
-`.mdj` file while OpenUML runs opens it in the running window. The builds are not code-signed, so
-macOS Gatekeeper and Windows SmartScreen warn on first launch.
-
-Building on Linux for the other systems also works: Windows needs Wine (32- and 64-bit:
-`wine64` and `wine32:i386` on Ubuntu) for the NSIS installer and the executable icon. macOS
-targets cannot be signed or put in a `.dmg` off macOS: build with `npx electron-builder --mac dir`,
-sign the bundle ad hoc with [rcodesign](https://github.com/indygreg/apple-platform-rs)
-(`rcodesign sign release/mac-arm64/OpenUML.app`), and zip it keeping its symbolic links
-(`zip -qry`); electron-builder's own zip on Linux turns the framework symlinks into copies.
-
-The icons in `build/` and `resources/icon.png` are generated from the logo artwork in
-`build/icon-src/` (Python 3 with Pillow and NumPy):
+Releases are built by the [Release workflow](.github/workflows/release.yml) on Windows, macOS and Linux:
 
 ```sh
-python3 build/icon-src/make_icons.py
+# set "version" in package.json, commit and push, then:
+git tag v0.1.1 && git push origin v0.1.1
 ```
 
-## Project layout
+The tag must match `package.json`; a suffix (`v0.2.0-beta.1`) makes a pre-release. *Actions > Release >
+Run workflow* builds without publishing.
 
-User guides for IDEF0 diagrams: [English](docs/guides/OpenUML_IDEF0_Guide_EN.pdf) and
-[español](docs/guides/OpenUML_Instructivo_IDEF0.pdf).
+Cross-building on Linux: Windows needs Wine (`wine64` and `wine32:i386`); for macOS use
+`npx electron-builder --mac dir`, sign ad hoc with [rcodesign](https://github.com/indygreg/apple-platform-rs)
+and zip with `zip -qry` to keep the symlinks. Icons are generated with `python3 build/icon-src/make_icons.py`.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the process and module structure and
-[docs/PROGRESS.md](docs/PROGRESS.md) for the development log.
-[CONTRIBUTING.md](CONTRIBUTING.md) describes the checks to run and the commit message convention.
+</details>
 
-## License
+More: [architecture](docs/ARCHITECTURE.md) · [development log](docs/PROGRESS.md) ·
+[contributing](CONTRIBUTING.md).
 
-MIT — see [LICENSE](LICENSE).
+---
+
+OpenUML is an independent project, not affiliated with any other UML tool or its vendor. It is written from
+behavioral specifications and contains no third-party proprietary code, icons or assets.
+Released under the [MIT license](LICENSE).
