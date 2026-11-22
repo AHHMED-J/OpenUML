@@ -6,6 +6,7 @@ const es = Astro.locals.starlightRoute.locale === 'es'
 ---
 
 <Default />
+<p class="openuml-byline">{es ? 'Por Ahhmed Jalife' : 'By Ahhmed Jalife'}</p>
 <p class="openuml-notice">
   {
     es
@@ -15,6 +16,11 @@ const es = Astro.locals.starlightRoute.locale === 'es'
 </p>
 
 <style>
+  .openuml-byline {
+    margin-top: 1.5rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
   .openuml-notice {
     margin-top: 1.5rem;
     font-size: var(--sl-text-xs);

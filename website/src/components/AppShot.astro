@@ -1,0 +1,31 @@
+---
+/**
+ * The app's window, large, in the page's theme: the light capture with the light theme, the dark
+ * one with the dark theme (Starlight's light:/dark: helpers).
+ */
+import { Image } from 'astro:assets'
+import dark from '../assets/window-dark.png'
+import light from '../assets/window-light.png'
+
+interface Props {
+  alt: string
+}
+const { alt } = Astro.props
+---
+
+<figure class="app-shot not-content">
+  <Image src={light} alt={alt} widths={[800, 1400, 2000]} sizes="(min-width: 72rem) 68rem, 100vw" class="dark:sl-hidden" />
+  <Image src={dark} alt={alt} widths={[800, 1400, 2000]} sizes="(min-width: 72rem) 68rem, 100vw" class="light:sl-hidden" />
+</figure>
+
+<style>
+  .app-shot {
+    margin: 0 auto 2.5rem;
+    max-width: 68rem;
+  }
+  .app-shot img {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 12px 28px rgb(0 0 0 / 0.28));
+  }
+</style>

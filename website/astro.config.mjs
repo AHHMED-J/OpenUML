@@ -9,13 +9,13 @@ export default defineConfig({
       title: 'OpenUML',
       description: 'Free, open-source UML, IDEF0 and RAD modeling for Windows, macOS and Linux.',
       favicon: '/favicon.png',
+      logo: { src: './src/assets/logo.png', alt: '' },
       defaultLocale: 'root',
       locales: {
         root: { label: 'English', lang: 'en' },
         es: { label: 'Español', lang: 'es' }
       },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/AHHMED-J/OpenUML' }],
-      editLink: { baseUrl: 'https://github.com/AHHMED-J/OpenUML/edit/main/website/' },
       customCss: ['./src/styles/custom.css'],
       components: { Footer: './src/components/Footer.astro' },
       sidebar: [

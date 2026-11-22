@@ -5,9 +5,8 @@ template: splash
 hero:
   tagline: The free, open-source alternative to StarUML. 15 UML diagram types, IDEF0 and Role Activity Diagrams, saved in .mdj files, on Windows, macOS and Linux.
   image:
-    light: ../../assets/window-light.png
-    dark: ../../assets/window-dark.png
-    alt: OpenUML with a class diagram open
+    file: ../../assets/logo-large.png
+    alt: ''
   actions:
     - text: Download
       link: /download/
@@ -24,7 +23,10 @@ hero:
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components'
-import DownloadButton from '../../components/DownloadButton.astro'
+import AppShot from '../../components/AppShot.astro'
+import SystemDownloads from '../../components/SystemDownloads.astro'
+
+<AppShot alt="OpenUML with a class diagram open" />
 
 ## What you can draw
 
@@ -66,6 +68,6 @@ import DownloadButton from '../../components/DownloadButton.astro'
 
 Free and open source under the MIT license. No account, no telemetry: the only automatic connection is the update check, which you can turn off.
 
-<DownloadButton />
+<SystemDownloads />
 
 Or [use it in your browser](/app/), with nothing to install: your files stay on your computer. [How it works](/docs/browser/).

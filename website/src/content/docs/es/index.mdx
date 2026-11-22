@@ -5,9 +5,8 @@ template: splash
 hero:
   tagline: La alternativa gratuita y de código abierto a StarUML. 15 tipos de diagrama UML, IDEF0 y diagramas de actividad de roles, guardados en archivos .mdj, en Windows, macOS y Linux.
   image:
-    light: ../../../assets/window-light.png
-    dark: ../../../assets/window-dark.png
-    alt: OpenUML con un diagrama de clases abierto
+    file: ../../../assets/logo-large.png
+    alt: ''
   actions:
     - text: Descargar
       link: /es/download/
@@ -24,11 +23,14 @@ hero:
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components'
-import DownloadButton from '../../../components/DownloadButton.astro'
+import AppShot from '../../../components/AppShot.astro'
+import SystemDownloads from '../../../components/SystemDownloads.astro'
+
+<AppShot alt="OpenUML con un diagrama de clases abierto" />
 
 ## Qué puedes dibujar
 
-![Diagramas de secuencia, actividad, máquina de estados, casos de uso, IDEF0 y RAD hechos en OpenUML](../../../assets/gallery.png)
+![Diagramas de secuencia, actividad, máquina de estados, casos de uso, IDEF0 y RAD hechos en OpenUML](../../../assets/gallery-es.png)
 
 <CardGrid>
   <Card title="Estructura UML" icon="seti:folder">
@@ -66,6 +68,6 @@ import DownloadButton from '../../../components/DownloadButton.astro'
 
 Gratis y de código abierto con licencia MIT. Sin cuenta ni telemetría: la única conexión automática es la búsqueda de actualizaciones, que puedes desactivar.
 
-<DownloadButton lang="es" />
+<SystemDownloads lang="es" />
 
 O [úsalo en el navegador](/app/), sin instalar nada: tus archivos se quedan en tu equipo. [Cómo funciona](/es/docs/browser/).
