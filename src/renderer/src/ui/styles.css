@@ -751,6 +751,19 @@ textarea:focus {
   padding: 24px;
 }
 
+/* A project without diagrams: the canvas invites the first one. */
+.canvas-empty {
+  height: 100%;
+  gap: 12px;
+}
+.canvas-empty-title {
+  color: var(--text);
+  font-size: 15px;
+}
+.canvas-empty .button {
+  margin-top: 4px;
+}
+
 /* Fallback of a panel whose content failed to render (components/PanelBoundary). */
 .panel-error {
   display: flex;
@@ -1209,6 +1222,10 @@ textarea:focus {
   box-shadow: var(--shadow);
 }
 
+.modal:focus {
+  outline: none;
+}
+
 .modal-title {
   padding: 10px 14px 6px;
   font-weight: 600;
@@ -1304,6 +1321,11 @@ kbd {
 
 .pref-row select {
   width: 160px;
+}
+
+.pref-row .button {
+  flex: none;
+  white-space: nowrap;
 }
 
 input.full {
@@ -2287,4 +2309,89 @@ body.dock-dragging * {
 .wn-link:disabled {
   color: var(--text-muted);
   cursor: default;
+}
+
+/* ---------------------------------------------------------------- guidance tips (guide/) */
+
+.guide-tip {
+  position: fixed;
+  z-index: 800;
+  max-width: 260px;
+  padding: 10px 30px 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: var(--font-size);
+  line-height: 1.4;
+}
+.guide-tip-text {
+  margin: 0 0 6px;
+}
+.guide-tip-close {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}
+.guide-tip-off {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.guide-tip-off:hover {
+  color: var(--text);
+}
+.guide-tip-off:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+/* The arrow: a square turned 45° showing the two edges that face the target. */
+.guide-tip-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  transform: rotate(45deg);
+}
+.guide-tip-bottom .guide-tip-arrow {
+  top: -6px;
+  margin-left: -5px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.guide-tip-top .guide-tip-arrow {
+  bottom: -6px;
+  margin-left: -5px;
+  border-left: 0;
+  border-top: 0;
+}
+.guide-tip-right .guide-tip-arrow {
+  left: -6px;
+  margin-top: -5px;
+  border-right: 0;
+  border-top: 0;
+}
+.guide-tip-left .guide-tip-arrow {
+  right: -6px;
+  margin-top: -5px;
+  border-left: 0;
+  border-bottom: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .guide-tip {
+    animation: guide-tip-in 160ms ease-out;
+  }
+}
+@keyframes guide-tip-in {
+  from {
+    opacity: 0;
+  }
 }

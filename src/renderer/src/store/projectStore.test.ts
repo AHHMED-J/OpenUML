@@ -3,24 +3,58 @@ import { describe, expect, it } from 'vitest'
 import { CommandIds, CommandRegistry, createDiagram, createNode, setFields } from '../commands'
 import { FormatError } from '../format'
 import type { Diagram, Elem, View } from '../model'
-import { activeDiagram, createProjectStore, registerCoreCommands, selectedModels } from '.'
+import { activeDiagram, createProjectStore, registerCoreCommands, selectedModels, selectionOrActiveDiagram } from '.'
+import { openClassDiagramProject } from './testProject'
 
 const exampleText = readFileSync(new URL('../format/fixtures/example.mdj', import.meta.url), 'utf8')
 
 describe('project store', () => {
-  it('starts with a default project: Model + class diagram "Main" open and active', () => {
+  it('starts with a new project: Project "Untitled" → Model, no diagram, nothing open', () => {
     const store = createProjectStore()
     const s = store.getState()
     expect(s.project.name).toBe('Untitled')
-    const diagram = activeDiagram(s) as Diagram
-    expect(diagram).toMatchObject({ _type: 'UMLClassDiagram', name: 'Main' })
-    expect(s.openDiagramIds).toEqual([diagram._id])
+    expect(s.project.ownedElements.map((e) => [e._type, e.name])).toEqual([['UMLModel', 'Model']])
+    expect(s.repository.diagrams()).toEqual([])
+    expect(s.openDiagramIds).toEqual([])
+    expect(s.activeDiagramId).toBeNull()
     expect(s.dirty).toBe(false)
     expect(s.filePath).toBeNull()
   })
 
-  it('bumps version and tracks dirty/undo state on model changes', () => {
+  it('puts a diagram added with nothing selected and nothing open into the model', () => {
     const store = createProjectStore()
+    const { engine, project } = store.getState()
+    const model = project.ownedElements[0] as Elem
+    expect(selectionOrActiveDiagram(store.getState())).toBe(model)
+    // A UML diagram on screen still leads, as before.
+    const diagram = createDiagram(engine, 'ClassDiagram', model).diagram
+    store.getState().openDiagram(diagram._id)
+    expect(selectionOrActiveDiagram(store.getState())).toBe(diagram)
+    store.getState().closeDiagram(diagram._id)
+    expect(selectionOrActiveDiagram(store.getState())).toBe(model)
+    // With two models it is not a guess to make: the project.
+    project.ownedElements.push({ ...model, _id: 'second-model', ownedElements: [] } as Elem)
+    expect(selectionOrActiveDiagram(store.getState())).toBe(project)
+  })
+
+  it('saves a new project with no diagram as .mdj that opens again the same', () => {
+    const store = createProjectStore()
+    const text = store.getState().serializeProject()
+    const json = JSON.parse(text) as { _type: string; ownedElements: { _type: string; name: string; ownedElements?: unknown[] }[] }
+    expect(json._type).toBe('Project')
+    expect(json.ownedElements).toHaveLength(1)
+    expect(json.ownedElements[0]).toMatchObject({ _type: 'UMLModel', name: 'Model' })
+    expect(json.ownedElements[0]?.ownedElements ?? []).toEqual([])
+    const reopened = createProjectStore()
+    reopened.getState().openProject(text, 'new.mdj')
+    expect(reopened.getState().loadWarnings).toEqual([])
+    expect(reopened.getState().repository.diagrams()).toEqual([])
+    expect(reopened.getState().activeDiagramId).toBeNull()
+    expect(JSON.parse(reopened.getState().serializeProject())).toEqual(json)
+  })
+
+  it('bumps version and tracks dirty/undo state on model changes', () => {
+    const store = openClassDiagramProject(createProjectStore())
     const { engine, version } = store.getState()
     const diagram = activeDiagram(store.getState()) as Diagram
     createNode(engine, { kind: 'Class', diagram, left: 0, top: 0 })
@@ -58,7 +92,7 @@ describe('project store', () => {
   })
 
   it('manages diagram tabs and prunes deleted ids from tabs and selection', () => {
-    const store = createProjectStore()
+    const store = openClassDiagramProject(createProjectStore())
     const { engine, project } = store.getState()
     const main = activeDiagram(store.getState()) as Diagram
     const seq = createDiagram(engine, 'SequenceDiagram', project.ownedElements[0] as Elem).diagram
@@ -81,7 +115,7 @@ describe('project store', () => {
   })
 
   it('showDiagrams replaces the tabs, ignoring ids that are not diagrams', () => {
-    const store = createProjectStore()
+    const store = openClassDiagramProject(createProjectStore())
     const { engine, project } = store.getState()
     const main = activeDiagram(store.getState()) as Diagram
     const seq = createDiagram(engine, 'SequenceDiagram', project.ownedElements[0] as Elem).diagram
@@ -108,7 +142,7 @@ describe('project store', () => {
   })
 
   it('wires core commands into a registry', () => {
-    const store = createProjectStore()
+    const store = openClassDiagramProject(createProjectStore())
     const registry = new CommandRegistry()
     registerCoreCommands(registry, store)
     const diagram = activeDiagram(store.getState()) as Diagram

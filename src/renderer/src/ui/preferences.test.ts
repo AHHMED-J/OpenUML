@@ -67,6 +67,15 @@ describe('preferences', () => {
     expect(createUiStore().getState().prefs).toMatchObject({ showWhatsNew: true, lastSeenVersion: null })
   })
 
+  it('shows first-step tips unless turned off, refusing unknown values', () => {
+    stubStorage()
+    expect(createUiStore().getState().prefs.showTips).toBe(true)
+    stubStorage({ 'openuml.preferences': JSON.stringify({ showTips: false }) })
+    expect(createUiStore().getState().prefs.showTips).toBe(false)
+    stubStorage({ 'openuml.preferences': JSON.stringify({ showTips: 'never' }) })
+    expect(createUiStore().getState().prefs.showTips).toBe(true)
+  })
+
   it('persists the last seen version, and a reset keeps it', () => {
     const data = stubStorage()
     const store = createUiStore()

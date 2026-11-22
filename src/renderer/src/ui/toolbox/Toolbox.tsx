@@ -47,12 +47,12 @@ export function Toolbox(): React.JSX.Element {
   const groups = palettesFor(diagramType)
   const [open, setOpen] = useState<Record<string, boolean>>({})
 
-  // Auto-expand groups for the new diagram type; reset the tool.
+  // Auto-expand groups for the new diagram type (the tool itself is reset by the app, see
+  // `resetToolOnDiagramTypeChange`).
   useEffect(() => {
     const next: Record<string, boolean> = {}
     for (const g of palettesFor(diagramType)) next[g.id] = diagramType !== null && (g.autoExpand?.includes(diagramType) ?? false)
     setOpen(next)
-    uiStore.getState().setTool(null)
   }, [diagramType])
 
   return (

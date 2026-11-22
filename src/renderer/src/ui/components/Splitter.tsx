@@ -18,6 +18,10 @@ export function Splitter({ orientation, size, min = 0, max = 2000, after = false
   const start = useRef<{ pos: number; size: number } | null>(null)
   const clamp = (v: number): number => Math.max(min, Math.min(max, v))
   const axis = (e: React.PointerEvent): number => (orientation === 'vertical' ? e.clientX : e.clientY)
+  const end = (): void => {
+    start.current = null
+    document.body.classList.remove('resizing-x', 'resizing-y')
+  }
 
   return (
     <div
@@ -42,10 +46,13 @@ export function Splitter({ orientation, size, min = 0, max = 2000, after = false
         onResize(clamp(start.current.size + (after ? -delta : delta)))
       }}
       onPointerUp={(e) => {
-        start.current = null
-        e.currentTarget.releasePointerCapture(e.pointerId)
-        document.body.classList.remove('resizing-x', 'resizing-y')
+        if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+        end()
       }}
+      // A drag the system cancels (a gesture, a dialog, the window losing the pointer) ends too,
+      // so the resize cursor never stays on.
+      onPointerCancel={end}
+      onLostPointerCapture={end}
       onKeyDown={(e) => {
         const grow = orientation === 'vertical' ? (after ? 'ArrowLeft' : 'ArrowRight') : after ? 'ArrowUp' : 'ArrowDown'
         const shrink = orientation === 'vertical' ? (after ? 'ArrowRight' : 'ArrowLeft') : after ? 'ArrowDown' : 'ArrowUp'

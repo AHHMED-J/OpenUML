@@ -84,6 +84,8 @@ export interface Preferences {
   readonly showWhatsNew: boolean
   /** Newest version whose What's New notes were handled (null on a fresh install). */
   readonly lastSeenVersion: string | null
+  /** First-step tips pointing at parts of the window (guide/); each shows once. */
+  readonly showTips: boolean
 }
 
 /** Auto-save intervals offered in Preferences (seconds; 0 = off). */
@@ -103,7 +105,8 @@ const DEFAULT_PREFERENCES: Preferences = {
   autoSaveSeconds: 60,
   checkForUpdates: true,
   showWhatsNew: true,
-  lastSeenVersion: null
+  lastSeenVersion: null,
+  showTips: true
 }
 
 const DEFAULT_PANELS: Readonly<Record<PanelId, PanelState>> = {
@@ -187,7 +190,7 @@ export interface ContextMenuState {
   readonly x: number
   readonly y: number
   /** Which menu to show (resolved by the context-menu host). */
-  readonly menu: 'explorer' | 'explorer-settings' | 'working-diagrams' | 'canvas' | 'zoom' | 'export'
+  readonly menu: 'explorer' | 'explorer-settings' | 'working-diagrams' | 'canvas' | 'zoom' | 'export' | 'add-diagram'
   /** Element the menu was opened on (e.g. a diagram in the working-diagrams list). */
   readonly targetId?: string
 }
@@ -346,7 +349,8 @@ function sanitizePrefs(value: Partial<Preferences> | undefined): Preferences {
       typeof v.autoSaveSeconds === 'number' && AUTO_SAVE_INTERVALS.includes(v.autoSaveSeconds) ? v.autoSaveSeconds : DEFAULT_PREFERENCES.autoSaveSeconds,
     checkForUpdates: typeof v.checkForUpdates === 'boolean' ? v.checkForUpdates : DEFAULT_PREFERENCES.checkForUpdates,
     showWhatsNew: typeof v.showWhatsNew === 'boolean' ? v.showWhatsNew : DEFAULT_PREFERENCES.showWhatsNew,
-    lastSeenVersion: typeof v.lastSeenVersion === 'string' && parseVersion(v.lastSeenVersion) !== null ? v.lastSeenVersion : null
+    lastSeenVersion: typeof v.lastSeenVersion === 'string' && parseVersion(v.lastSeenVersion) !== null ? v.lastSeenVersion : null,
+    showTips: typeof v.showTips === 'boolean' ? v.showTips : DEFAULT_PREFERENCES.showTips
   }
 }
 
@@ -468,6 +472,18 @@ export function createUiStore() {
           let dock = s.dock
           for (const p of EDITOR_PANELS) dock = setPanelVisible(dock, p, show)
           setDock(dock)
+          // Showing them also shows the side areas they sit in (hidden areas would hide them).
+          if (show) {
+            let panels = get().panels
+            for (const p of EDITOR_PANELS) {
+              const key = AREA_PANEL[areaOf(dock, p)]
+              if (!panels[key].visible) panels = { ...panels, [key]: { ...panels[key], visible: true } }
+            }
+            if (panels !== get().panels) {
+              set({ panels })
+              persistLayout()
+            }
+          }
           return
         }
         if (id in s.panels) {

@@ -4,7 +4,7 @@ import { childrenOf, createElement, type EdgeView, type Elem, type NodeView, typ
 import { testDiagram } from '../testUtils'
 import { readMdj, writeMdj } from '../../format'
 import { createEdgeBetween, createNodeAt, createTextAt, findDropContainer, moveSelection, previewLayout, reconnectEnd, resizeNode, setEdgeVertices } from './actions'
-import { alignBoxes } from './alignment'
+import { alignBoxes, alignViews } from './alignment'
 import { hitTestDiagram, viewsInBand } from './hitTest'
 import { applyQuickEdit } from './quickEditApply'
 import { parseAttribute, parseName, parseOperation } from './quickEditSyntax'
@@ -105,6 +105,19 @@ describe('editor actions', () => {
     expect(edge.model?.['source']).toBe(view.model)
     // Stored points are the routed ones (attached to both boxes).
     expect(edge.points).toEqual(t.layout().edges.get(edge._id)?.points)
+  })
+
+  it('aligning a package with a class inside it moves the class once, to its aligned place', () => {
+    const t = testDiagram()
+    const pkg = t.node('Package', 400, 100, 300, 300) as NodeView
+    const inner = t.node('Class', 0, 0, 100, 60) as NodeView
+    moveSelection(t, [inner._id], 450, 200, { container: pkg })
+    expect(pkg.containedViews).toContain(inner)
+    const other = t.node('Class', 0, 500, 100, 60) as NodeView
+    // The class first: the package moving afterwards must not carry it past its place either.
+    alignViews(t, [inner._id, pkg._id, other._id], 'align-left')
+    // All three line up on the leftmost edge; the class inside is not moved past it.
+    expect([pkg.left, inner.left, other.left]).toEqual([0, 0, 0])
   })
 
   it('moves views with snap-free deltas, re-routes attached edges and re-contains on drop', () => {

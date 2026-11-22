@@ -19,6 +19,8 @@ export class ViewerEngine {
   private views = new Map<string, SVGGElement>()
   private current: Camera = { cx: 0, cy: 0, scale: 1 }
   private animation = 0
+  /** Settles the running animation's promise (also when it is cut short). */
+  private settle: (() => void) | null = null
   /** Called with the clicked top-level view id (null on empty canvas). */
   onViewClick: (viewId: string | null) => void = () => undefined
   /** Called after every camera change. */
@@ -109,6 +111,7 @@ export class ViewerEngine {
       return Promise.resolve()
     }
     return new Promise((resolve) => {
+      this.settle = resolve
       const start = performance.now()
       const step = (now: number): void => {
         const t = Math.min(1, (now - start) / ms)
@@ -117,6 +120,7 @@ export class ViewerEngine {
         if (t < 1) this.animation = requestAnimationFrame(step)
         else {
           this.animation = 0
+          this.settle = null
           resolve()
         }
       }
@@ -133,6 +137,10 @@ export class ViewerEngine {
   private cancelAnimation(): void {
     if (this.animation) cancelAnimationFrame(this.animation)
     this.animation = 0
+    // An interrupted animation resolves too: whoever awaits it (navigation) must not wait forever.
+    const settle = this.settle
+    this.settle = null
+    settle?.()
   }
 
   private apply(): void {

@@ -37,9 +37,10 @@ export interface WriteOptions {
 /** Serializes `el` and its contained subtree. `_type` first, then fields in metamodel order. */
 export function serializeElement(el: Elem, options: WriteOptions = {}): JsonObject {
   const out: JsonObject = { _type: el._type }
+  const info = getTypeInfo(el._type)
   for (const field of fieldsOf(el)) {
     if (field.transient) continue
-    const json = writeField(field, el[field.name], options)
+    const json = writeField(field, el[field.name], options, () => absentValue(info, field))
     if (json !== undefined) out[field.name] = json
   }
   return out
@@ -49,13 +50,16 @@ function refJson(target: Elem): JsonObject {
   return { $ref: target._id }
 }
 
-function writeField(field: FieldDef, value: unknown, options: WriteOptions): Json | undefined {
+/** `absent`: the value reading gives when the field is left out. */
+function writeField(field: FieldDef, value: unknown, options: WriteOptions, absent: () => unknown): Json | undefined {
   if (value === undefined) return undefined
   switch (field.kind) {
     case 'prim':
       if (value === null) return undefined
       if (options.verbose) return value as Json
-      if (value === '') return undefined
+      // An empty text is left out only when reading it back gives '' again: an empty project name
+      // must not come back as the type's initial "Untitled".
+      if (value === '' && absent() === '') return undefined
       if (hasDefault(field) && value === field.default) return undefined
       return value as Json
     case 'enum':

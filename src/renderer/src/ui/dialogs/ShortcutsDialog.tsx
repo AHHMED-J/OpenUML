@@ -9,7 +9,7 @@ import { bridge, platform } from '../app/bridge'
 import { keymap, registry } from '../app/commands'
 import { Modal } from '../components/Modal'
 import { assignKeystroke, removeKeystroke, resetKeystrokes } from '../keybindings'
-import { displayKeystroke, eventToDescriptor } from '../keymap'
+import { displayKeystroke, eventToDescriptor, reservedKeystroke } from '../keymap'
 import { commandCategory, PALETTE_HIDDEN } from '../menus/commandIds'
 import { uiStore, useUiStore } from '../uiStore'
 
@@ -78,6 +78,14 @@ export function ShortcutsDialog(): React.JSX.Element {
 
   const assign = async (command: string, key: string): Promise<void> => {
     if (current(command).includes(key)) return
+    const keeper = reservedKeystroke(key, platform, false)
+    if (keeper) {
+      const message = `${displayKeystroke(key, platform)} is kept by ${keeper}.`
+      const detail = 'It would never reach OpenUML. Choose another shortcut.'
+      if (bridge) await bridge.showMessageBox({ type: 'info', message, detail, buttons: ['OK'] })
+      else window.alert(`${message}\n\n${detail}`)
+      return
+    }
     const owner = keymap.match(key)?.command ?? null
     if (owner && owner !== command && !(await confirmMove(key, titleOf(owner), titleOf(command)))) return
     set(assignKeystroke(uiStore.getState().keybindings, current, command, key, owner))

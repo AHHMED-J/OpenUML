@@ -10,6 +10,15 @@ import type { DiagramDigest, IcomEntry, TreeEntry, WebsiteDigest } from '../shar
 import { MAX_SCALE } from './camera'
 import { ViewerEngine } from './engine'
 
+/** The diagram id in the address (`#<id>`); '' when there is none or it is malformed. */
+export function hashTarget(hash: string): string {
+  try {
+    return decodeURIComponent(hash.replace(/^#/, ''))
+  } catch {
+    return ''
+  }
+}
+
 /** Durations of the drill-down transitions (ms). */
 const ZOOM_IN_MS = 380
 const ZOOM_OUT_MS = 420
@@ -117,7 +126,7 @@ export class ViewerApp {
 
   private followHash(initial = false): void {
     if (this.navigating) return
-    const wanted = decodeURIComponent(location.hash.slice(1))
+    const wanted = hashTarget(location.hash)
     const id = this.diagram(wanted) ? wanted : this.data.start
     if (id === this.currentId) return
     void this.show(id, initial ? 'cut' : this.transitionTo(id))
@@ -163,7 +172,7 @@ export class ViewerApp {
           svg.classList.add('ouv-enter')
         }
       }
-      if (decodeURIComponent(location.hash.slice(1)) !== id) location.hash = encodeURIComponent(id)
+      if (hashTarget(location.hash) !== id) location.hash = encodeURIComponent(id)
       this.renderCrumbs()
       this.markCurrent()
       this.focusedBox = null

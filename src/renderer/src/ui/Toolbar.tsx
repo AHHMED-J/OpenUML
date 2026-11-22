@@ -28,6 +28,8 @@ function useCommandStateTick(): void {
 function ToolButton({ command, icon, label, tipSide }: { command: string; icon: UiIconName; label: string; tipSide?: 'left' }): React.JSX.Element {
   const enabled = registry.isEnabled(command)
   const checked = registry.isChecked(command)
+  // Re-render when shortcuts change: the tooltip shows the current one.
+  useUiStore((s) => s.keybindings)
   const key = keystrokeFor(command)
   const title = key ? `${label} (${displayKeystroke(key, platform)})` : label
   return (

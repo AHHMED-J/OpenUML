@@ -10,11 +10,12 @@ import { measurer } from './idef0/testkit'
 import { computeDiagramLayout } from './layout/layoutDiagram'
 import { setTextMeasurer } from './layout/measurer'
 import { ensureNotations } from './notations'
+import { openClassDiagramProject } from '../store/testProject'
 
 function setup(clipboard: { readText(): Promise<string>; writeText?(text: string): Promise<void> }): { diagram: Diagram; view: View } {
   ensureNotations()
   vi.stubGlobal('navigator', { clipboard: { writeText: async () => undefined, ...clipboard } })
-  projectStore.getState().newProject()
+  openClassDiagramProject()
   const diagram = activeDiagram(projectStore.getState()) as Diagram
   const view = createNode(projectStore.getState().engine, { kind: 'Class', diagram, left: 0, top: 0 }).view as View
   projectStore.getState().select({ views: [view._id] })
@@ -24,6 +25,24 @@ function setup(clipboard: { readText(): Promise<string>; writeText?(text: string
 
 describe('paste command', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('Paste is available after a restart, when only the system clipboard holds the views', async () => {
+    vi.resetModules()
+    const commands = await import('./commands')
+    const { CommandRegistry: Registry } = await import('../commands')
+    const { projectStore: store } = await import('../store')
+    const { openClassDiagramProject } = await import('../store/testProject')
+    ;(await import('./notations')).ensureNotations()
+    const registry = new Registry()
+    const dispose = commands.registerDiagramCommands(registry, { getZoom: () => 1, setZoom: () => undefined })
+    try {
+      // File > New opens no diagram; Paste needs one open.
+      openClassDiagramProject(store)
+      expect(registry.isEnabled(commands.DiagramCommandIds.paste)).toBe(true)
+    } finally {
+      dispose()
+    }
+  })
 
   it('does not paste stale views when the system clipboard holds something else', async () => {
     const { diagram } = setup({ readText: async () => 'some text copied in another application' })

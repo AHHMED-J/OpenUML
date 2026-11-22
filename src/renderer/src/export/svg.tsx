@@ -51,8 +51,14 @@ export function renderDiagramSvg(diagram: Diagram, repository: Repository, measu
       </CanvasContext.Provider>
     </svg>
   )
-  // Soft validation marks (RAD warnings) and other editor marks (a locked role's padlock) belong
-  // to the editor, not to the exported picture.
-  const clean = body.replace(/<g class="rad-warning">.*?<\/g>/g, '').replace(/<g class="editor-only"[^>]*>.*?<\/g>/g, '')
-  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n${clean}`, bounds: b }
+  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n${stripEditorMarks(body)}`, bounds: b }
+}
+
+/**
+ * Removes soft validation marks (RAD warnings) and other editor marks (a locked role's padlock):
+ * they belong to the editor, not to the exported picture. A mark's tooltip can span lines (one
+ * per warning), so the match crosses line breaks.
+ */
+export function stripEditorMarks(svg: string): string {
+  return svg.replace(/<g class="rad-warning">[\s\S]*?<\/g>/g, '').replace(/<g class="editor-only"[^>]*>[\s\S]*?<\/g>/g, '')
 }

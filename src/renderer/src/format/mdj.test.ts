@@ -378,3 +378,11 @@ describe('validateModel and fragments', () => {
     expect(isKindOf(v, 'EdgeView')).toBe(false)
   })
 })
+
+describe('empty texts', () => {
+  it('an empty project name stays empty after saving and opening again', () => {
+    const { project } = readMdj('{"_type":"Project","_id":"P","name":"Shop"}')
+    project.name = ''
+    expect(readMdj(writeMdj(project)).project.name).toBe('')
+  })
+})

@@ -2,7 +2,7 @@
 import { Component } from 'react'
 import type React from 'react'
 import { DiagramEditor } from '../../diagram'
-import { projectStore } from '../../store'
+import { projectStore, useProjectStore } from '../../store'
 import { useCanvasMode } from '../canvasMode'
 import { PanelBoundary } from '../components/PanelBoundary'
 import { TypeIcon, UiIcon } from '../icons'
@@ -91,6 +91,39 @@ function DiagramTabs(): React.JSX.Element | null {
   )
 }
 
+/**
+ * The canvas with no diagram on screen. A project without any diagram (a new one) offers Add
+ * Diagram right there; the first-steps tip points at that button (data-guide).
+ */
+export function NoDiagram(): React.JSX.Element {
+  const empty = useProjectStore((s) => s.repository.diagrams().length === 0)
+  if (!empty) {
+    return (
+      <div className="canvas-message">
+        <span>No diagram is open.</span>
+        <span className="muted">Double-click a diagram in the Model Explorer, or use Model › Add Diagram.</span>
+      </div>
+    )
+  }
+  return (
+    <div className="canvas-message canvas-empty">
+      <strong className="canvas-empty-title">Add a diagram to get started</strong>
+      <span className="muted">A class, use case, sequence, IDEF0 or any other diagram. It goes into the Model.</span>
+      <button
+        className="button primary"
+        data-guide="add-diagram"
+        aria-haspopup="menu"
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect()
+          uiStore.getState().openContextMenu({ x: r.left, y: r.bottom + 4, menu: 'add-diagram' })
+        }}
+      >
+        Add Diagram...
+      </button>
+    </div>
+  )
+}
+
 export function DiagramArea(): React.JSX.Element {
   const { activeId } = useOpenDiagrams()
   const tool = useUiStore((s) => s.tool)
@@ -133,10 +166,7 @@ export function DiagramArea(): React.JSX.Element {
             />
           </EditorBoundary>
         ) : (
-          <div className="canvas-message">
-            <span>No diagram is open.</span>
-            <span className="muted">Double-click a diagram in the Model Explorer, or use Model › Add Diagram.</span>
-          </div>
+          <NoDiagram />
         )}
       </div>
     </main>

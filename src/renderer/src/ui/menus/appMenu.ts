@@ -28,14 +28,18 @@ function addDiagramMenu(): MenuNode {
     id: 'model.add-diagram',
     label: 'Add Diagram',
     placeholder: '(nothing to add here)',
-    submenu: () =>
-      addDiagramItemsFor(selectionOrActiveDiagram(ps())).map((item) => ({
-        id: `uml.${item.kind}`,
-        label: item.label,
-        command: Cmd.modelAddDiagram,
-        args: { kind: item.kind }
-      }))
+    submenu: addDiagramChoices
   }
+}
+
+/** The diagrams Add Diagram can create from the selection (or the diagram on screen). */
+export function addDiagramChoices(): MenuNode[] {
+  return addDiagramItemsFor(selectionOrActiveDiagram(ps())).map((item) => ({
+    id: `uml.${item.kind}`,
+    label: item.label,
+    command: Cmd.modelAddDiagram,
+    args: { kind: item.kind }
+  }))
 }
 
 function addElementMenu(): MenuNode {
