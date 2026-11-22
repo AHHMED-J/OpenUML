@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { CommandIds, deleteFromModel, deleteFromView, ModelEngine, type CommandRegistry, type SavePoint } from '../commands'
 import { readMdj, writeMdj } from '../format'
-import { createDefaultProject, isKindOf, Repository, type Diagram, type Elem, type Project, type View } from '../model'
+import { createEmptyProject, isKindOf, Repository, type Diagram, type Elem, type Project, type View } from '../model'
 
 export interface ProjectState {
   /** History engine of the open project; `engine.repository` holds the model. */
@@ -105,10 +105,10 @@ export function createProjectStore(): ProjectStore {
     }
 
     return {
-      ...attach(new Repository(createDefaultProject()), null, []),
+      ...attach(new Repository(createEmptyProject()), null, []),
 
       newProject() {
-        set(attach(new Repository(createDefaultProject()), null, []))
+        set(attach(new Repository(createEmptyProject()), null, []))
       },
 
       openProject(text, path) {
@@ -212,10 +212,22 @@ export function selectedModels(state: ProjectState): Elem[] {
   return [...new Set(models)]
 }
 
-/** What Add Diagram works from: the selected model element, else the UML diagram on screen, else the project. */
+/** What Add Diagram works from: the selected model element, else the UML diagram on screen (the project for another diagram), else, with no diagram open, the project's model. */
 export function selectionOrActiveDiagram(state: ProjectState): Elem {
   const active = activeDiagram(state)
-  return selectedModels(state)[0] ?? (active && isKindOf(active, 'UMLDiagram') ? active : state.project)
+  const selected = selectedModels(state)[0]
+  if (selected) return selected
+  if (!active) return projectModel(state.project)
+  return isKindOf(active, 'UMLDiagram') ? active : state.project
+}
+
+/**
+ * Where a diagram goes when nothing is selected and no diagram is open: the project's model when
+ * it has exactly one (a new project's "Model"), so the first diagram lands in it; else the project.
+ */
+function projectModel(project: Project): Elem {
+  const models = project.ownedElements.filter((e) => isKindOf(e, 'UMLModel'))
+  return models.length === 1 ? (models[0] as Elem) : project
 }
 
 // ---------------------------------------------------------------------------------------------

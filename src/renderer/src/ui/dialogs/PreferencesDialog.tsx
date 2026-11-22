@@ -1,7 +1,8 @@
-/** Preferences: appearance, diagram editor, files (auto-save), updates and keyboard shortcuts. Changes apply immediately. */
+/** Preferences: appearance, diagram editor, files (auto-save), updates, first-step tips and keyboard shortcuts. Changes apply immediately. */
 import type React from 'react'
 import { FONT_SIZES } from '../../diagram'
 import { Modal } from '../components/Modal'
+import { guideStore } from '../guide/guideStore'
 import { AUTO_SAVE_INTERVALS, uiStore, useUiStore, type CanvasPreference, type ThemePreference, type ToolbarMode } from '../uiStore'
 
 const GRID_SIZES = [2, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 48, 64]
@@ -143,6 +144,28 @@ export function PreferencesDialog(): React.JSX.Element {
             Show What's New after updates
           </label>
           <input id="pref-whats-new" type="checkbox" checked={prefs.showWhatsNew} onChange={(e) => set({ showWhatsNew: e.target.checked })} />
+        </div>
+      </fieldset>
+      <fieldset className="pref-group">
+        <legend>Help</legend>
+        <div className="pref-row">
+          <label htmlFor="pref-tips" title="Small boxes that point at the part of the window to use next, the first time it comes up">
+            Show first-step tips
+          </label>
+          <input id="pref-tips" type="checkbox" checked={prefs.showTips} onChange={(e) => set({ showTips: e.target.checked })} />
+        </div>
+        <div className="pref-row">
+          <span className="muted">Closed tips stay hidden.</span>
+          <button
+            className="button"
+            onClick={() => {
+              guideStore.getState().resetTips()
+              set({ showTips: true })
+              uiStore.getState().toast('The tips will show again')
+            }}
+          >
+            Show Tips Again
+          </button>
         </div>
       </fieldset>
     </Modal>

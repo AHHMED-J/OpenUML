@@ -26,7 +26,7 @@
  *
  * Factories (`factories.ts`) build detached *plans* (`CreationPlan`: model, view, insertions,
  * refAdditions) that `commands/` applies as one undoable operation:
- * - `createDefaultProject()`; `planDiagram(kind, owner)`.
+ * - `createEmptyProject()` (File > New), `createDefaultProject()` (with a class diagram); `planDiagram(kind, owner)`.
  * - `planNode({ kind, diagram, left, top, ... })` for every `NodeKind` (Class, Interface,
  *   Enumeration, Actor, UseCase, Subject, Lifeline, CombinedFragment, Action, control nodes,
  *   Partition, pins, Note, Text, ...). `NODE_KINDS` describes each kind.

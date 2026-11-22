@@ -5,11 +5,12 @@ import { projectStore } from '../../store'
 import { canvasContextMenu } from '../menus/appMenu'
 import { setContextEdgeEnd } from '../../diagram/editor/activeEditor'
 import { endLabel, endMultiplicityCommandId, endMultiplicityMenu, registerAssociationEndCommands } from './associationEnds'
+import { openClassDiagramProject } from '../../store/testProject'
 
 const ps = () => projectStore.getState()
 
 function setup(self = false) {
-  ps().newProject()
+  openClassDiagramProject()
   const s = ps()
   const diagram = s.repository.defaultDiagram() as Diagram
   const make = (name: string, left: number): View => {

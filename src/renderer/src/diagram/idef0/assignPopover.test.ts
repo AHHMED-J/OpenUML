@@ -7,6 +7,7 @@ import { arrowHeader, assignPopoverState, assignResult, boxChoices, closeAssignP
 import { addBoundaryArrow, decomposeFunction } from './decompose'
 import type { PortData } from './layout'
 import { newKit, wireLikeDecompose } from './testkit'
+import { openClassDiagramProject } from '../../store/testProject'
 
 type Role = 'input' | 'control' | 'output' | 'mechanism'
 
@@ -56,7 +57,7 @@ describe('the box table of a parent arrow', () => {
 
   it('closes when another diagram becomes active, so it never comes back on its own', () => {
     const k = kitWithArrows()
-    projectStore.getState().newProject()
+    openClassDiagramProject()
     openAssignPopover(k.child, k.port('control'))
     expect(assignPopoverState()).not.toBeNull()
     const other = (projectStore.getState().repository.project as Elem)['ownedElements'] as Elem[]

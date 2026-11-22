@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { createNode } from '../../commands'
 import type { Diagram, Elem } from '../../model'
 import { projectStore } from '../../store'
+import { openClassDiagramProject } from '../../store/testProject'
 import { ModelExplorer } from './ModelExplorer'
 
 declare global {
@@ -14,6 +15,7 @@ declare global {
 describe('Model Explorer virtualization', () => {
   it('keeps the focused row (the aria-activedescendant) in the document when it is out of the rendered window', () => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
+    openClassDiagramProject()
     const { engine, repository, activeDiagramId } = projectStore.getState()
     const diagram = repository.get(activeDiagramId as string) as Diagram
     const classes: Elem[] = []

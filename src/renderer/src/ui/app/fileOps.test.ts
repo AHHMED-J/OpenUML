@@ -4,6 +4,7 @@ import type { Elem } from '../../model'
 import { projectStore } from '../../store'
 import { saveJson } from '../persist'
 import { loadRecoveredProject, nameProjectAfterFile } from './fileOps'
+import { openClassDiagramProject } from '../../store/testProject'
 
 describe('nameProjectAfterFile', () => {
   it('names a project that still has the default name after the saved file', () => {
@@ -26,7 +27,7 @@ describe('nameProjectAfterFile', () => {
 
 describe('opening a project', () => {
   function threeDiagrams(): { text: string; ids: string[] } {
-    projectStore.getState().newProject()
+    openClassDiagramProject()
     const { engine, project } = projectStore.getState()
     const model = project.ownedElements[0] as Elem
     createDiagram(engine, 'SequenceDiagram', model)

@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { createNode } from '../../commands'
-import type { Diagram } from '../../model'
+import { createDiagram, createNode } from '../../commands'
+import type { Diagram, Elem } from '../../model'
 import { projectStore } from '../../store'
 import { FixedWidthTextMeasurer } from '../core'
 import { setTextMeasurer } from '../layout/measurer'
@@ -11,13 +11,19 @@ import { computeDiagramLayout } from '../layout/layoutDiagram'
 import { DiagramEditor } from './DiagramEditor'
 import { DragOverlay, SelectionOverlay } from './Overlays'
 
+/** A class diagram added to the model of the store's initial project. */
+function initialClassDiagram(): Diagram {
+  const { engine, project } = projectStore.getInitialState()
+  return createDiagram(engine, 'ClassDiagram', project.ownedElements[0] as Elem).diagram as Diagram
+}
+
 describe('DiagramEditor (static render)', () => {
   it('renders the diagram, grid and selection overlay without errors', () => {
     ensureNotations()
     setTextMeasurer(new FixedWidthTextMeasurer())
-    // Server rendering reads the store's initial state.
-    const { engine, repository, activeDiagramId } = projectStore.getInitialState()
-    const diagram = repository.get(activeDiagramId) as Diagram
+    // Server rendering reads the store's initial state (a new project: a model, no diagram yet).
+    const diagram = initialClassDiagram()
+    const { engine, repository } = projectStore.getInitialState()
     createNode(engine, { kind: 'Class', diagram, left: 10, top: 10 })
     const html = renderToStaticMarkup(
       createElement(DiagramEditor, {
@@ -47,7 +53,7 @@ describe('DiagramEditor (static render)', () => {
   it('draws the grid at the grid size it is given', () => {
     ensureNotations()
     setTextMeasurer(new FixedWidthTextMeasurer())
-    const { activeDiagramId } = projectStore.getInitialState()
+    const activeDiagramId = initialClassDiagram()._id
     const render = (gridSize?: number): string =>
       renderToStaticMarkup(
         createElement(DiagramEditor, {
