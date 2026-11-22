@@ -3,7 +3,7 @@
 <h1 align="center">OpenUML</h1>
 
 <p align="center">
-  Free, open-source modeling for macOS, Windows and Linux.<br>
+  The free, open-source alternative to StarUML, for macOS, Windows and Linux.<br>
   15 UML diagram types, IDEF0 and Role Activity Diagrams, in <code>.mdj</code> files.
 </p>
 
@@ -132,6 +132,7 @@ More: [architecture](docs/ARCHITECTURE.md) · [development log](docs/PROGRESS.md
 
 ---
 
-OpenUML is an independent project, not affiliated with any other UML tool or its vendor. It is written from
-behavioral specifications and contains no third-party proprietary code, icons or assets.
+OpenUML is an independent project. StarUML is a trademark of MKLab Co., Ltd.; OpenUML is not affiliated with or
+endorsed by MKLab or any other UML tool vendor. It is written from behavioral specifications and contains no
+third-party proprietary code, icons or assets.
 Released under the [MIT license](LICENSE).
