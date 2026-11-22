@@ -296,7 +296,10 @@ export function registerDiagramCommands(registry: CommandRegistry, ctx: DiagramC
   add({
     id: DiagramCommandIds.paste,
     label: 'Paste',
-    isEnabled: () => isTextFieldFocused() || (hasDiagram() && memoryClipboard !== null),
+    // The system clipboard may hold views copied before a restart (or in another window), and it
+    // cannot be read without asking (a browser prompts): Paste is offered on any diagram and does
+    // nothing when the clipboard holds no views.
+    isEnabled: () => isTextFieldFocused() || hasDiagram(),
     run: () => {
       if (nativeEdit('paste')) return undefined
       return pasteClipboard()
