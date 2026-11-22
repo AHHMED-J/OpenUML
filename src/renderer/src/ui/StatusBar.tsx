@@ -1,4 +1,7 @@
-/** Status bar: breadcrumb of the selected element, selection info, zoom (click for presets). */
+/**
+ * Status bar: breadcrumb of the selected element (of the open diagram when the tab row is hidden and
+ * nothing is selected), selection info, zoom (click for presets).
+ */
 import type React from 'react'
 import { Idef0CommandIds } from '../diagram'
 import { typeDisplayName, type Elem } from '../model'
@@ -7,6 +10,7 @@ import { selectInExplorer } from './app/appCommands'
 import { runCommand } from './app/commands'
 import { idef0PendingCount, idef0WarningCount } from './app/idef0'
 import { offerUpdate } from './app/updates'
+import { useTabRowShown } from './diagramArea/WorkingDiagrams'
 import { explorerLabel, pathTo } from './explorer/tree'
 import { TypeIcon } from './icons'
 import { useSelectedModels } from './properties/useSelection'
@@ -26,12 +30,16 @@ export function StatusBar(): React.JSX.Element {
   const locked = useUiStore((s) => s.toolLocked)
   const update = useUiStore((s) => s.update)
   const single = models.length === 1 ? (models[0] as Elem) : null
+  // Without the tab row (Compact mode, one diagram), the path names the diagram when nothing is selected.
+  const tabRow = useTabRowShown()
+  const activeDiagram = useProjectStore((s) => (activeId ? (s.repository.get(activeId) ?? null) : null))
+  const shown = single ?? (models.length === 0 && !tabRow ? (activeDiagram as Elem | null) : null)
 
   return (
     <footer className="statusbar" aria-label="Status bar">
       <nav className="breadcrumb" aria-label="Selected element">
-        {single
-          ? pathTo(single).map((el, i, all) => (
+        {shown
+          ? pathTo(shown).map((el, i, all) => (
               <span key={el._id} className="crumb">
                 {i > 0 ? <span className="crumb-sep">›</span> : null}
                 <button className="crumb-button" onClick={() => selectInExplorer(el)} title={typeDisplayName(el._type)}>

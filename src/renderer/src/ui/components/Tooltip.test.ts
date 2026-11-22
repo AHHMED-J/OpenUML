@@ -17,4 +17,9 @@ describe('tooltip placement', () => {
     expect(tooltipPosition({ left: 0, top: 10, width: 28, height: 28 }, SIZE, VIEW).left).toBe(4)
     expect(tooltipPosition({ left: 980, top: 10, width: 20, height: 28 }, SIZE, VIEW).left).toBe(1000 - 4 - 120)
   })
+
+  it('goes to the left of a button on the right edge, centered on it, and right when there is no room', () => {
+    expect(tooltipPosition({ left: 970, top: 100, width: 26, height: 26 }, SIZE, VIEW, 'left')).toEqual({ left: 970 - 6 - 120, top: 102 })
+    expect(tooltipPosition({ left: 50, top: 100, width: 26, height: 26 }, SIZE, VIEW, 'left').left).toBe(50 + 26 + 6)
+  })
 })

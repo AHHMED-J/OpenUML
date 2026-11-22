@@ -76,4 +76,15 @@ describe('preferences', () => {
     expect(store.getState().prefs).toMatchObject({ lastSeenVersion: '0.1.6', showWhatsNew: true })
     expect(createUiStore().getState().prefs.lastSeenVersion).toBe('0.1.6')
   })
+
+  it('keeps the toolbar normal unless compact was chosen, and remembers the choice', () => {
+    const data = stubStorage({ 'openuml.preferences': JSON.stringify({ toolbarMode: 'tiny' }) })
+    const store = createUiStore()
+    expect(store.getState().prefs.toolbarMode).toBe('normal')
+    store.getState().setPrefs({ toolbarMode: 'compact' })
+    expect(JSON.parse(data.get('openuml.preferences') ?? '{}')).toMatchObject({ toolbarMode: 'compact' })
+    expect(createUiStore().getState().prefs.toolbarMode).toBe('compact')
+    store.getState().resetPrefs()
+    expect(store.getState().prefs.toolbarMode).toBe('normal')
+  })
 })

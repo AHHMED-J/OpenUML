@@ -13,6 +13,7 @@ import { Cmd } from '../menus/commandIds'
 import { ToolIcon, UiIcon } from '../icons'
 import { sameTool, uiStore, useUiStore } from '../uiStore'
 import { palettesFor, type PaletteGroup } from './palettes'
+import { toolColor } from './toolColors'
 
 /** "Select (Esc / A)", with the keys currently bound to the Select tool. */
 function selectToolTip(): string {
@@ -98,7 +99,9 @@ function Group({
                 onClick={() => uiStore.getState().clickTool(item)}
                 onDoubleClick={() => uiStore.getState().lockTool(item)}
               >
-                <ToolIcon kind={item.kind} messageSort={item.messageSort} freeEnd={item.freeEnd} />
+                <span className="tool-icon" style={{ color: `var(--tool-${toolColor(item.kind)})` }}>
+                  <ToolIcon kind={item.kind} messageSort={item.messageSort} freeEnd={item.freeEnd} />
+                </span>
                 <span className="tool-label">{item.label}</span>
                 {active && locked ? (
                   <span className="tool-lock" aria-label="locked">

@@ -2,7 +2,7 @@
 import type React from 'react'
 import { FONT_SIZES } from '../../diagram'
 import { Modal } from '../components/Modal'
-import { AUTO_SAVE_INTERVALS, uiStore, useUiStore, type CanvasPreference, type ThemePreference } from '../uiStore'
+import { AUTO_SAVE_INTERVALS, uiStore, useUiStore, type CanvasPreference, type ThemePreference, type ToolbarMode } from '../uiStore'
 
 const GRID_SIZES = [2, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 48, 64]
 
@@ -48,6 +48,15 @@ export function PreferencesDialog(): React.JSX.Element {
             <option value="system">Follow System</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
+          </select>
+        </div>
+        <div className="pref-row">
+          <label htmlFor="pref-toolbar" title="Compact removes the toolbar row: Save, Undo, Redo and a button with the other tools go in a thin column beside the canvas">
+            Toolbar mode
+          </label>
+          <select id="pref-toolbar" value={prefs.toolbarMode} onChange={(e) => set({ toolbarMode: e.target.value as ToolbarMode })}>
+            <option value="normal">Normal</option>
+            <option value="compact">Compact</option>
           </select>
         </div>
         <div className="pref-row">
