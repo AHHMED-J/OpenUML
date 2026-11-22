@@ -16,6 +16,7 @@ vi.mock('./bridge', () => ({
     }
   },
   isMac: false,
+  isWeb: false,
   platform: 'linux'
 }))
 
