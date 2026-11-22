@@ -1,3 +1,5 @@
 # Astro build output and generated types
 dist/
 .astro/
+# The web app, copied from out/web by `npm run app`
+public/app/

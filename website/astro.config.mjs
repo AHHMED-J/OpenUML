@@ -25,6 +25,7 @@ export default defineConfig({
           translations: { es: 'Documentación' },
           items: [
             { label: 'Getting started', translations: { es: 'Primeros pasos' }, slug: 'docs/getting-started' },
+            { label: 'In your browser', translations: { es: 'En el navegador' }, slug: 'docs/browser' },
             { label: 'Diagram types', translations: { es: 'Tipos de diagrama' }, slug: 'docs/diagrams' },
             { label: 'Files (.mdj)', translations: { es: 'Archivos (.mdj)' }, slug: 'docs/files' }
           ]

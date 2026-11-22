@@ -5,7 +5,8 @@
   "description": "The OpenUML website (openuml.org): Astro + Starlight, English and Spanish.",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "app": "npm --prefix .. run build:web && node scripts/copy-app.mjs",
+    "build": "npm run app && astro build",
     "preview": "astro preview",
     "check": "astro check"
   },
