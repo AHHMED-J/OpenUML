@@ -467,6 +467,18 @@ export function createUiStore() {
           let dock = s.dock
           for (const p of EDITOR_PANELS) dock = setPanelVisible(dock, p, show)
           setDock(dock)
+          // Showing them also shows the side areas they sit in (hidden areas would hide them).
+          if (show) {
+            let panels = get().panels
+            for (const p of EDITOR_PANELS) {
+              const key = AREA_PANEL[areaOf(dock, p)]
+              if (!panels[key].visible) panels = { ...panels, [key]: { ...panels[key], visible: true } }
+            }
+            if (panels !== get().panels) {
+              set({ panels })
+              persistLayout()
+            }
+          }
           return
         }
         if (id in s.panels) {
