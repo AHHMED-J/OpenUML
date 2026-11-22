@@ -4,5 +4,5 @@
  */
 export const VIDEOS = {
   basicNavigation: 'fVgLQg6PBdk',
-  idef0: ''
+  idef0: 'ra_IBtIWfrE'
 } as const satisfies Record<string, string>
