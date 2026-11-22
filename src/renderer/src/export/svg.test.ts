@@ -3,7 +3,7 @@ import { addAttribute, setFields } from '../commands'
 import { cssColorOr, isCssColor } from '../format'
 import type { Elem } from '../model'
 import { testDiagram } from '../diagram/testUtils'
-import { renderDiagramSvg } from './svg'
+import { renderDiagramSvg, stripEditorMarks } from './svg'
 
 describe('SVG export', () => {
   it('writes a standalone SVG of the content bounds plus a 10 margin', () => {
@@ -99,5 +99,14 @@ describe('isCssColor', () => {
       expect(isCssColor(c)).toBe(false)
     }
     expect(cssColorOr('url(x)', '#000000')).toBe('#000000')
+  })
+})
+
+describe('editor marks in exports', () => {
+  it('leaves out a RAD warning with several messages (a tooltip over several lines) and the padlock', () => {
+    const svg =
+      '<svg><g class="rad-warning"><title>First problem\nSecond problem</title><line/></g><rect/>' +
+      '<g class="editor-only" aria-label="Locked"><path/></g></svg>'
+    expect(stripEditorMarks(svg)).toBe('<svg><rect/></svg>')
   })
 })

@@ -176,6 +176,12 @@ describe('diagram factories', () => {
 })
 
 describe('node factories', () => {
+  it('a MetaClass takes the name it is given (UMLClass only by default)', () => {
+    const { classDiagram } = setup()
+    expect(apply(planNode({ kind: 'MetaClass', diagram: classDiagram, left: 0, top: 0, name: 'Component' })).model?.['name']).toBe('Component')
+    expect(apply(planNode({ kind: 'MetaClass', diagram: classDiagram, left: 0, top: 200 })).model?.['name']).toBe('UMLClass')
+  })
+
   it.each(GENERIC_KINDS)('%s', (kind) => {
     const ctx = setup()
     const diagram = ctx[DIAGRAM_OF[kind]]

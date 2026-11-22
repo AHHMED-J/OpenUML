@@ -312,6 +312,31 @@ export function displayKeystroke(descriptor: string, platform: Platform): string
   return [k.ctrl && 'Ctrl', k.cmd && 'Win', k.alt && 'Alt', k.shift && 'Shift', key].filter(Boolean).join('+')
 }
 
+/**
+ * Keystrokes the system (or, in the web version, the browser) keeps for itself, so a command
+ * given one would never run: the name of what keeps it, else null.
+ */
+export function reservedKeystroke(descriptor: string, platform: Platform, web: boolean): string | null {
+  const k = parseKeystroke(descriptor, platform)
+  if (!k) return null
+  const is = (mods: Partial<Omit<Keystroke, 'key'>>, key: string): boolean =>
+    k.key === key && k.cmd === !!mods.cmd && k.ctrl === !!mods.ctrl && k.alt === !!mods.alt && k.shift === !!mods.shift
+  const mod = platform === 'darwin' ? { cmd: true } : { ctrl: true }
+  if (web) {
+    for (const key of ['n', 't', 'w', 'q']) if (is(mod, key)) return 'the browser'
+    for (const key of ['n', 't', 'w']) if (is({ ...mod, shift: true }, key)) return 'the browser'
+    if (platform !== 'darwin' && is({ ctrl: true }, 'f4')) return 'the browser'
+  }
+  if (platform === 'darwin') {
+    if (is({ cmd: true }, 'q')) return 'macOS (Quit)'
+    if (is({ cmd: true }, 'h')) return 'macOS (Hide)'
+    if (is({ cmd: true, alt: true }, 'h')) return 'macOS (Hide Others)'
+    if (is({ cmd: true }, 'm')) return 'macOS (Minimize)'
+    if (is({ cmd: true }, 'w')) return 'macOS (Close Window)'
+  } else if (is({ alt: true }, 'f4')) return 'the system (Close Window)'
+  return null
+}
+
 /** True for keystrokes that a focused text field must keep (native editing). */
 export function isNativeEditKeystroke(descriptor: string, platform: Platform): boolean {
   const k = parseKeystroke(descriptor, platform)
@@ -322,6 +347,13 @@ export function isNativeEditKeystroke(descriptor: string, platform: Platform): b
   }
   if (mod && !k.alt && !k.shift && ['c', 'x', 'v', 'z', 'y', 'a'].includes(k.key)) return true
   if (mod && !k.alt && k.shift && k.key === 'z') return true
+  // Paste as plain text.
+  if (mod && !k.alt && k.shift && k.key === 'v') return true
+  // Line and text moves (to the line or text start / end, with Shift selecting) and deleting to
+  // the line start; on macOS Option moves and deletes by word (Ctrl does elsewhere, covered here).
+  const caretKeys = ['left', 'right', 'up', 'down', 'home', 'end', 'backspace', 'delete']
+  if (mod && !k.alt && caretKeys.includes(k.key)) return true
+  if (platform === 'darwin' && k.alt && !k.cmd && !k.ctrl && caretKeys.includes(k.key)) return true
   // Plain characters typed into the field.
   if (!mod && !k.ctrl && !k.cmd && k.key.length === 1) return true
   return false

@@ -9,6 +9,7 @@ import { arrowMatrix, assignParentArrow, getTextMeasurer, lossWarning, toggledBo
 import { ModelRuleError, type Diagram, type Elem } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
 import { bridge } from '../app/bridge'
+import { reportError } from '../app/commands'
 import { uiStore } from '../uiStore'
 
 const ps = () => projectStore.getState()
@@ -27,15 +28,16 @@ async function confirmLoss(row: ArrowRow, box: string, warning: string): Promise
   return (await bridge.showMessageBox({ type: 'warning', message, detail, buttons: ['Disconnect', 'Cancel'] })) === 0
 }
 
-async function toggle(diagram: Diagram, row: ArrowRow, box: Elem, boxNumber: string): Promise<void> {
-  const next = toggledBoxes(diagram, row.port, box)
-  const warning = lossWarning(row.port, next)
-  if (warning && !(await confirmLoss(row, boxNumber, warning))) return
+/** Connects or disconnects a parent arrow and a box; any failure is reported (never left unhandled). */
+export async function toggleArrowBox(diagram: Diagram, row: ArrowRow, box: Elem, boxNumber: string): Promise<void> {
   try {
+    const next = toggledBoxes(diagram, row.port, box)
+    const warning = lossWarning(row.port, next)
+    if (warning && !(await confirmLoss(row, boxNumber, warning))) return
     assignParentArrow({ engine: ps().engine, diagram, measurer: getTextMeasurer() }, row.port, next)
   } catch (e) {
     if (e instanceof ModelRuleError) uiStore.getState().toast(e.message)
-    else throw e
+    else reportError(e)
   }
 }
 
@@ -107,7 +109,7 @@ export function AdvancedArrowsTable({ diagram, selectedIds }: { diagram: Diagram
                         aria-label={`${row.code} ${row.name} to ${b.number}`}
                         checked={row.checked[i] ?? false}
                         disabled={!!row.readOnly}
-                        onChange={() => void toggle(diagram, row, b.box, b.number)}
+                        onChange={() => void toggleArrowBox(diagram, row, b.box, b.number)}
                       />
                     </td>
                   ))}

@@ -487,9 +487,12 @@ export function planNode(req: NodeRequest): CreationPlan {
     const owner = req.owner ?? defaultNodeOwner(req)
     const field = ownerFieldFor(owner, req.kind)
     const siblings = (owner[field] as unknown[] | undefined) ?? []
+    // The spec's initial values may name the element (a metaclass is "UMLClass"); a name asked
+    // for wins over both.
     model = createElement(spec.modelType, {
-      name: req.name ?? defaultName(spec.modelType, siblings),
-      ...spec.modelInit
+      name: defaultName(spec.modelType, siblings),
+      ...spec.modelInit,
+      ...(req.name !== undefined ? { name: req.name } : {})
     })
     if (req.covered && fieldOf(model, 'covered')) model['covered'] = req.covered
     if (isTimingNodeKind(req.kind)) initTimingModel(req, model, owner, field)

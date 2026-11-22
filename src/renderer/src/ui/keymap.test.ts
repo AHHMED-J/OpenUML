@@ -5,6 +5,7 @@ import {
   eventToDescriptor,
   formatKeystroke,
   isNativeEditKeystroke,
+  reservedKeystroke,
   Keymap,
   parseKeystroke,
   toAccelerator,
@@ -127,6 +128,37 @@ describe('formatting', () => {
     expect(isNativeEditKeystroke('cmd-s', 'darwin')).toBe(false)
     expect(isNativeEditKeystroke('ctrl-c', 'darwin')).toBe(false)
     expect(isNativeEditKeystroke('f4', 'linux')).toBe(false)
+  })
+
+  it('names what keeps a keystroke for itself', () => {
+    expect(reservedKeystroke('cmd-q', 'darwin', false)).toBe('macOS (Quit)')
+    expect(reservedKeystroke('cmd-m', 'darwin', false)).toBe('macOS (Minimize)')
+    expect(reservedKeystroke('cmd-alt-h', 'darwin', false)).toBe('macOS (Hide Others)')
+    expect(reservedKeystroke('alt-f4', 'win32', false)).toBe('the system (Close Window)')
+    expect(reservedKeystroke('ctrl-w', 'win32', true)).toBe('the browser')
+    expect(reservedKeystroke('cmd-shift-t', 'darwin', true)).toBe('the browser')
+    expect(reservedKeystroke('cmd-w', 'darwin', true)).toBe('the browser')
+    expect(reservedKeystroke('ctrl-w', 'win32', false)).toBeNull()
+    expect(reservedKeystroke('cmd-shift-q', 'darwin', false)).toBeNull()
+  })
+
+  it('leaves line, word and plain-paste editing keys to a text field', () => {
+    // Select to the start / end of the text, delete to the line start, paste as plain text.
+    expect(isNativeEditKeystroke('cmd-shift-up', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-shift-down', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-backspace', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-left', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('cmd-shift-v', 'darwin')).toBe(true)
+    // Word moves: Option on macOS, Ctrl elsewhere.
+    expect(isNativeEditKeystroke('alt-left', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('alt-shift-right', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('alt-backspace', 'darwin')).toBe(true)
+    expect(isNativeEditKeystroke('ctrl-shift-left', 'win32')).toBe(true)
+    expect(isNativeEditKeystroke('ctrl-backspace', 'linux')).toBe(true)
+    expect(isNativeEditKeystroke('ctrl-shift-v', 'win32')).toBe(true)
+    // App shortcuts that are not text editing stay with the app.
+    expect(isNativeEditKeystroke('cmd-shift-s', 'darwin')).toBe(false)
+    expect(isNativeEditKeystroke('cmd-alt-left', 'darwin')).toBe(false)
   })
 
   it('dispatches menu-accelerator shortcuts from the page (Cmd+Z on the canvas)', () => {

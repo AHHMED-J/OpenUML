@@ -136,6 +136,16 @@ function selectedNodes(env: DiagramEnv, ids: readonly string[]): NodeView[] {
     .filter((v): v is NodeView => isKindOf(v, 'NodeView') && v._parent === env.diagram)
 }
 
+/** How many of `nodes` contain `view` (directly or through other views). */
+function containmentDepth(view: NodeView, nodes: readonly NodeView[]): number {
+  const holds = (outer: View, inner: View, seen: Set<View>): boolean => {
+    if (seen.has(outer)) return false
+    seen.add(outer)
+    return outer.containedViews.some((c) => c === inner || holds(c, inner, seen))
+  }
+  return nodes.filter((n) => n !== view && holds(n, view, new Set())).length
+}
+
 /** Applies an alignment operation to the selected node views (one undo step). */
 export function alignViews(env: DiagramEnv, ids: readonly string[], op: AlignOp): void {
   const nodes = selectedNodes(env, ids)
@@ -143,11 +153,19 @@ export function alignViews(env: DiagramEnv, ids: readonly string[], op: AlignOp)
   const layout = layoutOf(env)
   const boxes = nodes.map((n) => layout.nodes.get(n._id)?.box ?? { left: n.left, top: n.top, width: n.width, height: n.height })
   const targets = alignBoxes(op, boxes)
+  const start = nodes.map((n) => ({ left: n.left, top: n.top }))
+  // Containers first, so a view inside one moves only after its container has carried it.
+  const order = nodes.map((_, i) => i).sort((a, b) => containmentDepth(nodes[a] as NodeView, nodes) - containmentDepth(nodes[b] as NodeView, nodes))
   withGeometry(env, OP_NAMES[op], () => {
-    nodes.forEach((n, i) => {
+    order.forEach((i) => {
+      const n = nodes[i] as NodeView
       const from = boxes[i] as Rect
       const to = targets[i] as Rect
-      if (to.left !== from.left || to.top !== from.top) moveViews(env.engine, [n], to.left - from.left, to.top - from.top)
+      // A view inside another selected one (a class in a package) already moved with it: only
+      // the rest of its way is left.
+      const dx = to.left - from.left - (n.left - (start[i]?.left ?? n.left))
+      const dy = to.top - from.top - (n.top - (start[i]?.top ?? n.top))
+      if (dx !== 0 || dy !== 0) moveViews(env.engine, [n], dx, dy)
       if (to.width !== from.width || to.height !== from.height) setViewBounds(env.engine, n, { width: to.width, height: to.height })
     })
   })

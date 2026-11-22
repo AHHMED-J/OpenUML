@@ -131,6 +131,15 @@ describe('view clipboard', () => {
     expect(models.find((m) => m._type === 'IDEF0Arrow')?._parent).toBe(scope)
   })
 
+  it('Select All + Duplicate on an IDEF0 diagram leaves its frame and title block alone', () => {
+    const kit = newKit()
+    const frames = (): number => kit.child.ownedViews.filter((v) => v._type === 'IDEF0FrameView').length
+    expect(frames()).toBe(1)
+    duplicateViews(kit.engine, kit.child, kit.child.ownedViews.map((v) => v._id))
+    expect(frames()).toBe(1)
+    expect(copyViews(kit.repository, kit.child, kit.child.ownedViews.map((v) => v._id), kit.layoutOf(kit.child))?.views.some((v) => v['_type'] === 'IDEF0FrameView')).toBe(false)
+  })
+
   it('refuses to paste an IDEF0 box on the context diagram', () => {
     const kit = newKit()
     const payload = copyViews(kit.repository, kit.child, [kit.boxes(kit.child)[0]!._id], kit.layoutOf(kit.child))!

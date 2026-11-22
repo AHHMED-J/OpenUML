@@ -1174,6 +1174,10 @@ textarea:focus {
   box-shadow: var(--shadow);
 }
 
+.modal:focus {
+  outline: none;
+}
+
 .modal-title {
   padding: 10px 14px 6px;
   font-weight: 600;
