@@ -38,6 +38,15 @@
   --icon-usecase: #2f9bb3;
   --icon-note: #e6d36a;
 
+  /* Toolbox icons: the Model Explorer hues, darker so that lines keep 3:1 contrast on the panels. */
+  --tool-classifier: #a8690a;
+  --tool-package: #8c6230;
+  --tool-feature: #25794e;
+  --tool-behavior: #7048c0;
+  --tool-usecase: #1a7890;
+  --tool-note: #857000;
+  --tool-connection: #5a6472;
+
   /* Model Explorer indent guides. */
   --tree-guide: #a9aeb9;
 
@@ -79,6 +88,14 @@
   --icon-behavior: #a888e0;
   --icon-usecase: #4fbad2;
   --icon-note: #e6d36a;
+
+  --tool-classifier: #e7b04f;
+  --tool-package: #caa069;
+  --tool-feature: #5cc08d;
+  --tool-behavior: #b598ea;
+  --tool-usecase: #4fbad2;
+  --tool-note: #e6d36a;
+  --tool-connection: #a3afc0;
 
   --tree-guide: #686e7a;
 
@@ -765,6 +782,12 @@ textarea:focus {
 .tool-item.active {
   background: var(--selection);
   border-color: var(--accent);
+}
+
+/* Tool icons take the color of their element in the Model Explorer; every relationship shares one. */
+.tool-icon {
+  display: inline-flex;
+  flex: none;
 }
 
 .tool-label {
