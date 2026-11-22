@@ -5,6 +5,7 @@ import {
   eventToDescriptor,
   formatKeystroke,
   isNativeEditKeystroke,
+  reservedKeystroke,
   Keymap,
   parseKeystroke,
   toAccelerator,
@@ -127,6 +128,18 @@ describe('formatting', () => {
     expect(isNativeEditKeystroke('cmd-s', 'darwin')).toBe(false)
     expect(isNativeEditKeystroke('ctrl-c', 'darwin')).toBe(false)
     expect(isNativeEditKeystroke('f4', 'linux')).toBe(false)
+  })
+
+  it('names what keeps a keystroke for itself', () => {
+    expect(reservedKeystroke('cmd-q', 'darwin', false)).toBe('macOS (Quit)')
+    expect(reservedKeystroke('cmd-m', 'darwin', false)).toBe('macOS (Minimize)')
+    expect(reservedKeystroke('cmd-alt-h', 'darwin', false)).toBe('macOS (Hide Others)')
+    expect(reservedKeystroke('alt-f4', 'win32', false)).toBe('the system (Close Window)')
+    expect(reservedKeystroke('ctrl-w', 'win32', true)).toBe('the browser')
+    expect(reservedKeystroke('cmd-shift-t', 'darwin', true)).toBe('the browser')
+    expect(reservedKeystroke('cmd-w', 'darwin', true)).toBe('the browser')
+    expect(reservedKeystroke('ctrl-w', 'win32', false)).toBeNull()
+    expect(reservedKeystroke('cmd-shift-q', 'darwin', false)).toBeNull()
   })
 
   it('leaves line, word and plain-paste editing keys to a text field', () => {
