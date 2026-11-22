@@ -20,8 +20,8 @@ const PICTURES = ['class', 'idef0-context', 'sequence', 'state', 'use-case', 'id
 const TILES = 8 * 6
 const pictureRules = PICTURES.map(
   (name, i) =>
-    `.hero-grid>.seen[data-pic='${i}']{background-image:url(/hero/${name}-light.svg)}` +
-    `:root[data-theme='dark'] .hero-grid>.seen[data-pic='${i}']{background-image:url(/hero/${name}-dark.svg)}`
+    `.hero-grid>.seen[data-pic='${i}']{background-image:var(--feather),url(/hero/${name}-light.svg)}` +
+    `:root[data-theme='dark'] .hero-grid>.seen[data-pic='${i}']{background-image:var(--feather),url(/hero/${name}-dark.svg)}`
 ).join('')
 ---
 
@@ -44,16 +44,24 @@ const pictureRules = PICTURES.map(
     --cols: 8;
     --tile-opacity: 0.4;
     position: absolute;
-    /* From the header down to the app picture: past the content panel's 1.5rem padding. */
+    /* One tile row: the extra row below the hero, where the grid fades out. */
+    --row: calc(100vw / var(--cols));
+    /* From the header (past the content panel's 1.5rem padding) to one more row of tiles behind
+       the top of the app picture, fading out over that last row: no hard edge where it ends. */
     top: -1.5rem;
-    bottom: -1.5rem;
+    bottom: calc(-1.5rem - var(--row));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25 * var(--row)), transparent);
+    /* Each tile's edges melt into the page: the page colour over the picture's border (a static
+       background layer, so only opacity ever changes). */
+    --feather: linear-gradient(to right, var(--sl-color-bg), transparent 22%, transparent 78%, var(--sl-color-bg)),
+      linear-gradient(to bottom, var(--sl-color-bg), transparent 22%, transparent 78%, var(--sl-color-bg));
     left: 50%;
     width: 100vw;
     transform: translateX(-50%);
     z-index: -1;
     display: grid;
     grid-template-columns: repeat(var(--cols), 1fr);
-    grid-auto-rows: calc(100vw / var(--cols));
+    grid-auto-rows: var(--row);
     gap: 2px;
     overflow: hidden;
     pointer-events: none;

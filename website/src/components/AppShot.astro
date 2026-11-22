@@ -20,6 +20,9 @@ const { alt } = Astro.props
 
 <style>
   .app-shot {
+    /* In front of the home hero's tile grid, whose last row fades out behind it. */
+    position: relative;
+    z-index: 1;
     margin: 0 auto 2.5rem;
     max-width: 68rem;
   }
