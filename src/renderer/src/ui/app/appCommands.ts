@@ -40,6 +40,7 @@ const ps = () => projectStore.getState()
 const ui = () => uiStore.getState()
 
 const PROJECT_URL = 'https://github.com/AHHMED-J/OpenUML'
+const WEBSITE_URL = 'https://openuml.org'
 
 /** The element new children are added to: the first selected model, else the Project. */
 function selectedParent(): Elem {
@@ -453,6 +454,12 @@ export function registerAppCommands(registry: CommandRegistry): void {
     label: 'Download Update...',
     run: () => offerUpdate(),
     isEnabled: () => ui().update !== null
+  })
+  add({
+    id: Cmd.helpWebsite,
+    label: 'OpenUML Website',
+    run: () => bridge?.openExternal(WEBSITE_URL),
+    isEnabled: () => bridge !== null
   })
   add({
     id: Cmd.helpDocumentation,
