@@ -4,7 +4,7 @@ import type React from 'react'
 import { idef0DiagramLabel, isKindOf, type Diagram } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
 import { TypeIcon, UiIcon } from '../icons'
-import { uiStore } from '../uiStore'
+import { uiStore, useUiStore, type ToolbarMode } from '../uiStore'
 
 /** Opens the context menu of a diagram tab or Working Diagrams row (close, close others, ...). */
 export function openDiagramContextMenu(e: React.MouseEvent, diagramId: string): void {
@@ -19,6 +19,20 @@ export function useOpenDiagrams(): { diagrams: Diagram[]; activeId: string | nul
   const repo = useProjectStore((s) => s.repository)
   const diagrams = ids.map((id) => repo.get(id)).filter((d): d is Diagram => isKindOf(d, 'Diagram'))
   return { diagrams, activeId }
+}
+
+/**
+ * Whether the diagram tab row shows: always with a diagram open in Normal mode; in Compact mode only
+ * with two or more (one diagram's name is then in the status bar and in Working Diagrams).
+ */
+export function showsTabRow(mode: ToolbarMode, openCount: number): boolean {
+  return openCount > 1 || (openCount === 1 && mode === 'normal')
+}
+
+export function useTabRowShown(): boolean {
+  const mode = useUiStore((s) => s.prefs.toolbarMode)
+  const count = useProjectStore((s) => s.openDiagramIds.length)
+  return showsTabRow(mode, count)
 }
 
 /** Keeps the active diagram's row visible in a scrolling list; attach the ref to the list. */
