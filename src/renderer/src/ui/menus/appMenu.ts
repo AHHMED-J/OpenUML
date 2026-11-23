@@ -13,6 +13,7 @@ import { uiStore } from '../uiStore'
 import { isWeb, showInFolderLabel } from '../app/bridge'
 import { Cmd } from './commandIds'
 import { endMultiplicityMenu } from '../app/associationEnds'
+import { RadCommandIds, activeRadDiagram } from '../app/rad'
 import { idef0FormatMenu, idef0Menu } from './idef0Menu'
 import type { MenuNode } from './menuModel'
 
@@ -255,7 +256,7 @@ export function buildAppMenu(platform: Platform, web: boolean = isWeb): MenuNode
     ]
   }
   const format: MenuNode = { id: 'format', label: 'Format', submenu: formatItems }
-  const model: MenuNode = { id: 'model', label: 'Model', submenu: () => [addDiagramMenu(), addElementMenu(), idef0Menu()] }
+  const model: MenuNode = { id: 'model', label: 'Model', submenu: () => [addDiagramMenu(), addElementMenu(), idef0Menu(), radCompactItem] }
   const view: MenuNode = {
     id: 'view',
     label: 'View',
@@ -416,6 +417,9 @@ export function exportMenu(): MenuNode[] {
   ]
 }
 
+/** Compact Layout, shown while a role activity diagram is open. */
+const radCompactItem: MenuNode = { id: 'rad.compact-layout', label: 'Compact Layout', command: RadCommandIds.compactLayout, visible: () => activeRadDiagram() !== null }
+
 export function canvasContextMenu(): MenuNode[] {
   const ends = endMultiplicityMenu()
   return [
@@ -423,6 +427,7 @@ export function canvasContextMenu(): MenuNode[] {
     addElementMenu(),
     addDiagramMenu(),
     idef0Menu({ withSheetSize: true }),
+    radCompactItem,
     SEP,
     { label: 'Format', submenu: formatItems },
     SEP,

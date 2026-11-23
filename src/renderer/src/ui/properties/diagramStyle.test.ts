@@ -2,7 +2,8 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { Elem } from '../../model'
+import { createNode } from '../../commands'
+import type { Diagram, Elem, NodeView } from '../../model'
 import { projectStore } from '../../store'
 import { addDiagram } from '../modelActions'
 import { StyleEditor } from './StyleEditor'
@@ -71,5 +72,21 @@ describe('Diagram style in Styles', () => {
   it('is not shown for other diagrams', () => {
     open('ClassDiagram')
     expect(mount().querySelector('#style-diagram-style')).toBeNull()
+  })
+
+  it('offers Compact Layout next to it, as one undoable step', () => {
+    const diagram = open('RADDiagram') as Diagram
+    const engine = projectStore.getState().engine
+    const role = createNode(engine, { kind: 'RADRole', diagram, left: 40, top: 40, width: 400, height: 900 }).view as NodeView
+    createNode(engine, { kind: 'RADActivity', diagram, left: 100, top: 100, container: role, name: 'First' })
+    createNode(engine, { kind: 'RADActivity', diagram, left: 100, top: 500, container: role, name: 'Second' })
+    const el = mount()
+    const button = [...el.querySelectorAll('button')].find((x) => x.textContent === 'Compact Layout') as HTMLButtonElement
+    expect(button).toBeDefined()
+    act(() => button.click())
+    expect(role.height).toBeLessThan(900)
+    expect(projectStore.getState().undoName).toBe('Compact Layout')
+    act(() => projectStore.getState().undo())
+    expect(role.height).toBe(900)
   })
 })

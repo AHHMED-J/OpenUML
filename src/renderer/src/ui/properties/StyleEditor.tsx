@@ -8,6 +8,7 @@ import { setFields, setFieldsOfAll } from '../../commands'
 import { FONT_SIZES, RAD_STYLES, colorIdef0Arrows, isFlowColorEdit, radStyleOf, type RadStyleName } from '../../diagram'
 import { fieldOf, isKindOf, type Elem, type Font, type View } from '../../model'
 import { projectStore, useProjectStore } from '../../store'
+import { compactActiveRadDiagram } from '../app/rad'
 import { reportError } from '../app/commands'
 import { parseHexColor } from './colorText'
 import { useSelectedViews } from './useSelection'
@@ -171,6 +172,14 @@ function RadDiagramStyle({ diagram }: { diagram: Elem }): React.JSX.Element {
               </option>
             ))}
           </select>
+        </div>
+      </div>
+      <div className="prop-row">
+        <span className="prop-label" />
+        <div className="prop-value">
+          <button type="button" className="button small" data-tip="Close up the roles and the steps; keeps their order" onClick={compactActiveRadDiagram}>
+            Compact Layout
+          </button>
         </div>
       </div>
     </div>

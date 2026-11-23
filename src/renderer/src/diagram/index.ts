@@ -183,3 +183,4 @@ export { isActorLifeline, setLifelineActor } from './uml/sequence/lifelineActor'
 
 // RAD: the diagram styles offered in Styles
 export { RAD_STYLES, radStyleOf, type RadStyleName } from './rad/look'
+export { compactRadDiagram, type CompactOutcome } from './rad/compact'
