@@ -1,9 +1,10 @@
 /**
  * Starlight route middleware: what search engines and link previews read in every page's <head>.
- * Every page gets the share picture (og:image, 1200×630, the app window and the logo). The home
- * pages are typed as a website, get their own title ("OpenUML | OpenUML" otherwise) and describe
- * OpenUML as a SoftwareApplication (schema.org JSON-LD) with the version of the app in this
- * repository.
+ * Every page gets the share picture (og:image, 1200×630, the app window and the logo) and a share
+ * title that says what the page is: its own <title> from the frontmatter without " | OpenUML", or
+ * "<title> | OpenUML" (Starlight shares just "Download" otherwise). The home pages are typed as a
+ * website, get their own title ("OpenUML | OpenUML" otherwise) and describe OpenUML as a
+ * SoftwareApplication (schema.org JSON-LD) with the version of the app in this repository.
  */
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data'
 import { license, version } from '../../package.json'
@@ -46,6 +47,9 @@ export const onRequest = defineRouteMiddleware((context) => {
   replace('property', 'og:image:alt', t.imageAlt)
   replace('name', 'twitter:image', `${SITE}/og.jpg`)
   replace('name', 'twitter:image:alt', t.imageAlt)
+
+  const ownTitle = route.entry.data.head.find((e) => e.tag === 'title')?.content
+  replace('property', 'og:title', ownTitle ? ownTitle.replace(/ \| OpenUML$/, '') : `${route.entry.data.title} | OpenUML`)
 
   const isHome = route.id === '' || route.id === 'es'
   if (!isHome) return
