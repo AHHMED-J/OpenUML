@@ -73,8 +73,9 @@ function busLevel(edge: EdgeView, ctx: LayoutContext): number {
     if (ob) lowest = Math.max(lowest, bottom(ob))
   }
   let y = Math.min(hb.top - RAD_ROUTING.busOffset, lowest + RAD_ROUTING.busDrop)
-  // Not enough room below the sources: use the middle of the gap, or just below the lowest source.
-  if (y < bottom(own) + 4) y = hb.top > bottom(own) + 8 ? (bottom(own) + hb.top) / 2 : bottom(own) + 10
+  // Not enough room below the sources: the middle of the gap under the lowest source, or just
+  // below it. Measured from the lowest source, so every line into the target shares one bus.
+  if (y < lowest + 4) y = hb.top > lowest + 8 ? (lowest + hb.top) / 2 : lowest + 10
   return Math.round(y)
 }
 
