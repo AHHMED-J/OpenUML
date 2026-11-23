@@ -1,6 +1,6 @@
 ---
 title: Primeros pasos
-description: Crea tu primer modelo en OpenUML.
+description: Instala OpenUML, la herramienta UML gratis y de código abierto, y dibuja tu primer diagrama.
 ---
 
 1. [Descarga](/es/download/) e instala OpenUML.

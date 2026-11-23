@@ -1,6 +1,6 @@
 ---
 title: Diagram types
-description: The diagrams OpenUML can draw.
+description: 'The diagrams OpenUML draws: 15 UML diagram types, from class and sequence to statechart diagrams, plus IDEF0 and Role Activity Diagrams (RAD).'
 ---
 
 | Group | Diagrams |

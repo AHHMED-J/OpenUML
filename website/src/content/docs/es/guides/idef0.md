@@ -1,6 +1,9 @@
 ---
 title: IDEF0
-description: Modela procesos con IDEF0 en OpenUML.
+description: 'Software IDEF0 gratis: dibuja diagramas IDEF0 en OpenUML con numeración automática de cajas, descomposición en diagramas hijos y avisos de consistencia.'
+head:
+  - tag: title
+    content: 'Software IDEF0 gratis y de código abierto | OpenUML'
 ---
 
 IDEF0 describe un proceso como cajas (funciones) con cuatro tipos de flechas: entradas por la izquierda, controles por arriba, salidas por la derecha y mecanismos por abajo.

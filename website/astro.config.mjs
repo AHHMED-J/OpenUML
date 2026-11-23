@@ -1,10 +1,17 @@
 // The OpenUML website (openuml.org): English at the root, Spanish under /es/.
+import sitemap from '@astrojs/sitemap'
 import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 
 export default defineConfig({
   site: 'https://openuml.org',
   integrations: [
+    // Starlight adds this sitemap itself unless it is listed here. It is, with Starlight's own
+    // languages, to add the web app (/app/, a static page from public/ that no route builds).
+    sitemap({
+      i18n: { defaultLocale: 'root', locales: { root: 'en', es: 'es' } },
+      customPages: ['https://openuml.org/app/']
+    }),
     starlight({
       title: 'OpenUML',
       description: 'Free, open-source UML, IDEF0 and RAD modeling for Windows, macOS and Linux.',
@@ -18,6 +25,8 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/AHHMED-J/OpenUML' }],
       customCss: ['./src/styles/custom.css'],
       components: { Footer: './src/components/Footer.astro', Hero: './src/components/Hero.astro' },
+      // Share picture on every page; share title and JSON-LD on the home pages (see the file).
+      routeMiddleware: './src/routeData.ts',
       sidebar: [
         { label: 'Download', translations: { es: 'Descargas' }, slug: 'download' },
         {

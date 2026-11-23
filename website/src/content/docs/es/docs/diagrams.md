@@ -1,6 +1,6 @@
 ---
 title: Tipos de diagrama
-description: Los diagramas que OpenUML puede dibujar.
+description: 'Los diagramas que dibuja OpenUML: 15 tipos de diagrama UML, de clases y secuencia a máquinas de estados, más IDEF0 y diagramas de actividad de roles (RAD).'
 ---
 
 | Grupo | Diagramas |
