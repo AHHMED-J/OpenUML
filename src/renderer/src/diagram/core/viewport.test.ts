@@ -5,6 +5,7 @@ import {
   canvasExtent,
   fitWidthZoom,
   longCanvasExtent,
+  LONG_CANVAS_MIN_OPEN_ZOOM,
   clampZoom,
   exportBounds,
   gridLineSpacing,
@@ -99,5 +100,13 @@ describe('fitWidthZoom', () => {
   it('fits the content width into the viewport, never above 100%', () => {
     expect(fitWidthZoom(1500, 1000)).toBeCloseTo(980 / 1510, 10)
     expect(fitWidthZoom(300, 1000)).toBe(1)
+  })
+
+  it('opens a long canvas no smaller than a readable zoom; wider content scrolls sideways', () => {
+    // 1500 wide in 1000 px would fit at 65%: the RAD opens at 80% instead.
+    expect(fitWidthZoom(1500, 1000, LONG_CANVAS_MIN_OPEN_ZOOM)).toBe(0.8)
+    // Content that fits between 80% and 100% still fits its width.
+    expect(fitWidthZoom(1100, 1000, LONG_CANVAS_MIN_OPEN_ZOOM)).toBeCloseTo(980 / 1110, 10)
+    expect(fitWidthZoom(300, 1000, LONG_CANVAS_MIN_OPEN_ZOOM)).toBe(1)
   })
 })

@@ -20,6 +20,7 @@ import {
   clampZoom,
   fitWidthZoom,
   longCanvasExtent,
+  LONG_CANVAS_MIN_OPEN_ZOOM,
   edgeAnchor,
   edgeHitCursor,
   gridLineSpacing,
@@ -314,8 +315,11 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
     const b = layout?.bounds
     if (!b) return
     fitted.current = true
-    const z = clampZoom(fitWidthZoom(b.left + b.width, viewport.width))
+    // Never below a readable zoom: wider processes open at it on their first role (top left).
+    const z = clampZoom(fitWidthZoom(b.left + b.width, viewport.width, LONG_CANVAS_MIN_OPEN_ZOOM))
     if (z !== targetZoom) onZoomChange(z)
+    const scroller = scrollRef.current
+    if (scroller) scroller.scrollTo({ left: 0, top: 0 })
   }, [props.fitOnOpen, longCanvas, viewport.width, layout, targetZoom, onZoomChange])
 
   // ---- Coordinates.

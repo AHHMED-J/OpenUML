@@ -112,7 +112,16 @@ export function longCanvasExtent(contentEnd: number, viewportPx: number, zoom: n
   return Math.max(canvasExtent(contentEnd, viewportPx, zoom), contentEnd + LONG_CANVAS_ROOM / zoom, (LONG_CANVAS_SCREENS * viewportPx) / zoom)
 }
 
-/** The zoom (at most 100%) at which content ending at `contentEnd` fills the viewport width. */
-export function fitWidthZoom(contentEnd: number, viewportPx: number): number {
-  return Math.min(1, (viewportPx - 20) / (contentEnd + CANVAS_FIT_PADDING))
+/**
+ * The zoom at which content ending at `contentEnd` fills the viewport width: at most 100%, and
+ * never below `minZoom` (content wider than that opens at `minZoom` and scrolls sideways).
+ */
+export function fitWidthZoom(contentEnd: number, viewportPx: number, minZoom = 0): number {
+  return Math.max(minZoom, Math.min(1, (viewportPx - 20) / (contentEnd + CANVAS_FIT_PADDING)))
 }
+
+/**
+ * Lowest zoom a long canvas (RAD) opens at: below it the 10-11 unit labels of the diagram styles
+ * stop being comfortable to read.
+ */
+export const LONG_CANVAS_MIN_OPEN_ZOOM = 0.8
