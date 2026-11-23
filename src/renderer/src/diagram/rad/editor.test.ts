@@ -113,7 +113,7 @@ describe('containment', () => {
     expect([a1?.left, a1?.top]).toEqual([(a0?.left ?? 0) + 40, (a0?.top ?? 0) + 30])
     expect(after.nodes.get(role._id)?.box.left).toBe((before.nodes.get(role._id)?.box.left ?? 0) + 40)
     const line = after.edges.get(b.e('a', 'b')._id)
-    expect(line?.points[0]?.x).toBe((a1?.left ?? 0) + 12)
+    expect(line?.points[0]?.x).toBe((a1?.left ?? 0) + (a1?.width ?? 0) / 2)
   })
 
   it('reparents an element dragged into another role: the model moves and lines that would cross roles go, in one step', () => {
@@ -341,11 +341,13 @@ describe('locking a role', () => {
     const node = layout(b).nodes.get(role._id)!
     expect(node.movable).toBe(false)
     expect(node.sizable).toBe('none')
-    const before = `${(role as NodeView).left},${(role as NodeView).top}`
+    // Where the role is drawn (its position follows its content, which it must hold).
+    const at = (): string => `${layout(b).nodes.get(role._id)?.box.left},${layout(b).nodes.get(role._id)?.box.top}`
+    const before = at()
     const a = b.v('a') as NodeView
     const ax = a.left
     moveSelection(env(b), [role._id, a._id], 30, 0, undefined, layout(b))
-    expect(`${(role as NodeView).left},${(role as NodeView).top}`).toBe(before)
+    expect(at()).toBe(before)
     expect(a.left).toBe(ax + 30)
   })
 

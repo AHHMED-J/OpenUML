@@ -5,7 +5,7 @@ import { isKindOf, type Elem, type NodeView, type View } from '../../model'
 import { computeDiagramLayout } from '../layout/layoutDiagram'
 import type { DiagramLayout, EdgeLayout, NodeLayout } from '../layout/types'
 import { RadBuilder, clerkFixture, insuranceFixture, legendFixture, letterFixture } from './fixtures'
-import type { ActivityData, BranchData, RefinementData, RoleData, RoleStartData, SymbolData, WaitData } from './layout'
+import type { ActivityData, BranchData, MarkerData, RefinementData, RoleData, RoleStartData, SymbolData, WaitData } from './layout'
 import { RAD_GEOMETRY } from './layout'
 import { loopLaneX, threadShape } from './routing'
 
@@ -32,37 +32,44 @@ const right = (n: NodeLayout): number => n.box.left + n.box.width
 const bottom = (n: NodeLayout): number => n.box.top + n.box.height
 
 describe('role boxes', () => {
-  it('are at least 160 x 120 with the Agent- Role header above the top-left corner', () => {
+  it('are at least 120 x 90 with the Agent- Role title in a header inside the top, a line under it', () => {
     const b = new RadBuilder()
     const role = b.role('r', { left: 100, top: 100, width: 40, height: 30, agent: 'Boss', name: 'Dictating a letter' })
     b.done()
     const n = node<RoleData>(lay(b), role.view)
-    expect(n.box).toEqual({ left: 100, top: 100, width: 160, height: 120 })
+    expect(n.box).toMatchObject({ left: 100, top: 100, width: 120 })
+    expect(n.box.height).toBeGreaterThanOrEqual(90)
     expect(n.zIndex).toBe(-1)
     expect(n.sizable).toBe('free')
     const title = n.data.titleLines[n.data.titleLines.length - 1]
     // The title wraps within the (narrow) role width.
     expect(n.data.titleLines.map((x) => x.text).join(' ')).toBe('Boss- Dictating a letter')
-    expect(n.data.titleLines[0]?.box.left).toBe(100)
-    expect(title ? title.box.top + title.box.height : 0).toBe(100 - RAD_GEOMETRY.titleGap)
+    expect(n.data.titleLines[0]?.box.left).toBe(100 + 11)
+    expect(n.data.titleLines[0]?.box.top).toBe(100 + RAD_GEOMETRY.headerPad)
+    expect(n.data.separator?.y).toBe((title ? title.box.top + title.box.height : 0) + RAD_GEOMETRY.headerPad)
     expect(title?.font.style).toBe(1)
-    expect(n.data.radius).toBe(20)
-    expect(n.extraBounds?.[0]).toEqual(expect.objectContaining({ top: n.data.titleLines[0]?.box.top }))
+    expect(title?.font.size).toBe(11)
+    expect(n.data.radius).toBe(10)
+    expect(n.data.dot).toBeNull()
+    expect(n.style).toMatchObject({ fillColor: '#fafafa', lineColor: '#cbd5e1' })
     expect(n.regions[0]?.target).toEqual({ kind: 'custom', elementId: role.model._id, syntax: 'radRoleTitle' })
     expect(n.regions[0]?.text).toBe('Boss- Dictating a letter')
   })
 
   it('wraps a long title within the role width into two lines', () => {
     const b = new RadBuilder()
-    const role = b.role('r', { left: 0, top: 0, width: 340, height: 200, agent: 'Customer', name: 'Applying for an insurance policy' })
+    const role = b.role('r', { left: 0, top: 0, width: 220, height: 200, agent: 'Customer', name: 'Applying for an insurance policy' })
     b.done()
     const n = node<RoleData>(lay(b), role.view)
-    expect(n.data.titleLines.map((l) => l.text)).toEqual(['Customer- Applying for an insurance', 'policy'])
+    expect(n.data.titleLines).toHaveLength(2)
+    expect(n.data.titleLines.map((l) => l.text).join(' ')).toBe('Customer- Applying for an insurance policy')
+    for (const line of n.data.titleLines) expect(line.box.left + line.box.width).toBeLessThanOrEqual(n.box.left + n.box.width - 10)
     expect(n.data.titleLines[1]?.box.top).toBeGreaterThan(n.data.titleLines[0]?.box.top ?? 0)
-    expect(n.data.titleLines[1] ? n.data.titleLines[1].box.top + n.data.titleLines[1].box.height : 0).toBe(-RAD_GEOMETRY.titleGap)
+    // The header grows with the title: the line under it comes after the second line.
+    expect(n.data.separator?.y).toBe((n.data.titleLines[1] ? n.data.titleLines[1].box.top + n.data.titleLines[1].box.height : 0) + RAD_GEOMETRY.headerPad)
   })
 
-  it('grow to contain every element and its label plus a 24 padding, never beyond the stored size', () => {
+  it('grow to contain every element and its label plus a 16 padding, never beyond the stored size', () => {
     const b = new RadBuilder()
     const role = b.role('r', { left: 0, top: 0, width: 160, height: 120, agent: 'A', name: 'Doing things' })
     const far = b.el('far', 'r', 'RADActivity', 3, 4, 'Something quite long that wraps onto more lines than one')
@@ -73,8 +80,8 @@ describe('role boxes', () => {
     const labelRight = Math.max(...f.data.lines.map((x) => x.box.left + x.box.width))
     expect(n.box.left).toBe(0)
     expect(n.box.top).toBe(0)
-    expect(right(n)).toBe(Math.ceil(labelRight) + 24)
-    expect(bottom(n)).toBe(Math.max(bottom(f), ...f.data.lines.map((x) => x.box.top + x.box.height)) + 24)
+    expect(right(n)).toBe(Math.ceil(labelRight) + 16)
+    expect(bottom(n)).toBe(Math.ceil(Math.max(bottom(f), ...f.data.lines.map((x) => x.box.top + x.box.height)) + 16))
     // A stored size larger than the content is kept.
     setFields(b.engine, role.view, { width: 2000, height: 1500 })
     expect(lay(b).nodes.get(role.view._id)?.box).toMatchObject({ width: 2000, height: 1500 })
@@ -87,15 +94,19 @@ describe('role boxes', () => {
     b.done()
     setFields(b.engine, el, { left: 100, top: 100 })
     const l = lay(b)
-    const n = node(l, role.view)
-    expect(n.box.left).toBe(100 - 24)
-    expect(n.box.top).toBe(100 - 24)
+    const n = node<RoleData>(l, role.view)
+    const e = node<ActivityData>(l, el)
+    const union = e.data.content.reduce((u, r) => ({ left: Math.min(u.left, r.left), top: Math.min(u.top, r.top), right: Math.max(u.right, r.left + r.width), bottom: Math.max(u.bottom, r.top + r.height) }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity })
+    const header = (n.data.separator?.y ?? 0) - n.box.top
+    // 16 to the left of the content; above it, half that padding and the header.
+    expect(n.box.left).toBe(union.left - 16)
+    expect(n.box.top).toBe(union.top - 8 - header)
     expect(n.derivedPosition).toBe(true)
     setFields(b.engine, role.view, { autoResize: true })
-    const auto = node(lay(b), role.view)
-    const e = node<ActivityData>(lay(b), el)
-    const union = e.data.content.reduce((u, r) => ({ left: Math.min(u.left, r.left), top: Math.min(u.top, r.top), right: Math.max(u.right, r.left + r.width), bottom: Math.max(u.bottom, r.top + r.height) }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity })
-    expect(auto.box).toEqual({ left: union.left - 24, top: union.top - 24, width: Math.max(160, union.right - union.left + 48), height: Math.max(120, union.bottom - union.top + 48) })
+    const auto = node<RoleData>(lay(b), role.view)
+    // Narrower, the title may wrap: the header is measured at the new width.
+    const autoHeader = (auto.data.separator?.y ?? 0) - auto.box.top
+    expect(auto.box).toEqual({ left: union.left - 16, top: union.top - 8 - autoHeader, width: Math.max(120, Math.ceil(union.right - union.left + 32)), height: Math.max(90, Math.ceil(union.bottom - union.top + 24 + autoHeader)) })
     expect(auto.sizable).toBe('none')
   })
 
@@ -105,22 +116,23 @@ describe('role boxes', () => {
     const boss = node(l, b.v('boss'))
     const lane = loopLaneX(b.v('b6'), { measurer: b.measurer, repository: b.repository, diagram: b.diagram, nodeLayout: (id) => l.nodes.get(id), edgeLayout: (id) => l.edges.get(id) })
     const leftmost = Math.min(...['b1', 'b2', 'b3', 'b4', 'b5', 'b7'].map((k) => node(l, b.v(k)).box.left))
-    expect(lane).toBe(leftmost - 22)
+    expect(lane).toBe(leftmost - RAD_GEOMETRY.loopLane)
     expect(lane).toBeGreaterThan(boss.box.left)
   })
 
-  it('draw the header inside the top when headerOutside is off and reserve room for it', () => {
+  it('draw the header inside the top (whatever headerOutside says) and reserve room for it', () => {
     const b = new RadBuilder()
     const role = b.role('r', { left: 0, top: 0, width: 300, height: 300, agent: 'A', name: 'Doing things' })
     const el = b.el('e', 'r', 'RADActivity', 0, 0, 'Step')
     b.done()
-    setFields(b.engine, role.view, { headerOutside: false, autoResize: true })
+    setFields(b.engine, role.view, { autoResize: true })
     const l = lay(b)
     const n = node<RoleData>(l, role.view)
     const t = n.data.titleLines[0]
     expect(n.data.headerOutside).toBe(false)
     expect(t && t.box.top).toBeGreaterThanOrEqual(n.box.top)
     expect(t ? t.box.top + t.box.height : 0).toBeLessThan(node(l, el).box.top)
+    expect(n.data.separator?.y).toBeLessThan(node(l, el).box.top)
   })
 
   it('show the goal under the title when showGoal is on', () => {
@@ -137,112 +149,133 @@ describe('role boxes', () => {
 })
 
 describe('symbols', () => {
-  it('draw activities as 24 x 24 squares with the label 10 to the right, centred on the square', () => {
+  it('draw activities as filled 14 x 14 squares centered on their place, the label 8 to the right', () => {
     const b = insuranceFixture()
     const l = lay(b)
     const a2 = node<ActivityData>(l, b.v('a2'))
-    expect(a2.box).toMatchObject({ width: 24, height: 24 })
+    const stored = b.v('a2') as NodeView
+    expect(a2.box).toMatchObject({ width: 14, height: 14 })
+    expect(cx(a2)).toBe(stored.left + stored.width / 2)
+    expect(cy(a2)).toBe(stored.top + stored.height / 2)
     expect(a2.sizable).toBe('none')
     expect(a2.data.interaction).toBe(false)
+    expect(a2.style).toMatchObject({ fillColor: '#1f2937', lineColor: '#1f2937', fontColor: '#1f2937' })
+    expect(a2.style.font.size).toBe(11)
     const [line] = a2.data.lines
-    expect(line?.box.left).toBe(right(a2) + 10)
-    expect(line ? line.box.top + line.box.height / 2 : 0).toBeCloseTo(cy(a2) - (a2.data.lines.length - 1) * 8, 5)
+    expect(line?.box.left).toBe(right(a2) + 8)
+    expect(line ? line.box.top + line.box.height / 2 : 0).toBeCloseTo(cy(a2) - (a2.data.lines.length - 1) * 7, 5)
     expect(line?.align).toBe('left')
   })
 
   it('wrap labels at 150 into several lines', () => {
     const b = insuranceFixture()
     const n = node<ActivityData>(lay(b), b.v('c2'))
-    expect(n.data.lines.map((x) => x.text)).toEqual(['Receive acceptance', 'or rejection of the', 'policy'])
+    expect(n.data.lines.length).toBeGreaterThan(1)
+    expect(n.data.lines.map((x) => x.text).join(' ')).toBe('Receive acceptance or rejection of the policy')
     for (const line of n.data.lines) expect(line.box.width).toBeLessThanOrEqual(150)
     const lh = n.data.lines[1] && n.data.lines[0] ? n.data.lines[1].box.top - n.data.lines[0].box.top : 0
-    expect(lh).toBe(16)
+    expect(lh).toBe(14)
   })
 
-  it('size undefined processes 44 x 26 and state markers 30 x 18 with their labels to the right', () => {
+  it('size undefined processes 26 x 15 and state markers 24 x 15 with their labels to the right', () => {
     const b = insuranceFixture()
     const c = clerkFixture()
     const u = node<SymbolData>(lay(b), b.v('m2'))
-    expect(u.box).toMatchObject({ width: 44, height: 26 })
+    expect(u.box).toMatchObject({ width: 26, height: 15 })
     expect(u.outline).toBe('ellipse')
     expect(u.data.lines[0]?.text).toBe('Medical assessment')
-    const m = node<SymbolData & { kind: string }>(lay(c), c.v('start'))
-    expect(m.box).toMatchObject({ width: 30, height: 18 })
+    const m = node<MarkerData>(lay(c), c.v('start'))
+    expect(m.box).toMatchObject({ width: 24, height: 15 })
     expect(m.data.kind).toBe('start')
-    expect(m.data.lines[0]?.box.left).toBe(right(m) + 10)
+    expect(m.data.inner.fillColor).toBe('#ffffff')
+    expect(m.data.lines[0]?.box.left).toBe(right(m) + 8)
+    // The inner ellipse of an end marker is filled.
+    expect(node<MarkerData>(lay(c), c.v('end')).data.inner.fillColor).toBe('#1f2937')
   })
 
-  it('draw a wait as a circle with a 40-long stub arriving from the left', () => {
+  it('draw a wait as a 13 circle with a 34-long stub arriving from the left', () => {
     const b = legendFixture()
     const w = node<WaitData>(lay(b), b.v('c1'))
-    expect(w.box).toMatchObject({ width: 24, height: 24 })
-    expect(w.data.stub).toEqual({ x1: w.box.left - 40, x2: w.box.left, y: cy(w) })
+    expect(w.box).toMatchObject({ width: 13, height: 13 })
+    expect(w.data.stub).toEqual({ x1: w.box.left - 34, x2: w.box.left, y: cy(w) })
     expect(w.data.lines[0]?.text).toBe('Awaited event')
   })
 
-  it('label an internal role start with the role it starts and give an external one a 60-long arrow with a caption', () => {
+  it('label an internal role start with the role it starts and bring an external one in from the left', () => {
     const b = legendFixture()
     const l = lay(b)
     const internal = node<RoleStartData>(l, b.v('b7'))
     expect(internal.data.tip).toBeNull()
     expect(internal.data.lines.map((x) => x.text)).toEqual(['Waiting for input'])
     const external = node<RoleStartData>(l, b.v('c3'))
-    expect(external.box).toMatchObject({ width: 26, height: 26 })
-    expect(external.data.tip).toEqual({ x1: right(external), x2: right(external) + 60, y: cy(external) })
-    expect(external.data.lines[0]?.box.left).toBe(right(external) + 60 + 6)
+    expect(external.box).toMatchObject({ width: 15, height: 15 })
+    // A 52-long line with an arrow into the pentagon, the outside role's name above it, ending before the pentagon.
+    expect(external.data.tip).toEqual({ x1: external.box.left - 52, x2: external.box.left, y: cy(external) })
+    expect(external.data.external.map((x) => x.text).join(' ')).toBe('Role outside the model')
+    for (const x of external.data.external) {
+      expect(x.box.left + x.box.width).toBeLessThanOrEqual(external.box.left - 6)
+      expect(x.box.top + x.box.height).toBeLessThanOrEqual(cy(external) - 3)
+    }
     expect(external.regions.map((r) => r.target)).toContainEqual({ kind: 'field', elementId: b.v('c3').model?._id, field: 'externalRole' })
     // A name of its own replaces the referenced role's name.
     setFields(b.engine, b.v('b7').model as Elem, { name: 'Begin the follow-up' })
     expect(node<RoleStartData>(lay(b), b.v('b7')).data.lines[0]?.text).toBe('Begin the follow-up')
   })
 
-  it('put an interaction label above the link when the link runs to the right and beside the square when it runs to the left', () => {
+  it('put the label of a linked interaction above the link line, whichever side the link runs to', () => {
     const b = letterFixture()
     const l = lay(b)
-    const boss = node<ActivityData>(l, b.v('b2'))
-    const line = boss.data.lines[boss.data.lines.length - 1]
-    expect(line ? line.box.top + line.box.height : 0).toBe(cy(boss) - 3)
-    const sec = node<ActivityData>(l, b.v('s1'))
-    const sline = sec.data.lines[0]
-    expect(sline ? sline.box.top + (sec.data.lines.length * 16) / 2 : 0).toBeCloseTo(cy(sec), 5)
+    for (const key of ['b2', 's1']) {
+      const n = node<ActivityData>(l, b.v(key))
+      const line = n.data.lines[n.data.lines.length - 1]
+      expect(line ? line.box.top + line.box.height : 0).toBe(cy(n) - 2)
+      expect(n.style.fillColor).toBe('#ffffff')
+    }
   })
 
-  it('draw an interaction with an outside party as a 110-long stub from its side with the caption at the free end', () => {
+  it('draw an interaction with an outside party as an 86-long stub from its side with the caption under it', () => {
     const b = clerkFixture()
     const n = node<ActivityData>(lay(b), b.v('c2'))
     expect(n.data.interaction).toBe(true)
-    expect(n.data.stub).toEqual({ x1: n.box.left - 110, x2: n.box.left, y: cy(n) })
+    expect(n.data.stub).toEqual({ x1: n.box.left - 86, x2: n.box.left, y: cy(n) })
     expect(n.data.caption.map((x) => x.text).join(' ')).toBe('Interaction with the author')
-    expect(n.data.caption[0]?.box.left).toBe(n.box.left - 110)
-    for (const c of n.data.caption) expect(c.box.top + c.box.height).toBeLessThanOrEqual(cy(n) - 4)
+    expect(n.data.caption[0]?.box.left).toBe(n.box.left - 86 + 8)
+    expect(n.data.caption[0]?.box.top).toBe(cy(n) + 3)
+    expect(n.data.caption[0]?.font.style).toBe(2)
     // The stub reaches outside the role: it is part of the export bounds but not of what the role contains.
-    expect(n.extraBounds?.some((r) => r.left === n.box.left - 110)).toBe(true)
+    expect(n.extraBounds?.some((r) => r.left === n.box.left - 86)).toBe(true)
     expect(n.data.content.every((r) => r.left >= n.box.left)).toBe(true)
     setFields(b.engine, b.v('c2').model as Elem, { side: 'right' })
     const r = node<ActivityData>(lay(b), b.v('c2'))
-    expect(r.data.stub).toEqual({ x1: right(r), x2: right(r) + 110, y: cy(r) })
+    expect(r.data.stub).toEqual({ x1: right(r), x2: right(r) + 86, y: cy(r) })
     const last = r.data.lines[r.data.lines.length - 1]
-    expect(last ? last.box.top + last.box.height : 0).toBe(cy(r) - 3)
+    expect(last ? last.box.top + last.box.height : 0).toBe(cy(r) - 2)
     expect(r.data.caption[0] ? r.data.caption[0].box.top : 0).toBeGreaterThan(cy(r))
   })
 
-  it('draw case refinement circles with the question beside the first one and the condition above each alternative', () => {
+  it('draw case refinement circles with the question above the bar and the condition above each alternative', () => {
     const b = letterFixture()
     const l = lay(b)
     const q = node<RefinementData>(l, b.v('b5'))
-    expect(q.box).toMatchObject({ width: 24, height: 24 })
+    expect(q.box).toMatchObject({ width: 13, height: 13 })
     expect(q.data.part).toBe(false)
+    expect(q.data.lines[0]?.font.style).toBe(1)
     expect(q.data.lines.map((x) => x.text).join(' ')).toBe('Is the letter correct?')
-    // Wrapped so that it stays clear of the first alternative.
+    // Above the bar, wrapped so that it stays clear of the condition of the first alternative.
     const no = node<BranchData>(l, b.v('no'))
-    for (const line of q.data.lines) expect(line.box.left + line.box.width).toBeLessThan(no.box.left)
+    const last = q.data.lines[q.data.lines.length - 1]
+    expect(last ? last.box.top + last.box.height : 0).toBe(cy(q) - 2)
+    for (const line of q.data.lines) expect(line.box.left + line.box.width).toBeLessThan(no.data.lines[0]?.box.left ?? 0)
     expect(no.data.part).toBe(false)
-    expect(no.box).toMatchObject({ width: 24, height: 24 })
+    expect(no.box).toMatchObject({ width: 12, height: 12 })
     const label = no.data.lines[0]
     expect(label?.text).toBe('No')
     expect(label?.align).toBe('center')
+    // Conditions are gray italic.
+    expect(label?.font.style).toBe(2)
+    expect(no.style.fontColor).toBe('#64748b')
     expect(label ? label.box.left + label.box.width / 2 : 0).toBe(cx(no))
-    expect(label ? label.box.top + label.box.height : 0).toBe(no.box.top - 3)
+    expect(label ? label.box.top + label.box.height : 0).toBe(no.box.top - 2)
   })
 
   it('derive the horizontal bar from the refinement to its branches', () => {
@@ -264,11 +297,11 @@ describe('symbols', () => {
     const p1 = node<BranchData>(l, b.v('p1'))
     const p2 = node(l, b.v('p2'))
     expect(p1.data.part).toBe(true)
-    expect(p1.box).toMatchObject({ width: 26, height: 24 })
-    // At the triangle's vertical centre the width is half the base: 6.5 either side of the centre.
+    expect(p1.box).toMatchObject({ width: 14, height: 12 })
+    // At the triangle's vertical centre the width is half the base: 3.5 either side of the centre.
     expect(split.data.bars).toEqual([
-      { x1: right(split), x2: cx(p1) - 6.5, y: cy(split) },
-      { x1: cx(p1) + 6.5, x2: cx(p2) - 6.5, y: cy(split) }
+      { x1: right(split), x2: cx(p1) - 3.5, y: cy(split) },
+      { x1: cx(p1) + 3.5, x2: cx(p2) - 3.5, y: cy(split) }
     ])
     expect(p1.data.lines).toEqual([])
   })
@@ -277,7 +310,7 @@ describe('symbols', () => {
     const b = letterFixture()
     const l = lay(b)
     const sign = node<ActivityData>(l, b.v('b7'))
-    expect(sign.data.lines[0] ? sign.data.lines[0].box.top + sign.data.lines[0].box.height : 0).toBe(cy(sign) - 3)
+    expect(sign.data.lines[0] ? sign.data.lines[0].box.top + sign.data.lines[0].box.height : 0).toBe(cy(sign) - 2)
     // A square without that thread keeps its label centred.
     const review = node<ActivityData>(l, b.v('b4'))
     expect(review.data.lines[0] ? review.data.lines[0].box.top + review.data.lines[0].box.height / 2 : 0).toBe(cy(review))
@@ -360,7 +393,7 @@ describe('state line routing', () => {
     ])
   })
 
-  it('places the bus 28 above a close target and keeps it below its sources', () => {
+  it('places the bus 28 above the target or 20 below its sources, whichever is higher', () => {
     const b = new RadBuilder()
     b.role('r', { left: 0, top: 0, agent: 'A', name: 'Doing work' })
     b.el('s1', 'r', 'RADActivity', 1, 0, 'One')
@@ -375,9 +408,11 @@ describe('state line routing', () => {
     const l = lay(b)
     const t = node(l, b.v('t'))
     const s1 = node(l, b.v('s1'))
-    expect(edge(l, b.e('s2', 't')).points[1]?.y).toBe(t.box.top - 28)
-    expect(edge(l, b.e('s1', 't')).points[1]?.y).toBe(t.box.top - 28)
-    expect(t.box.top - 28).toBeGreaterThan(bottom(s1))
+    const s2 = node(l, b.v('s2'))
+    const y = Math.round(Math.min(t.box.top - 28, Math.max(bottom(s1), bottom(s2)) + 20))
+    expect(edge(l, b.e('s2', 't')).points[1]?.y).toBe(y)
+    expect(edge(l, b.e('s1', 't')).points[1]?.y).toBe(y)
+    expect(y).toBeGreaterThan(bottom(s1))
     void s1
   })
 
@@ -385,7 +420,7 @@ describe('state line routing', () => {
     const b = new RadBuilder()
     b.role('r', { left: 0, top: 0, agent: 'A', name: 'Doing work' })
     b.el('s1', 'r', 'RADActivity', 1, 0, 'One')
-    b.el('t', 'r', 'RADActivity', 0, 0.7, 'Close target')
+    b.el('t', 'r', 'RADActivity', 0, 0.45, 'Close target')
     b.line('s1', 't')
     b.done()
     const l = lay(b)
@@ -426,7 +461,7 @@ describe('state line routing', () => {
     expect(loop.model?.['loopBack']).toBe(true)
     const from = node(l, b.v('b6'))
     const target = node(l, b.v('b2'))
-    const lane = Math.min(...['b1', 'b2', 'b3', 'b4', 'b5', 'b7'].map((k) => node(l, b.v(k)).box.left)) - 22
+    const lane = Math.min(...['b1', 'b2', 'b3', 'b4', 'b5', 'b7'].map((k) => node(l, b.v(k)).box.left)) - RAD_GEOMETRY.loopLane
     const e = edge(l, loop)
     expect(e.points).toEqual([
       { x: from.box.left, y: cy(from) },
@@ -447,7 +482,7 @@ describe('state line routing', () => {
     const c2 = node(l, b.v('c2'))
     const loop = b.e('no', 'c2')
     expect(loop.model?.['loopBack']).toBe(true)
-    const lane = Math.min(...['start', 'c2', 'c3', 'c4', 'c5', 'end'].map((k) => node(l, b.v(k)).box.left)) - 22
+    const lane = Math.min(...['start', 'c2', 'c3', 'c4', 'c5', 'end'].map((k) => node(l, b.v(k)).box.left)) - RAD_GEOMETRY.loopLane
     expect(edge(l, loop).points).toEqual([
       { x: cx(no), y: bottom(no) },
       { x: cx(no), y: bottom(no) + 20 },
@@ -478,7 +513,8 @@ describe('interaction links', () => {
     const e = edge(l, b.k('b2', 's1'))
     expect(e.points).toEqual([{ x: right(a), y: cy(a) }, { x: c.box.left, y: cy(c) }])
     expect(e.zIndex).toBe(1)
-    expect((e.data as { strokeWidth: number }).strokeWidth).toBe(3)
+    expect((e.data as { strokeWidth: number }).strokeWidth).toBe(2.5)
+    expect(e.style.lineColor).toBe('#1f2937')
     expect(e.headEnd.style).toBe('flat')
     const back = edge(l, b.k('s5', 'b3'))
     const s5 = node(l, b.v('s5'))

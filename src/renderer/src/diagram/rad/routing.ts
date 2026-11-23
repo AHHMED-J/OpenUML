@@ -7,7 +7,7 @@ import { isKindOf, type EdgeView, type View } from '../../model'
 import type { Point, Rect } from '../core'
 import { edgesAt } from '../layout/passIndex'
 import type { LayoutContext } from '../layout/types'
-import { RAD_GEOMETRY } from './layout'
+import { radLookOf } from './layout'
 
 const RAD_ROUTING = {
   /** The bus runs this far above the top of its target. */
@@ -59,7 +59,7 @@ export function loopLaneX(view: View | null | undefined, ctx: LayoutContext): nu
   }
   const own = boxOf(view, ctx)
   if (own && own.left < left) left = own.left
-  return left - RAD_GEOMETRY.loopLane
+  return left - radLookOf(ctx).g.loopLane
 }
 
 /** The y of the bus collecting every forward line that ends at `edge.head`. */

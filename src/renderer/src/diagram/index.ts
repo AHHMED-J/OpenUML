@@ -180,3 +180,6 @@ export {
 // Class diagram notation (strings, layouts) for reuse
 export * as classNotation from './uml/class'
 export { isActorLifeline, setLifelineActor } from './uml/sequence/lifelineActor'
+
+// RAD: the diagram styles offered in Styles
+export { RAD_STYLES, radStyleOf, type RadStyleName } from './rad/look'

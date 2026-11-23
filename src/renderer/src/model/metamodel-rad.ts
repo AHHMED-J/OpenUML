@@ -11,7 +11,9 @@ export const RAD_ENUMS: Record<string, readonly string[]> = {
   RADRefinementKind: ['case', 'part'],
   RADSide: ['left', 'right'],
   RADStateMarkerKind: ['start', 'end', 'state'],
-  RADRouting: ['auto', 'bus', 'side']
+  RADRouting: ['auto', 'bus', 'side'],
+  /** Look of a RAD diagram (Styles > Diagram style); files without it draw Classic. */
+  RADDiagramStyle: ['classic', 'colorful']
 }
 
 const RAD_MODEL_TYPES: TypeDef[] = [
@@ -40,7 +42,7 @@ const RAD_MODEL_TYPES: TypeDef[] = [
 ]
 
 const RAD_VIEW_TYPES: TypeDef[] = [
-  t('RADDiagram', 'Diagram'),
+  t('RADDiagram', 'Diagram', [enm('diagramStyle', 'RADDiagramStyle', 'classic')]),
   t('RADRoleView', 'NodeView', [emb('nameLabel', 'LabelView'), bool('showGoal', false), bool('headerOutside', true), bool('locked', false)]),
   t('RADActivityView', 'UMLFloatingNodeView'),
   t('RADUndefinedProcessView', 'UMLFloatingNodeView'),

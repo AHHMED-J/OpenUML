@@ -108,6 +108,11 @@ export interface DiagramHooks {
   dragHandle?(layout: DiagramLayout, viewId: string, p: Point): ToolSpec | null
   /** A click (press and release without moving) on the view `viewId`, after it was selected. */
   clickView?(env: DiagramEnv, layout: DiagramLayout, viewId: string, p: Point): void
+  /**
+   * A process drawn downward (RAD): the canvas keeps room below the content (see
+   * `longCanvasExtent`) and a diagram opened without a zoom of its own fits its width.
+   */
+  longCanvas?: boolean
   /** Screen-only drawing over the diagram, inside the zoomed SVG group (never exported). */
   SvgOverlay?: ComponentType<OverlayProps>
   /** HTML over the canvas (popovers), positioned in diagram coordinates times `zoom`. */
@@ -163,7 +168,9 @@ export function syncGeometry(env: DiagramEnv, b: OperationBuilder): void {
   for (const [id, node] of layout.nodes) {
     const view = repo.get(id) as NodeView | undefined
     if (!view) continue
-    if (view.width !== node.box.width || view.height !== node.box.height) {
+    // A symbol drawn centered on its stored box (RAD) keeps that box: its size depends on the
+    // diagram style and its text, and writing it back would move its center.
+    if (!node.snapCenter && (view.width !== node.box.width || view.height !== node.box.height)) {
       b.setAll(view, { width: node.box.width, height: node.box.height })
     }
     if (node.derivedPosition && (view.left !== node.box.left || view.top !== node.box.top)) {

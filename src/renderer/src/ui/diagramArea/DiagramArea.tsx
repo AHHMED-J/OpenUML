@@ -128,6 +128,7 @@ export function DiagramArea(): React.JSX.Element {
   const { activeId } = useOpenDiagrams()
   const tool = useUiStore((s) => s.tool)
   const zoom = useUiStore((s) => (activeId ? (s.zoomByDiagram[activeId] ?? 1) : 1))
+  const zoomChosen = useUiStore((s) => activeId !== null && activeId !== undefined && s.zoomByDiagram[activeId] !== undefined)
   const showGrid = useUiStore((s) => s.prefs.showGrid)
   const snapToGrid = useUiStore((s) => s.prefs.snapToGrid)
   const gridSize = useUiStore((s) => s.prefs.gridSize)
@@ -162,6 +163,7 @@ export function DiagramArea(): React.JSX.Element {
               gridSize={gridSize}
               defaultFontSize={defaultFontSize}
               canvas={canvas}
+              fitOnOpen={!zoomChosen}
               onNotify={(message) => uiStore.getState().toast(message)}
             />
           </EditorBoundary>

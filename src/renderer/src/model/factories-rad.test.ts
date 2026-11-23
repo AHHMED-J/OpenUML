@@ -64,7 +64,20 @@ describe('RAD diagram creation', () => {
 })
 
 describe('roles and elements', () => {
-  it('creates a role owned by the process with a gray rounded view', () => {
+  it('gives a new role the height of the process drawn so far, and the width of the diagram style', () => {
+    const { engine, diagram, role } = setup()
+    const first = role(0, 0)
+    engine.transact('grow', (b) => b.set(first, 'height', 900))
+    const second = role(260, 40)
+    expect(second.height).toBe(900 - 40)
+    expect(second.width).toBe(200)
+    // A role placed far below still gets a usable height.
+    expect(role(520, 2000).height).toBe(120)
+    engine.transact('style', (b) => b.set(diagram, 'diagramStyle', 'colorful'))
+    expect(role(800, 0).width).toBe(240)
+  })
+
+  it('creates a role owned by the process with a rounded view colored by the diagram style', () => {
     const { process, role } = setup()
     const view = role(10, 20)
     const model = view.model as Elem
@@ -73,8 +86,9 @@ describe('roles and elements', () => {
     expect(process['roles']).toEqual([model])
     expect(model['name']).toBe('Role1')
     expect(view._type).toBe('RADRoleView')
-    expect([view.left, view.top, view.width, view.height]).toEqual([10, 20, 220, 360])
-    expect(view.fillColor).toBe('#c0c0c0')
+    expect([view.left, view.top, view.width, view.height]).toEqual([10, 20, 200, 200])
+    // Plain defaults: the diagram style colors the role.
+    expect(view.fillColor).toBe('#ffffff')
     expect(view.showShadow).toBe(false)
     expect(view['showGoal']).toBe(false)
     expect(view['headerOutside']).toBe(true)

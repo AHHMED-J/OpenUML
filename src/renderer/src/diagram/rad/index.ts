@@ -33,6 +33,7 @@ import { ActivityNode, BranchNode, RefinementNode, RoleNode, RoleStartNode, Stat
 
 export * from './edges'
 export * from './layout'
+export * from './look'
 export * from './render'
 export * from './routing'
 export * from './strings'
@@ -125,7 +126,7 @@ function refinementGroup(env: DiagramEnv, views: readonly View[]): View[] {
 }
 
 export function registerRadNotations(): void {
-  registerDiagramHooks('RADDiagram', { moveGroup: refinementGroup, createEdge: connectRoles, deleteViews: deleteRadViews })
+  registerDiagramHooks('RADDiagram', { moveGroup: refinementGroup, createEdge: connectRoles, deleteViews: deleteRadViews, longCanvas: true })
   registerTransactionHook(revertUnlinkedInteractions)
   registerRadQuickEdit()
   registerNodeNotation('RADRoleView', { layout: layoutRole, Render: RoleNode, container: roleContainer })

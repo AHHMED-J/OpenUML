@@ -98,3 +98,21 @@ export function canvasExtent(contentEnd: number, viewportPx: number, zoom: numbe
   if (viewportPx > 0 && contentEnd + CANVAS_FIT_PADDING <= visible) return visible
   return Math.max(contentEnd + CANVAS_SCROLL_MARGIN, visible)
 }
+
+/** Room a long canvas always keeps below the content, in screen pixels (any zoom). */
+const LONG_CANVAS_ROOM = 600
+/** Screens of height a long canvas has at least. */
+const LONG_CANVAS_SCREENS = 3
+
+/**
+ * Height (diagram units) of the canvas of a process that grows downward (RAD): at least three
+ * screens, and always 600 screen pixels of room below the content, whatever the zoom.
+ */
+export function longCanvasExtent(contentEnd: number, viewportPx: number, zoom: number): number {
+  return Math.max(canvasExtent(contentEnd, viewportPx, zoom), contentEnd + LONG_CANVAS_ROOM / zoom, (LONG_CANVAS_SCREENS * viewportPx) / zoom)
+}
+
+/** The zoom (at most 100%) at which content ending at `contentEnd` fills the viewport width. */
+export function fitWidthZoom(contentEnd: number, viewportPx: number): number {
+  return Math.min(1, (viewportPx - 20) / (contentEnd + CANVAS_FIT_PADDING))
+}

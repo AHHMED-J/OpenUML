@@ -18,6 +18,8 @@ import {
   canvasExtent,
   canvasPalette,
   clampZoom,
+  fitWidthZoom,
+  longCanvasExtent,
   edgeAnchor,
   edgeHitCursor,
   gridLineSpacing,
@@ -97,6 +99,8 @@ export interface DiagramEditorProps {
   readonly defaultFontSize?: number
   /** The canvas to draw on (default light); never changes the model. */
   readonly canvas?: CanvasMode
+  /** No zoom was chosen for this diagram yet: a long canvas (RAD) fits its width on opening. */
+  readonly fitOnOpen?: boolean
   /**
    * Shows a brief, non-blocking message to the user: why a gesture was refused (a connection the
    * rules do not allow, an element that cannot be placed there). Called at most once per gesture.
@@ -300,7 +304,19 @@ export function DiagramEditor(props: DiagramEditorProps): React.JSX.Element {
   const shown = liveLayout ?? layout
   const bounds = shown?.bounds
   const canvasWidth = canvasExtent(bounds ? bounds.left + bounds.width : 0, viewport.width, zoom)
-  const canvasHeight = canvasExtent(bounds ? bounds.top + bounds.height : 0, viewport.height, zoom)
+  const longCanvas = env ? hooksFor(env.diagram)?.longCanvas === true : false
+  const canvasHeight = (longCanvas ? longCanvasExtent : canvasExtent)(bounds ? bounds.top + bounds.height : 0, viewport.height, zoom)
+
+  // A long canvas (RAD) opened without a zoom of its own fits the width of its roles, once.
+  const fitted = useRef(false)
+  useEffect(() => {
+    if (fitted.current || !props.fitOnOpen || !longCanvas || viewport.width <= 0) return
+    const b = layout?.bounds
+    if (!b) return
+    fitted.current = true
+    const z = clampZoom(fitWidthZoom(b.left + b.width, viewport.width))
+    if (z !== targetZoom) onZoomChange(z)
+  }, [props.fitOnOpen, longCanvas, viewport.width, layout, targetZoom, onZoomChange])
 
   // ---- Coordinates.
   const toDiagram = useCallback((clientX: number, clientY: number): Point => {
