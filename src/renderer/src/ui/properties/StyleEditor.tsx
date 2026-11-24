@@ -4,10 +4,11 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
-import { setFieldsOfAll } from '../../commands'
-import { FONT_SIZES, colorIdef0Arrows, isFlowColorEdit } from '../../diagram'
-import { fieldOf, type Font, type View } from '../../model'
-import { projectStore } from '../../store'
+import { setFields, setFieldsOfAll } from '../../commands'
+import { FONT_SIZES, RAD_STYLES, colorIdef0Arrows, isFlowColorEdit, radStyleOf, type RadStyleName } from '../../diagram'
+import { fieldOf, isKindOf, type Elem, type Font, type View } from '../../model'
+import { projectStore, useProjectStore } from '../../store'
+import { compactActiveRadDiagram } from '../app/rad'
 import { reportError } from '../app/commands'
 import { parseHexColor } from './colorText'
 import { useSelectedViews } from './useSelection'
@@ -134,7 +135,70 @@ export function ColorField({ id, label, value, mixed, onCommit }: { id: string; 
   )
 }
 
+/** The RAD diagram open in the editor, or null. */
+function useActiveRadDiagram(): Elem | null {
+  useProjectStore((s) => s.version)
+  const id = useProjectStore((s) => s.activeDiagramId)
+  const repository = useProjectStore((s) => s.repository)
+  const diagram = id ? repository.get(id) : null
+  return diagram && isKindOf(diagram, 'RADDiagram') ? diagram : null
+}
+
+function setDiagramStyle(diagram: Elem, style: RadStyleName): void {
+  try {
+    setFields(projectStore.getState().engine, diagram, { diagramStyle: style }, 'Change Diagram Style')
+  } catch (err) {
+    reportError(err)
+  }
+}
+
+/**
+ * The look of the RAD diagram being edited (Classic or Colorful), stored in the diagram and undone
+ * like any change. Shown whatever is selected: it belongs to the whole diagram.
+ */
+function RadDiagramStyle({ diagram }: { diagram: Elem }): React.JSX.Element {
+  const value = radStyleOf(diagram)
+  return (
+    <div className="prop-grid" role="group" aria-label="Diagram">
+      <div className="prop-row">
+        <label className="prop-label" htmlFor="style-diagram-style">
+          Diagram style
+        </label>
+        <div className="prop-value">
+          <select id="style-diagram-style" value={value} onChange={(e) => setDiagramStyle(diagram, e.target.value as RadStyleName)}>
+            {RAD_STYLES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="prop-row">
+        <span className="prop-label" />
+        <div className="prop-value">
+          <button type="button" className="button small" data-tip="Close up the roles and the steps; keeps their order" onClick={compactActiveRadDiagram}>
+            Compact Layout
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function StyleEditor(): React.JSX.Element {
+  const rad = useActiveRadDiagram()
+  const viewStyles = <ViewStyleEditor />
+  if (!rad) return viewStyles
+  return (
+    <>
+      <RadDiagramStyle diagram={rad} />
+      {viewStyles}
+    </>
+  )
+}
+
+function ViewStyleEditor(): React.JSX.Element {
   const { views } = useSelectedViews()
   const fields = styleFieldsFor(views)
   if (views.length === 0) return <div className="empty-note">Select views on the diagram to format them.</div>

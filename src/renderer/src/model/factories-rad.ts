@@ -51,7 +51,8 @@ export interface RadNodeSpec {
 
 /** Default sizes of the RAD symbols (diagram units). */
 export const RAD_SIZES = {
-  role: [220, 360],
+  /** A first role; later ones take the height of the process (see `newRoleSize`). */
+  role: [200, 200],
   square: [24, 24],
   circle: [24, 24],
   triangle: [26, 24],
@@ -59,6 +60,9 @@ export const RAD_SIZES = {
   marker: [30, 18],
   pentagon: [26, 26]
 } as const
+
+/** Width of a new role in each diagram style. */
+const RAD_ROLE_WIDTH = { classic: 200, colorful: 240 } as const
 
 /** Horizontal distance between the circles / triangles of a refinement. */
 export const RAD_BRANCH_PITCH = 120
@@ -198,7 +202,7 @@ function refinementForBranch(kind: RadNodeKind, container: View | undefined, bou
 function nodeViewOf(spec: RadNodeSpec, model: Elem, bounds: Bounds, container: View | undefined): NodeView {
   const view = createElement<NodeView>(spec.viewType, { model, containerChangeable: true, showShadow: false, ...bounds })
   if (spec.viewType === 'RADRoleView') {
-    view.fillColor = '#c0c0c0'
+    // Colors come from the diagram style (Styles > Diagram style) until the user picks some.
     addEmbeddedLabel(view, 'nameLabel', { visible: false })
     return view
   }
@@ -255,6 +259,22 @@ export function radAutoThreadSource(role: Elem, container: View | undefined, bou
   return best
 }
 
+/**
+ * Size of a new role: as tall as the process drawn so far (down to the lowest role), so the roles
+ * of a diagram line up; a first role starts short and grows with what is placed in it.
+ */
+function newRoleSize(req: NodeRequest): readonly [number, number] {
+  const width = req.diagram['diagramStyle'] === 'colorful' ? RAD_ROLE_WIDTH.colorful : RAD_ROLE_WIDTH.classic
+  let bottom = -Infinity
+  for (const v of req.diagram.ownedViews ?? []) {
+    if (v._type !== 'RADRoleView' || v.visible === false) continue
+    const n = v as NodeView
+    bottom = Math.max(bottom, (n.top ?? 0) + (n.height ?? 0))
+  }
+  const height = Number.isFinite(bottom) ? Math.max(120, bottom - Math.round(req.top)) : RAD_SIZES.role[1]
+  return [width, height]
+}
+
 function radCanStartThread(kind: RadNodeKind): boolean {
   return kind !== 'RADCaseBranch' && kind !== 'RADPartBranch' && kind !== 'RADStartMarker' && kind !== 'RADRole'
 }
@@ -264,11 +284,12 @@ export function planRadNode(req: NodeRequest): CreationPlan | null {
   if (!isRadNodeKind(req.kind)) return null
   const kind = req.kind
   const spec = RAD_NODE_KINDS[kind]
+  const size = kind === 'RADRole' ? newRoleSize(req) : spec.size
   const bounds: Bounds = {
     left: Math.round(req.left),
     top: Math.round(req.top),
-    width: Math.round(req.width ?? spec.size[0]),
-    height: Math.round(req.height ?? spec.size[1])
+    width: Math.round(req.width ?? size[0]),
+    height: Math.round(req.height ?? size[1])
   }
   const owner = radNodeOwner(req)
   const field = spec.field

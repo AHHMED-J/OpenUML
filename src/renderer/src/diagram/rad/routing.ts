@@ -7,7 +7,7 @@ import { isKindOf, type EdgeView, type View } from '../../model'
 import type { Point, Rect } from '../core'
 import { edgesAt } from '../layout/passIndex'
 import type { LayoutContext } from '../layout/types'
-import { RAD_GEOMETRY } from './layout'
+import { radLookOf } from './layout'
 
 const RAD_ROUTING = {
   /** The bus runs this far above the top of its target. */
@@ -59,7 +59,7 @@ export function loopLaneX(view: View | null | undefined, ctx: LayoutContext): nu
   }
   const own = boxOf(view, ctx)
   if (own && own.left < left) left = own.left
-  return left - RAD_GEOMETRY.loopLane
+  return left - radLookOf(ctx).g.loopLane
 }
 
 /** The y of the bus collecting every forward line that ends at `edge.head`. */
@@ -73,8 +73,9 @@ function busLevel(edge: EdgeView, ctx: LayoutContext): number {
     if (ob) lowest = Math.max(lowest, bottom(ob))
   }
   let y = Math.min(hb.top - RAD_ROUTING.busOffset, lowest + RAD_ROUTING.busDrop)
-  // Not enough room below the sources: use the middle of the gap, or just below the lowest source.
-  if (y < bottom(own) + 4) y = hb.top > bottom(own) + 8 ? (bottom(own) + hb.top) / 2 : bottom(own) + 10
+  // Not enough room below the sources: the middle of the gap under the lowest source, or just
+  // below it. Measured from the lowest source, so every line into the target shares one bus.
+  if (y < lowest + 4) y = hb.top > lowest + 8 ? (lowest + hb.top) / 2 : lowest + 10
   return Math.round(y)
 }
 

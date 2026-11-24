@@ -14,6 +14,7 @@ import { uiStore } from '../uiStore'
 import { registerAppCommands } from './appCommands'
 import { registerAssociationEndCommands } from './associationEnds'
 import { registerIdef0 } from './idef0'
+import { registerRad } from './rad'
 import { bridge, isTextInputFocused, isWeb, platform } from './bridge'
 
 export const registry = new CommandRegistry()
@@ -57,6 +58,7 @@ export function initCommands(): void {
     if (command.id !== Cmd.fileNew && !registry.has(command.id)) registry.register(command)
   }
   registerIdef0(registry)
+  registerRad(registry)
   registerAssociationEndCommands(registry)
   registerAppCommands(registry)
   applyKeybindings(uiStore.getState().keybindings)

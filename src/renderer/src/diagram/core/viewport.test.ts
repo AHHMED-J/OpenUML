@@ -3,6 +3,9 @@ import { rect } from './geometry'
 import { GRID, ZOOM } from './style'
 import {
   canvasExtent,
+  fitWidthZoom,
+  longCanvasExtent,
+  LONG_CANVAS_MIN_OPEN_ZOOM,
   clampZoom,
   exportBounds,
   gridLineSpacing,
@@ -76,5 +79,34 @@ describe('canvasExtent', () => {
   it('adds scroll room beyond content that does not fit', () => {
     expect(canvasExtent(1500, 1000, 1)).toBe(1900)
     expect(canvasExtent(100, 0, 1)).toBe(500)
+  })
+})
+
+describe('longCanvasExtent (RAD)', () => {
+  it('is at least three screens tall, at any zoom, for a new diagram', () => {
+    expect(longCanvasExtent(0, 800, 1)).toBe(2400)
+    // Three screens of 800 px at 50% are 4800 diagram units: still three screens on screen.
+    expect(longCanvasExtent(0, 800, 0.5) * 0.5).toBe(2400)
+  })
+
+  it('always keeps 600 screen pixels below the content', () => {
+    expect(longCanvasExtent(5000, 800, 1)).toBe(5600)
+    expect((longCanvasExtent(5000, 800, 0.5) - 5000) * 0.5).toBe(600)
+    expect((longCanvasExtent(5000, 800, 2) - 5000) * 2).toBeGreaterThanOrEqual(600)
+  })
+})
+
+describe('fitWidthZoom', () => {
+  it('fits the content width into the viewport, never above 100%', () => {
+    expect(fitWidthZoom(1500, 1000)).toBeCloseTo(980 / 1510, 10)
+    expect(fitWidthZoom(300, 1000)).toBe(1)
+  })
+
+  it('opens a long canvas no smaller than a readable zoom; wider content scrolls sideways', () => {
+    // 1500 wide in 1000 px would fit at 65%: the RAD opens at 80% instead.
+    expect(fitWidthZoom(1500, 1000, LONG_CANVAS_MIN_OPEN_ZOOM)).toBe(0.8)
+    // Content that fits between 80% and 100% still fits its width.
+    expect(fitWidthZoom(1100, 1000, LONG_CANVAS_MIN_OPEN_ZOOM)).toBeCloseTo(980 / 1110, 10)
+    expect(fitWidthZoom(300, 1000, LONG_CANVAS_MIN_OPEN_ZOOM)).toBe(1)
   })
 })
